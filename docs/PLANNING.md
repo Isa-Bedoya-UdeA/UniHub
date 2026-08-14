@@ -1478,7 +1478,7 @@ Compose
 Navigation
 Theme
 DI
-Crear Issues en Github
+Crear Issues en Github para todas las milestones
 ```
 
 **Objetivo:** tener diseño y arquitectura suficientemente definidos para comenzar la implementación.
