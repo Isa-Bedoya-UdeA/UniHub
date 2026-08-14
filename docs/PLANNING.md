@@ -1441,7 +1441,6 @@ Calculate Academic Summary
 Problem definition
 Requirements
 Scope definition
-User personas
 User journeys
 Functional requirements
 Non-functional requirements
@@ -1479,6 +1478,7 @@ Compose
 Navigation
 Theme
 DI
+Crear Issues en Github
 ```
 
 **Objetivo:** tener diseño y arquitectura suficientemente definidos para comenzar la implementación.
@@ -1814,6 +1814,7 @@ Generar:
 
 ```text
 Screenshots
+Video Demo
 Architecture diagrams
 Component diagrams
 Final ERD
@@ -2084,7 +2085,7 @@ No se dockerizará Android Studio ni la aplicación Android.
 ## 22. Stack
 
 | Área            | Tecnología                                           |
-| --------------- | ---------------------------------------------------- |
+| --------------- |------------------------------------------------------|
 | Language        | Kotlin                                               |
 | Android         | Android SDK                                          |
 | UI              | Jetpack Compose                                      |
@@ -2109,7 +2110,7 @@ No se dockerizará Android Studio ni la aplicación Android.
 | Testing         | JUnit + MockK + Compose UI Testing                   |
 | Version Control | Git + GitHub                                         |
 | Design          | Figma                                                |
-| Diagrams        | Draw.io                                              |
+| Diagrams        | LucidChart                                        |
 | USM             | Excalidraw                                           |
 | Documentation   | Markdown                                             |
 
