@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.unihub.app.ui.theme.UniHubTheme
+import com.unihub.app.core.designsystem.theme.UniHubTheme
 
 enum class UniHubButtonVariant {
     Primary,

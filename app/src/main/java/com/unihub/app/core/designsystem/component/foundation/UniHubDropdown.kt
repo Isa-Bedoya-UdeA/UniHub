@@ -12,7 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.unihub.app.ui.theme.UniHubTheme
+import com.unihub.app.core.designsystem.theme.UniHubTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

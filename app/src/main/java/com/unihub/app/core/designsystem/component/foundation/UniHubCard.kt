@@ -9,7 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.unihub.app.ui.theme.UniHubTheme
+import com.unihub.app.core.designsystem.theme.UniHubTheme
 
 @Composable
 fun UniHubCard(
