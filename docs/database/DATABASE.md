@@ -6,7 +6,7 @@
 |----------------|---------------------------|
 | Project        | UniHub                    |
 | Document       | Database                  |
-| Version        | 0.1                       |
+| Version        | 0.2                       |
 | Status         | Initial Design            |
 | Persistence    | Room + Firebase Firestore |
 | Local database | SQLite through Room       |
@@ -14,17 +14,15 @@
 
 ## 2. Purpose
 
-This document defines the initial data model and persistence strategy for UniHub.
+This document defines the relational data model and persistence strategy for UniHub.
 
-The relational model is designed for the local Room database and represents the entities, attributes, keys, constraints, and cardinalities required by the current product scope. The cloud model uses Firebase Firestore and therefore does not reproduce the relational schema literally.
+The relational model is designed for Room and describes the entities, attributes, keys, constraints, cardinalities, and referential relationships required by the current product scope.
 
-The model covers the current academic core of the application: users, academic periods, subjects, events, locations, tasks, grades, and tags.
+The Firestore model represents the same application data as user-owned documents and is intentionally not a literal copy of the relational schema.
 
-The design is versioned and may evolve as implementation, synchronization requirements, and testing provide new information.
+The model includes academic periods, subjects, events, recurring event rules, locations, tasks, grades, and tags.
 
 ## 3. Persistence Strategy
-
-UniHub uses two persistence mechanisms with different responsibilities.
 
 | Storage                 | Role                                       | Data model               |
 |-------------------------|--------------------------------------------|--------------------------|
@@ -32,31 +30,46 @@ UniHub uses two persistence mechanisms with different responsibilities.
 | Firebase Firestore      | Cloud persistence and synchronization      | Document-oriented        |
 | Firebase Authentication | Authentication and identity                | Managed identity service |
 
-Room is the relational source for the application's local data access layer. Firestore is the cloud representation of user-owned data and should be treated as a document model rather than as a SQL database.
+The authenticated Firebase UID is used as the stable application `User.user_id`.
 
-Authentication identity is managed by Firebase Authentication. The authenticated Firebase UID is used as the stable user identifier when associating cloud data with a user.
+Room entities are persistence representations. Domain models must not be exposed directly from the infrastructure layer to the presentation layer.
 
 ## 4. Relational Model
 
 ### 4.1 Design Conventions
 
-Relational entities and Room table names use singular PascalCase naming. Firestore collection names are intentionally plural because they represent document collections, not relational tables.
+Relational entities use singular PascalCase names.
 
-The Room relational model follows these conventions:
+```text
+User
+AcademicPeriod
+Subject
+Event
+RecurrenceRule
+RecurrenceDay
+Location
+Task
+Grade
+Tag
+EventTag
+TaskTag
+```
 
-- Primary keys use `TEXT` identifiers generated as UUIDs unless otherwise specified.
-- Foreign keys use the same `TEXT` type as the referenced primary key.
+The following conventions apply:
+
+- Primary keys use `TEXT` identifiers.
+- Foreign keys use the same `TEXT` type as their referenced primary key.
 - Required attributes are `NOT NULL`.
 - Optional attributes are nullable.
-- Dates and times use a consistent application representation and are converted through Room converters where necessary.
+- Date and date-time values use ISO-8601-compatible `TEXT` representations.
+- Time-only values use `TEXT` in `HH:mm` format.
 - Boolean values use Room-supported Boolean mapping.
-- Enumerated states are represented as controlled string values or Kotlin enums converted by Room.
-- Many-to-many relationships are represented through associative tables.
-- Domain models are not used directly as Room entities.
+- Enumerated states use controlled string values or Kotlin enums converted by Room.
+- Many-to-many relationships use associative entities.
+- Recurrence days are normalized into a separate entity instead of storing multiple weekdays in one column.
+- Domain models are mapped to and from Room entities through mappers.
 
 ### 4.2 `User`
-
-Represents the local application profile associated with an authenticated Firebase user.
 
 | Column              | Type | Constraints  | Description                                         |
 |---------------------|------|--------------|-----------------------------------------------------|
@@ -64,14 +77,15 @@ Represents the local application profile associated with an authenticated Fireba
 | `name`              | TEXT | NOT NULL     | User display name                                   |
 | `email`             | TEXT | NOT NULL     | User email                                          |
 | `profile_image_url` | TEXT | NULL         | Profile image URL                                   |
-| `created_at`        | TEXT | NOT NULL     | Profile creation timestamp                          |
-| `updated_at`        | TEXT | NOT NULL     | Last profile update timestamp                       |
+| `created_at`        | TEXT | NOT NULL     | Creation timestamp                                  |
+| `updated_at`        | TEXT | NOT NULL     | Last update timestamp                               |
 
 **Relationships**
 
 - `User` 1 — 0..N `AcademicPeriod`
 - `User` 1 — 0..N `Subject`
 - `User` 1 — 0..N `Event`
+- `User` 1 — 0..N `RecurrenceRule`
 - `User` 1 — 0..N `Location`
 - `User` 1 — 0..N `Task`
 - `User` 1 — 0..N `Grade`
@@ -79,18 +93,18 @@ Represents the local application profile associated with an authenticated Fireba
 
 ### 4.3 `AcademicPeriod`
 
-Represents an academic period in which subjects are taken.
+Represents an academic period, normally a university semester.
 
-| Column               | Type    | Constraints  | Description                            |
-|----------------------|---------|--------------|----------------------------------------|
-| `academic_period_id` | TEXT    | PK, NOT NULL | Unique period identifier               |
-| `user_id`            | TEXT    | FK, NOT NULL | Owner                                  |
-| `name`               | TEXT    | NOT NULL     | Period name                            |
-| `start_date`         | TEXT    | NOT NULL     | Period start date                      |
-| `end_date`           | TEXT    | NOT NULL     | Period end date                        |
-| `is_current`         | INTEGER | NOT NULL     | Whether the period is currently active |
-| `created_at`         | TEXT    | NOT NULL     | Creation timestamp                     |
-| `updated_at`         | TEXT    | NOT NULL     | Last update timestamp                  |
+| Column               | Type    | Constraints  | Description                                        |
+|----------------------|---------|--------------|----------------------------------------------------|
+| `academic_period_id` | TEXT    | PK, NOT NULL | Unique period identifier                           |
+| `user_id`            | TEXT    | FK, NOT NULL | Owner                                              |
+| `name`               | TEXT    | NOT NULL     | Period name, such as `2026-2`                      |
+| `start_date`         | TEXT    | NOT NULL     | Period start date                                  |
+| `end_date`           | TEXT    | NOT NULL     | Period end date                                    |
+| `is_current`         | INTEGER | NOT NULL     | Whether this is the user's current academic period |
+| `created_at`         | TEXT    | NOT NULL     | Creation timestamp                                 |
+| `updated_at`         | TEXT    | NOT NULL     | Last update timestamp                              |
 
 **Relationships**
 
@@ -99,9 +113,9 @@ Represents an academic period in which subjects are taken.
 - `AcademicPeriod` 1 — 0..N `Event`
 - `AcademicPeriod` 1 — 0..N `Task`
 
-### 4.4 `Subject`
+Previous academic periods are preserved when a new period becomes current.
 
-Represents a university subject.
+### 4.4 `Subject`
 
 | Column               | Type    | Constraints  | Description                    |
 |----------------------|---------|--------------|--------------------------------|
@@ -109,7 +123,7 @@ Represents a university subject.
 | `user_id`            | TEXT    | FK, NOT NULL | Owner                          |
 | `academic_period_id` | TEXT    | FK, NOT NULL | Academic period                |
 | `name`               | TEXT    | NOT NULL     | Subject name                   |
-| `code`               | TEXT    | NULL         | Subject code                   |
+| `code`               | TEXT    | NULL         | University subject code        |
 | `credits`            | INTEGER | NULL         | Academic credits               |
 | `professor`          | TEXT    | NULL         | Professor name                 |
 | `color`              | TEXT    | NULL         | User/interface color reference |
@@ -125,11 +139,7 @@ Represents a university subject.
 - `Subject` 1 — 0..N `Task`
 - `Subject` 1 — 0..N `Grade`
 
-A subject may exist without events, tasks, or grades.
-
 ### 4.5 `Location`
-
-Represents a reusable physical location associated with an event.
 
 | Column        | Type | Constraints  | Description                              |
 |---------------|------|--------------|------------------------------------------|
@@ -146,76 +156,218 @@ Represents a reusable physical location associated with an event.
 **Relationships**
 
 - `User` 1 — 0..N `Location`
-- `Location` 1 — 0..N `Event`
+- `Location` 0..1 — 0..N `Event`
 
-A location may be stored independently so that the same physical location can be reused by multiple events.
+The same physical location can be reused by multiple events.
 
 ### 4.6 `Event`
 
-Represents academic or personal calendar events.
+Represents an individual calendar event or the event definition from which recurring occurrences are calculated.
 
-| Column               | Type | Constraints  | Description                |
-|----------------------|------|--------------|----------------------------|
-| `event_id`           | TEXT | PK, NOT NULL | Unique event identifier    |
-| `user_id`            | TEXT | FK, NOT NULL | Owner                      |
-| `academic_period_id` | TEXT | FK, NULL     | Optional academic period   |
-| `subject_id`         | TEXT | FK, NULL     | Optional subject           |
-| `location_id`        | TEXT | FK, NULL     | Optional physical location |
-| `title`              | TEXT | NOT NULL     | Event name                 |
-| `start_at`           | TEXT | NOT NULL     | Start date and time        |
-| `end_at`             | TEXT | NOT NULL     | End date and time          |
-| `location_type`      | TEXT | NOT NULL     | Physical, remote, or none  |
-| `meeting_url`        | TEXT | NULL         | Remote meeting URL         |
-| `notes`              | TEXT | NULL         | Additional notes           |
-| `created_at`         | TEXT | NOT NULL     | Creation timestamp         |
-| `updated_at`         | TEXT | NOT NULL     | Last update timestamp      |
+| Column               | Type | Constraints      | Description                                         |
+|----------------------|------|------------------|-----------------------------------------------------|
+| `event_id`           | TEXT | PK, NOT NULL     | Unique event identifier                             |
+| `user_id`            | TEXT | FK, NOT NULL     | Owner                                               |
+| `academic_period_id` | TEXT | FK, NULL         | Optional academic period                            |
+| `subject_id`         | TEXT | FK, NULL         | Optional subject                                    |
+| `location_id`        | TEXT | FK, NULL         | Optional physical location                          |
+| `recurrence_rule_id` | TEXT | FK, NULL, UNIQUE | Optional recurrence rule                            |
+| `title`              | TEXT | NOT NULL         | Event name                                          |
+| `start_at`           | TEXT | NOT NULL         | Start date and time of the first or only occurrence |
+| `end_at`             | TEXT | NOT NULL         | End date and time of the first or only occurrence   |
+| `location_type`      | TEXT | NOT NULL         | `PHYSICAL`, `REMOTE`, or `NONE`                     |
+| `meeting_url`        | TEXT | NULL             | Remote meeting URL                                  |
+| `notes`              | TEXT | NULL             | Additional notes                                    |
+| `created_at`         | TEXT | NOT NULL         | Creation timestamp                                  |
+| `updated_at`         | TEXT | NOT NULL         | Last update timestamp                               |
 
 **Relationships**
 
 - `User` 1 — 0..N `Event`
-- `AcademicPeriod` 1 — 0..N `Event`
-- `Subject` 1 — 0..N `Event`
+- `AcademicPeriod` 0..1 — 0..N `Event`
+- `Subject` 0..1 — 0..N `Event`
 - `Location` 0..1 — 0..N `Event`
+- `RecurrenceRule` 0..1 — 0..1 `Event`
 
-An event may have no subject, no academic period, and no location. A remote event may use `meeting_url` instead of `location_id`.
+An event may be personal or academic and may have no subject, academic period, or physical location.
 
-### 4.7 `Task`
+A physical event uses `location_id`.
 
-Represents an academic task or deadline.
+A remote event may use `meeting_url` instead of `location_id`.
 
-| Column               | Type | Constraints  | Description                        |
-|----------------------|------|--------------|------------------------------------|
-| `task_id`            | TEXT | PK, NOT NULL | Unique task identifier             |
-| `user_id`            | TEXT | FK, NOT NULL | Owner                              |
-| `academic_period_id` | TEXT | FK, NULL     | Optional academic period           |
-| `subject_id`         | TEXT | FK, NULL     | Optional subject                   |
-| `title`              | TEXT | NOT NULL     | Task title                         |
-| `description`        | TEXT | NULL         | Task description                   |
-| `due_at`             | TEXT | NULL         | Deadline                           |
-| `priority`           | TEXT | NOT NULL     | Low, medium, or high               |
-| `status`             | TEXT | NOT NULL     | Pending, in progress, or completed |
-| `notes`              | TEXT | NULL         | Additional notes                   |
-| `created_at`         | TEXT | NOT NULL     | Creation timestamp                 |
-| `updated_at`         | TEXT | NOT NULL     | Last update timestamp              |
+For a recurring event, subsequent occurrences are calculated from the associated `RecurrenceRule`.
+
+### 4.7 `RecurrenceRule`
+
+Represents the recurrence configuration of an event.
+
+| Column               | Type    | Constraints  | Description                                   |
+|----------------------|---------|--------------|-----------------------------------------------|
+| `recurrence_rule_id` | TEXT    | PK, NOT NULL | Unique recurrence rule identifier             |
+| `user_id`            | TEXT    | FK, NOT NULL | Owner                                         |
+| `frequency`          | TEXT    | NOT NULL     | `DAILY` or `WEEKLY`                           |
+| `interval`           | INTEGER | NOT NULL     | Number of frequency units between repetitions |
+| `start_date`         | TEXT    | NOT NULL     | First date included in the recurrence         |
+| `end_date`           | TEXT    | NOT NULL     | Last date included in the recurrence          |
+| `created_at`         | TEXT    | NOT NULL     | Creation timestamp                            |
+| `updated_at`         | TEXT    | NOT NULL     | Last update timestamp                         |
+
+Supported recurrence UI:
+
+```text
+Does not repeat
+Every day
+Every week
+Custom
+```
+
+`Every week` and `Custom` use `WEEKLY`. `Custom` additionally defines selected weekdays through `RecurrenceDay`.
+
+**Relationships**
+
+- `User` 1 — 0..N `RecurrenceRule`
+- `RecurrenceRule` 1 — 1 `Event`
+- `RecurrenceRule` 1 — 1..N `RecurrenceDay`
+
+The rule does not duplicate the event title, subject, location, notes, or time.
+
+### 4.8 `RecurrenceDay`
+
+Represents one weekday selected by a weekly recurrence rule.
+
+| Column               | Type    | Constraints      | Description                    |
+|----------------------|---------|------------------|--------------------------------|
+| `recurrence_rule_id` | TEXT    | PK, FK, NOT NULL | Recurrence rule                |
+| `day_of_week`        | INTEGER | PK, NOT NULL     | ISO weekday number from 1 to 7 |
+
+```text
+1 = Monday
+2 = Tuesday
+3 = Wednesday
+4 = Thursday
+5 = Friday
+6 = Saturday
+7 = Sunday
+```
+
+**Relationships**
+
+- `RecurrenceRule` 1 — 1..N `RecurrenceDay`
+
+The composite primary key `(recurrence_rule_id, day_of_week)` prevents duplicate weekdays.
+
+Daily recurrence does not require weekday rows.
+
+### 4.9 Recurring Event Example
+
+The user input:
+
+```text
+Create Event
+
+Title
+Computación Móvil
+
+Subject
+Computación Móvil
+
+When
+Aug 3, 2026
+
+Time
+4:00 PM → 6:00 PM
+
+Repeat
+Custom
+
+Repeat every
+Week
+
+On
+Tuesday
+Thursday
+Saturday
+
+From
+Aug 3, 2026
+
+Until
+Dec 6, 2026
+
+Location
+UdeA — Bloque XX
+
+Notes
+...
+```
+
+is represented by one event definition and one recurrence rule:
+
+```text
+Event
+    title = "Computación Móvil"
+    start_at = "2026-08-04T16:00:00-05:00"
+    end_at = "2026-08-04T18:00:00-05:00"
+    subject_id = ...
+    location_id = ...
+    recurrence_rule_id = ...
+
+RecurrenceRule
+    frequency = "WEEKLY"
+    interval = 1
+    start_date = "2026-08-03"
+    end_date = "2026-12-06"
+
+RecurrenceDay
+    Tuesday
+    Thursday
+    Saturday
+```
+
+The application calculates occurrences such as:
+
+```text
+Tue 04/08 16:00–18:00
+Thu 06/08 16:00–18:00
+Sat 08/08 16:00–18:00
+...
+```
+
+The recurrence pattern is stored once rather than creating one database row for every occurrence.
+
+If different weekdays require different times, they are represented by separate event definitions and recurrence rules.
+
+### 4.10 `Task`
+
+| Column               | Type | Constraints  | Description                              |
+|----------------------|------|--------------|------------------------------------------|
+| `task_id`            | TEXT | PK, NOT NULL | Unique task identifier                   |
+| `user_id`            | TEXT | FK, NOT NULL | Owner                                    |
+| `academic_period_id` | TEXT | FK, NULL     | Optional academic period                 |
+| `subject_id`         | TEXT | FK, NULL     | Optional subject                         |
+| `title`              | TEXT | NOT NULL     | Task title                               |
+| `description`        | TEXT | NULL         | Task description                         |
+| `due_at`             | TEXT | NULL         | Deadline                                 |
+| `priority`           | TEXT | NOT NULL     | `LOW`, `MEDIUM`, or `HIGH`               |
+| `status`             | TEXT | NOT NULL     | `PENDING`, `IN_PROGRESS`, or `COMPLETED` |
+| `notes`              | TEXT | NULL         | Additional notes                         |
+| `created_at`         | TEXT | NOT NULL     | Creation timestamp                       |
+| `updated_at`         | TEXT | NOT NULL     | Last update timestamp                    |
 
 **Relationships**
 
 - `User` 1 — 0..N `Task`
-- `AcademicPeriod` 1 — 0..N `Task`
-- `Subject` 1 — 0..N `Task`
+- `AcademicPeriod` 0..1 — 0..N `Task`
+- `Subject` 0..1 — 0..N `Task`
 
-A task may exist without a subject.
-
-### 4.8 `Grade`
-
-Represents an evaluation or grade registered for a subject.
+### 4.11 `Grade`
 
 | Column       | Type | Constraints  | Description                 |
 |--------------|------|--------------|-----------------------------|
 | `grade_id`   | TEXT | PK, NOT NULL | Unique grade identifier     |
 | `user_id`    | TEXT | FK, NOT NULL | Owner                       |
 | `subject_id` | TEXT | FK, NOT NULL | Subject receiving the grade |
-| `name`       | TEXT | NOT NULL     | Evaluation name or type     |
+| `name`       | TEXT | NOT NULL     | Evaluation name             |
 | `value`      | REAL | NOT NULL     | Grade value                 |
 | `weight`     | REAL | NOT NULL     | Evaluation weight           |
 | `notes`      | TEXT | NULL         | Additional notes            |
@@ -227,13 +379,7 @@ Represents an evaluation or grade registered for a subject.
 - `User` 1 — 0..N `Grade`
 - `Subject` 1 — 0..N `Grade`
 
-A grade cannot exist without a subject.
-
-The grade simulator does not require a persistent `grade_simulations` table in the initial model because its calculations are deterministic application logic based on existing grades, weights, and user-provided target values.
-
-### 4.9 `Tag`
-
-Represents a reusable tag that can be assigned to events and tasks.
+### 4.12 `Tag`
 
 | Column       | Type | Constraints  | Description           |
 |--------------|------|--------------|-----------------------|
@@ -245,90 +391,77 @@ Represents a reusable tag that can be assigned to events and tasks.
 **Relationships**
 
 - `User` 1 — 0..N `Tag`
-- `Event` N — 0..N `Tag` through `EventTag`
-- `Task` N — 0..N `Tag` through `TaskTag`
+- `Event` 0..N — 0..N `Tag` through `EventTag`
+- `Task` 0..N — 0..N `Tag` through `TaskTag`
 
-### 4.10 `EventTag`
-
-Associative table for the many-to-many relationship between events and tags.
+### 4.13 `EventTag`
 
 | Column     | Type | Constraints      | Description      |
 |------------|------|------------------|------------------|
 | `event_id` | TEXT | PK, FK, NOT NULL | Event identifier |
 | `tag_id`   | TEXT | PK, FK, NOT NULL | Tag identifier   |
 
-**Relationships**
+The composite primary key `(event_id, tag_id)` prevents duplicate tag assignments.
 
-- `Event` 1 — 0..N `EventTag`
-- `Tag` 1 — 0..N `EventTag`
-
-The composite primary key `(event_id, tag_id)` prevents the same tag from being assigned to the same event more than once.
-
-### 4.11 `TaskTag`
-
-Associative table for the many-to-many relationship between tasks and tags.
+### 4.14 `TaskTag`
 
 | Column    | Type | Constraints      | Description     |
 |-----------|------|------------------|-----------------|
 | `task_id` | TEXT | PK, FK, NOT NULL | Task identifier |
 | `tag_id`  | TEXT | PK, FK, NOT NULL | Tag identifier  |
 
-**Relationships**
-
-- `Task` 1 — 0..N `TaskTag`
-- `Tag` 1 — 0..N `TaskTag`
-
-The composite primary key `(task_id, tag_id)` prevents the same tag from being assigned to the same task more than once.
+The composite primary key `(task_id, tag_id)` prevents duplicate tag assignments.
 
 ## 5. Relational Relationships Summary
 
-| Relationship              | Cardinality | Foreign key                  |
-|---------------------------|-------------|------------------------------|
-| User → Academic Period    | 1 : 0..N    | `AcademicPeriod.user_id`     |
-| User → Subject            | 1 : 0..N    | `Subject.user_id`            |
-| Academic Period → Subject | 1 : 0..N    | `Subject.academic_period_id` |
-| User → Event              | 1 : 0..N    | `Event.user_id`              |
-| Academic Period → Event   | 1 : 0..N    | `Event.academic_period_id`   |
-| Subject → Event           | 1 : 0..N    | `Event.subject_id`           |
-| User → Location           | 1 : 0..N    | `Location.user_id`           |
-| Location → Event          | 0..1 : 0..N | `Event.location_id`          |
-| User → Task               | 1 : 0..N    | `Task.user_id`               |
-| Academic Period → Task    | 1 : 0..N    | `Task.academic_period_id`    |
-| Subject → Task            | 1 : 0..N    | `Task.subject_id`            |
-| User → Grade              | 1 : 0..N    | `Grade.user_id`              |
-| Subject → Grade           | 1 : 0..N    | `Grade.subject_id`           |
-| User → Tag                | 1 : 0..N    | `Tag.user_id`                |
-| Event → Tag               | 0..N : 0..N | `EventTag`                   |
-| Task → Tag                | 0..N : 0..N | `TaskTag`                    |
+| Relationship                       | Cardinality | Foreign key                        |
+|------------------------------------|------------:|------------------------------------|
+| `User` → `AcademicPeriod`          |    1 : 0..N | `AcademicPeriod.user_id`           |
+| `User` → `Subject`                 |    1 : 0..N | `Subject.user_id`                  |
+| `AcademicPeriod` → `Subject`       |    1 : 0..N | `Subject.academic_period_id`       |
+| `User` → `Event`                   |    1 : 0..N | `Event.user_id`                    |
+| `AcademicPeriod` → `Event`         | 0..1 : 0..N | `Event.academic_period_id`         |
+| `Subject` → `Event`                | 0..1 : 0..N | `Event.subject_id`                 |
+| `Location` → `Event`               | 0..1 : 0..N | `Event.location_id`                |
+| `User` → `RecurrenceRule`          |    1 : 0..N | `RecurrenceRule.user_id`           |
+| `RecurrenceRule` → `Event`         |       1 : 1 | `Event.recurrence_rule_id`         |
+| `RecurrenceRule` → `RecurrenceDay` |    1 : 1..N | `RecurrenceDay.recurrence_rule_id` |
+| `User` → `Location`                |    1 : 0..N | `Location.user_id`                 |
+| `User` → `Task`                    |    1 : 0..N | `Task.user_id`                     |
+| `AcademicPeriod` → `Task`          | 0..1 : 0..N | `Task.academic_period_id`          |
+| `Subject` → `Task`                 | 0..1 : 0..N | `Task.subject_id`                  |
+| `User` → `Grade`                   |    1 : 0..N | `Grade.user_id`                    |
+| `Subject` → `Grade`                |    1 : 0..N | `Grade.subject_id`                 |
+| `User` → `Tag`                     |    1 : 0..N | `Tag.user_id`                      |
+| `Event` → `EventTag`               |    1 : 0..N | `EventTag.event_id`                |
+| `Tag` → `EventTag`                 |    1 : 0..N | `EventTag.tag_id`                  |
+| `Task` → `TaskTag`                 |    1 : 0..N | `TaskTag.task_id`                  |
+| `Tag` → `TaskTag`                  |    1 : 0..N | `TaskTag.tag_id`                   |
 
 ## 6. Referential Integrity
 
-Room should enforce foreign-key relationships wherever the local model requires them.
+| Parent           | Child               | Recommended behavior           |
+|------------------|---------------------|--------------------------------|
+| `User`           | User-owned entities | Controlled account cleanup     |
+| `AcademicPeriod` | `Subject`           | RESTRICT / controlled deletion |
+| `AcademicPeriod` | `Event`             | SET NULL                       |
+| `AcademicPeriod` | `Task`              | SET NULL                       |
+| `Subject`        | `Event`             | SET NULL                       |
+| `Subject`        | `Task`              | SET NULL                       |
+| `Subject`        | `Grade`             | RESTRICT / controlled deletion |
+| `Location`       | `Event`             | SET NULL                       |
+| `RecurrenceRule` | `Event`             | CASCADE                        |
+| `RecurrenceRule` | `RecurrenceDay`     | CASCADE                        |
+| `Event`          | `EventTag`          | CASCADE                        |
+| `Task`           | `TaskTag`           | CASCADE                        |
+| `Tag`            | `EventTag`          | CASCADE                        |
+| `Tag`            | `TaskTag`           | CASCADE                        |
 
-| Parent         | Child                   | Recommended behavior                  |
-|----------------|-------------------------|---------------------------------------|
-| User           | All user-owned entities | CASCADE or controlled account cleanup |
-| AcademicPeriod | Subject                 | RESTRICT / controlled deletion        |
-| AcademicPeriod | Event                   | SET NULL                              |
-| AcademicPeriod | Task                    | SET NULL                              |
-| Subject        | Event                   | SET NULL                              |
-| Subject        | Task                    | SET NULL                              |
-| Subject        | Grade                   | RESTRICT or controlled deletion       |
-| Location       | Event                   | SET NULL                              |
-| Event          | EventTag                | CASCADE                               |
-| Task           | TaskTag                 | CASCADE                               |
-| Tag            | EventTag                | CASCADE                               |
-| Tag            | TaskTag                 | CASCADE                               |
-
-The exact Room `onDelete` behavior should be validated against the final UX for deletion. In particular, deleting a subject must not silently delete academic grades unless that behavior is explicitly confirmed.
+Deleting an academic period must not delete historical grades or unrelated personal information.
 
 ## 7. Room Implementation
 
-The relational model will be implemented with Room.
-
-### 7.1 Package Location
-
-Feature-specific Room entities and DAOs belong inside the corresponding feature's infrastructure layer:
+Feature-specific Room entities and DAOs belong inside the corresponding feature's infrastructure layer.
 
 ```text
 com.unihub.app/
@@ -345,11 +478,7 @@ com.unihub.app/
                         └── XxxEntity.kt
 ```
 
-The feature-oriented architecture prevents the database model from becoming a global package unrelated to the feature that owns the data.
-
-### 7.2 Mapping
-
-The persistence flow is:
+Persistence mapping:
 
 ```text
 Room Entity
@@ -383,282 +512,196 @@ Room Entity
 DAO
 ```
 
-Room entities must not be exposed directly to the presentation layer.
+Recurring occurrences are calculated by application logic from the `Event`, `RecurrenceRule`, `RecurrenceDay` records, and requested calendar date range.
 
 ## 8. Firestore Document Model
 
-Firestore uses a document-oriented structure and therefore does not require the same tables, foreign keys, or join tables as Room.
-
-The initial cloud model is organized by authenticated user:
+Firestore is document-oriented and does not reproduce the Room schema literally.
 
 ```text
 users/
     {userId}/
         profile/
-            name
-            email
-            profileImageUrl
-            createdAt
-            updatedAt
+            ...
 
         academicPeriods/
             {academicPeriodId}/
-                name
-                startDate
-                endDate
-                isCurrent
-                createdAt
-                updatedAt
+                ...
 
         subjects/
             {subjectId}/
-                academicPeriodId
-                name
-                code
-                credits
-                professor
-                color
-                notes
-                createdAt
-                updatedAt
-
-        locations/
-            {locationId}/
-                name
-                address
-                latitude
-                longitude
-                placeId
-                createdAt
-                updatedAt
+                ...
 
         events/
             {eventId}/
-                academicPeriodId
-                subjectId
-                locationId
-                title
-                startAt
-                endAt
-                locationType
-                meetingUrl
-                notes
-                tags
-                createdAt
-                updatedAt
+                ...
+
+        recurrenceRules/
+            {recurrenceRuleId}/
+                days/
+                    {dayId}/
+                        ...
+
+        locations/
+            {locationId}/
+                ...
 
         tasks/
             {taskId}/
-                academicPeriodId
-                subjectId
-                title
-                description
-                dueAt
-                priority
-                status
-                tags
-                notes
-                createdAt
-                updatedAt
+                ...
 
         grades/
             {gradeId}/
-                subjectId
-                name
-                value
-                weight
-                notes
-                createdAt
-                updatedAt
+                ...
+
+        tags/
+            {tagId}/
+                ...
 ```
 
-Tags are embedded as identifiers or lightweight values inside event and task documents in the initial Firestore model. The relational `event_tags` and `task_tags` tables are therefore not reproduced as Firestore collections.
+A recurring event stores its recurrence definition once. The calendar calculates occurrences for the requested date range.
 
-## 9. Firestore Ownership and Security
+Firestore may denormalize selected read-optimized fields where necessary, provided synchronization rules remain explicit.
 
-All cloud academic data belongs to an authenticated user.
+## 9. Date and Time Representation
 
-The intended ownership boundary is:
+SQLite does not provide a dedicated native `DATE` or `DATETIME` storage class. UniHub therefore uses `TEXT` with standardized ISO-8601-compatible representations.
+
+Date:
 
 ```text
-Authenticated Firebase UID
-        ↓
-users/{userId}
-        ↓
-User-owned subcollections
-        ↓
-Academic data
+2026-08-03
 ```
 
-Firestore Security Rules must ensure that a user can only read or modify documents belonging to their own user scope.
-
-The cloud model must not rely solely on the Android UI to enforce ownership.
-
-Authentication is handled by Firebase Authentication, while Firestore stores application data associated with the authenticated UID.
-
-## 10. Local and Cloud Synchronization
-
-The initial persistence strategy follows an offline-first approach for core academic information.
-
-The conceptual flow is:
+Time:
 
 ```text
-User Action
-    ↓
-ViewModel
-    ↓
-Use Case
-    ↓
-Repository
-    ↓
-Local Room
-    ↓
-UI updates through Flow / StateFlow
-    ↓
-Synchronization
-    ↓
-Firestore
+16:00
 ```
 
-For cloud-backed reads and synchronization:
+Date and time:
 
 ```text
-Firestore
-    ↓
-Remote Data Source
-    ↓
-DTO / Cloud Model
-    ↓
-Mapper
-    ↓
-Domain Model
-    ↓
-Repository
-    ↓
-Room
-    ↓
-Flow / StateFlow
-    ↓
-UI
+2026-08-03T16:00:00-05:00
 ```
 
-Room remains the local persistence mechanism used by the application while Firestore provides cloud synchronization.
+This supports both multi-hour and multi-day events.
 
-Conflict resolution, synchronization timestamps, retry policies, and offline queue behavior require validation during implementation and are therefore not treated as finalized by this initial document.
+The application uses appropriate Kotlin date/time types and Room converters at the infrastructure boundary.
 
-## 11. Data Boundaries
+## 10. Data Validation Rules
 
-The architecture separates the representations used at different boundaries.
+The application must validate data before persistence.
 
-```text
-Firestore Document
-        ↓
-Remote DTO / Cloud Model
-        ↓
-Mapper
-        ↓
-Domain Model
-        ↓
-Repository
-        ↓
-Use Case
-```
+Examples:
 
-For local persistence:
-
-```text
-Room Entity
-        ↓
-Mapper
-        ↓
-Domain Model
-        ↓
-Repository
-        ↓
-Use Case
-```
-
-The following representations must not be mixed:
-
-- Room entities are persistence models.
-- Firestore documents are cloud persistence models.
-- DTOs represent external data contracts.
-- Domain models represent business concepts.
-- UI state represents presentation state.
-
-## 12. Data Validation Rules
-
-The application should validate data before persistence.
-
-Examples include:
-
-- Event end time must not precede its start time.
-- Task priority must be one of the supported values.
-- Task status must be one of the supported values.
-- Grade values must respect the configured academic grading scale.
-- Grade weights must be valid for the academic calculation rules.
+- Event title must not be empty.
+- Event end must not precede event start.
+- A physical event should contain sufficient location data.
+- A remote event should contain a valid meeting URL when required.
+- A recurring event must have a valid recurrence rule.
+- `RecurrenceRule.end_date` must not precede `start_date`.
+- A weekly recurrence must contain at least one `RecurrenceDay`.
+- `RecurrenceDay.day_of_week` must be between 1 and 7.
+- `RecurrenceRule.interval` must be greater than zero.
+- Subject, academic period, and location references must belong to the same user as the event.
+- Grade values and weights must comply with the configured academic grading rules.
 - Required subject names must not be empty.
-- Required event titles must not be empty.
-- Remote events should contain a valid meeting URL when a meeting link is required.
-- Physical events should contain sufficient location information to display their location.
-- A grade must reference an existing subject owned by the same user.
 
-Validation belongs primarily in application/domain logic, with persistence constraints providing an additional safety boundary.
+## 11. Indexing Considerations
 
-## 13. Indexing Considerations
-
-Room indexes should be added for query patterns that are used frequently.
+Room indexes should be added according to demonstrated query patterns.
 
 Candidates include:
 
-- `subjects(user_id, academic_period_id)`
-- `events(user_id, start_at)`
-- `events(user_id, subject_id)`
-- `tasks(user_id, due_at)`
-- `tasks(user_id, status)`
-- `tasks(user_id, subject_id)`
-- `grades(user_id, subject_id)`
+- `Subject(user_id, academic_period_id)`
+- `Event(user_id, start_at)`
+- `Event(user_id, subject_id)`
+- `Event(user_id, recurrence_rule_id)`
+- `RecurrenceRule(user_id, start_date, end_date)`
+- `RecurrenceDay(recurrence_rule_id, day_of_week)`
+- `Task(user_id, due_at)`
+- `Task(user_id, status)`
+- `Task(user_id, subject_id)`
+- `Grade(user_id, subject_id)`
 
-Firestore indexes will be created according to the queries required by the application and generated or managed through the Firebase configuration.
+Firestore indexes will be created according to the queries required by the application.
 
-Indexing decisions should be validated after the main queries are implemented rather than adding indexes without a demonstrated query need.
+## 12. MER
 
-## 14. MER
-
-The current relational model is represented in the following Entity-Relationship Model:
+The current relational model is represented in:
 
 ![MER](mer.png)
 
-The image should be stored alongside this document in:
+The image should be stored at:
 
 ```text
 docs/database/mer.png
 ```
 
-The MER must reflect the relational model defined in this document, including:
+The MER must reflect the relational model defined in this document, including primary keys, foreign keys, optional attributes, data types, cardinalities, associative entities, recurrence entities, and referential relationships.
 
-- Primary keys.
-- Foreign keys.
-- Required and optional attributes.
-- Data types.
-- Cardinalities.
-- Associative tables.
-- Referential relationships.
-
-## 15. Database Evolution
-
-This is the initial database baseline for UniHub.
+## 13. Database Evolution
 
 Changes to the data model must be reflected in:
 
-1. The Room entities and migrations.
-2. The Firestore document model.
+1. Room entities and migrations.
+2. Firestore document model.
 3. Repository implementations.
 4. Mappers.
 5. Relevant requirements.
 6. The MER.
 7. This document.
 
-Room schema changes must use proper database migrations once the application contains persisted user data.
+Room schema changes must use proper migrations once the application contains persisted user data.
 
 Firestore schema changes must consider existing documents and backward compatibility where necessary.
+
+## 14. Design Decisions
+
+### 14.1 Recurrence is modeled separately
+
+Recurring events are not represented by storing multiple weekdays in one column.
+
+```text
+Event
+   │
+   └── 0..1 RecurrenceRule
+                │
+                └── 1..N RecurrenceDay
+```
+
+This preserves normalization and supports daily, weekly, and custom weekly repetition.
+
+### 14.2 Recurring occurrences are calculated
+
+The database stores the recurrence definition rather than one row per occurrence.
+
+This avoids unnecessary duplication and allows the calendar to generate only the occurrences required for the visible date range.
+
+### 14.3 Different times require different event definitions
+
+A recurrence rule represents one time interval.
+
+Therefore:
+
+```text
+Tuesday    16:00–18:00
+Thursday   16:00–18:00
+Saturday   14:00–16:00
+```
+
+is represented by three event definitions when the times differ.
+
+### 14.4 Events remain independent from subjects
+
+An event may be:
+
+- Academic and associated with a subject.
+- Academic without a specific subject.
+- Personal and unrelated to an academic period.
+- Physical.
+- Remote.
+- Without a location.
+
+This allows UniHub to function as a student's general planning application while preserving academic context where it exists.
