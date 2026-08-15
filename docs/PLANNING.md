@@ -111,25 +111,16 @@ La interfaz priorizará la jerarquía de información, la legibilidad y la reduc
 
 ### 2.2 Identidad cromática
 
-La identidad visual utilizará principalmente:
+La identidad visual de UniHub utilizará una combinación de azul índigo, violeta/lila y cyan como acento. El modo claro utilizará fondos y superficies neutras y luminosas, mientras que el modo oscuro utilizará fondos azulados profundos para mantener el contraste y la jerarquía visual.
 
-* Azul como color primario.
-* Lila/violeta como color secundario.
-* Tonos neutros para fondos y superficies.
-* Colores semánticos para estados.
+Los colores se organizarán en cuatro grupos:
 
-```text
-Primary      → Blue
-Secondary    → Lilac / Violet
-Background   → Neutral
-Surface      → Neutral
-Success      → Green
-Warning      → Amber
-Error        → Red
-Info         → Blue
-```
+- Brand colors: Primary, Secondary y Accent.
+- Boxes: Background, Surface, Cards y Border.
+- Text: Primary Text, Secondary Text y Disabled Text.
+- Semantic colors: Info, Success, Warning y Error.
 
-Los valores concretos estarán centralizados dentro de `DesignSystem`.
+Los valores concretos estarán centralizados dentro de `DesignSystem`, separados entre los esquemas de modo claro y modo oscuro.
 
 ### 2.3 Temas
 
@@ -1038,7 +1029,7 @@ Domain Model
 UI Model
 ```
 
-cuando las diferencias entre representaciones lo justifiquen.
+Cuando las diferencias entre representaciones lo justifiquen.
 
 ## 11. SOLID
 
@@ -2085,7 +2076,7 @@ No se dockerizará Android Studio ni la aplicación Android.
 ## 22. Stack
 
 | Área            | Tecnología                                           |
-| --------------- |------------------------------------------------------|
+|-----------------|------------------------------------------------------|
 | Language        | Kotlin                                               |
 | Android         | Android SDK                                          |
 | UI              | Jetpack Compose                                      |
@@ -2110,7 +2101,7 @@ No se dockerizará Android Studio ni la aplicación Android.
 | Testing         | JUnit + MockK + Compose UI Testing                   |
 | Version Control | Git + GitHub                                         |
 | Design          | Figma                                                |
-| Diagrams        | LucidChart                                        |
+| Diagrams        | LucidChart                                           |
 | USM             | Excalidraw                                           |
 | Documentation   | Markdown                                             |
 
