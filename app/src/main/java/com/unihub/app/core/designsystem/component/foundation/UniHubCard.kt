@@ -1,5 +1,6 @@
 package com.unihub.app.core.designsystem.component.foundation
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.padding
@@ -7,6 +8,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.unihub.app.core.designsystem.theme.UniHubTheme
@@ -15,10 +17,18 @@ import com.unihub.app.core.designsystem.theme.UniHubTheme
 fun UniHubCard(
     modifier: Modifier = Modifier,
     padding: Dp = UniHubTheme.spacing.md, // 16dp
+    onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier
+            .then(
+                if (onClick != null) {
+                    Modifier
+                        .clip(UniHubTheme.shape.card)
+                        .clickable(onClick = onClick)
+                } else Modifier
+            ),
         shape = UniHubTheme.shape.card,
         colors = CardDefaults.cardColors(
             containerColor = UniHubTheme.colorScheme.cards,
