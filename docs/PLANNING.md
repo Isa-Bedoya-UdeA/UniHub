@@ -1872,8 +1872,6 @@ Academic Planning Recommendation
 
 ### 17.1 Branch Strategy
 
-Para un proyecto individual se utilizará una estrategia sencilla:
-
 ```text
 main
 develop

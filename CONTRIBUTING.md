@@ -2,7 +2,7 @@
 
 Thank you for contributing to UniHub.
 
-UniHub is an individual university project developed with a focus on professional software engineering practices. Contributions, suggestions, reviews, and technical improvements should respect the project's architecture, scope, documentation, and academic objectives.
+UniHub is a university project developed with a focus on professional software engineering practices. Contributions, suggestions, reviews, and technical improvements should respect the project's architecture, scope, documentation, and academic objectives.
 
 ## Development Setup
 
@@ -150,7 +150,7 @@ Commits should describe what changed rather than why the entire project exists.
 
 ## Pull Requests
 
-Even though UniHub is primarily developed individually, Pull Requests should be used when practical to preserve a professional Git workflow and provide a clear history of significant changes.
+Pull Requests should be used when practical to preserve a professional Git workflow and provide a clear history of significant changes.
 
 A Pull Request should:
 

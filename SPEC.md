@@ -22,7 +22,7 @@ The project is developed for the Mobile Computing course at Universidad de Antio
 * Testing.
 * Software architecture.
 
-The project is developed individually and is planned for approximately 16 weeks.
+The project is planned for approximately 16 weeks.
 
 ## 2\. Product Vision
 
@@ -525,7 +525,6 @@ New features must be evaluated against:
 4. Testing effort.
 5. Documentation effort.
 6. Impact on existing architecture.
-7. Impact on the individual developer's workload.
 
 A feature should be moved to the Stretch scope if implementing it threatens the stability or completion of the MVP.
 

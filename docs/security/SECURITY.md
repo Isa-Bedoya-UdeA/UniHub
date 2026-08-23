@@ -473,7 +473,7 @@ Security-related tests should cover:
 
 ## 20. Security Priorities
 
-Given the project's four-month timeframe and individual development, security priorities are:
+Given the project's four-month timeframe, security priorities are:
 
 1. Firebase Authentication.
 2. Firestore ownership rules.

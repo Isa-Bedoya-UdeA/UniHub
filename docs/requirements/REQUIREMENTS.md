@@ -593,7 +593,7 @@ The application and backend should provide sufficient error information during d
 
 ## 6. Constraints
 
-The project is developed individually and has an estimated development period of approximately 16 weeks.
+The project has an estimated development period of approximately 16 weeks.
 
 The project must also accommodate:
 

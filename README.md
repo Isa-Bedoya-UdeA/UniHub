@@ -16,7 +16,7 @@ The application combines academic planning, calendar management, task management
 
 UniHub includes an AI assistant that can be used through text and, where supported, voice input. The assistant can help users create academic information such as events, tasks, subjects, and grades, as well as provide planning recommendations based on the user's academic workload.
 
-The project is developed as an individual university project focused on applying mobile-computing concepts such as geolocation, connectivity, artificial intelligence, security, cloud services, backend development, virtualization, and software architecture.
+The project is developed as a university project focused on applying mobile-computing concepts such as geolocation, connectivity, artificial intelligence, security, cloud services, backend development, virtualization, and software architecture.
 
 For the complete functional scope, see:
 
