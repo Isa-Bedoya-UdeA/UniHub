@@ -2,19 +2,7 @@ package com.unihub.app.features.dashboard.presentation.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -26,31 +14,36 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.theme.UniHubTheme
+import com.unihub.app.features.dashboard.presentation.viewmodel.DashboardViewModel
+import com.unihub.app.features.tasks.domain.model.TaskStatus
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 
 @Composable
 fun DashboardScreen(
+    viewModel: DashboardViewModel = hiltViewModel(),
     onNavigateToTasks: () -> Unit,
     onNavigateToSubjects: () -> Unit,
     onNavigateToSubjectDetail: (String) -> Unit,
     onNavigateToEvent: (String) -> Unit
 ) {
-    val today = LocalDate.now()
+    val summary by viewModel.academicSummary.collectAsState()
+    val tasks by viewModel.pendingTasks.collectAsState()
+    
+    // Colombian Time
+    val today = remember { LocalDate.now(ZoneId.of("America/Bogota")) }
     val locale = Locale.forLanguageTag("es")
     val dateText = "${today.dayOfWeek.getDisplayName(TextStyle.FULL, locale).replaceFirstChar { it.uppercase() }}, ${today.dayOfMonth} de ${today.month.getDisplayName(TextStyle.FULL, locale)}"
 
@@ -97,18 +90,18 @@ fun DashboardScreen(
                 modifier = Modifier.weight(1f),
                 onClick = { /* Navigate to Academic */ }
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text("Promedio", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.textSecondary)
-                    Text("4.2", style = UniHubTheme.typography.h1, color = UniHubTheme.colorScheme.primary)
+                    Text(String.format(locale, "%.1f", summary.cumulativeGpa), style = UniHubTheme.typography.h1, color = UniHubTheme.colorScheme.primary)
                 }
             }
             UniHubCard(
                 modifier = Modifier.weight(1f),
                 onClick = { /* Navigate to Academic */ }
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text("Créditos", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.textSecondary)
-                    Text("18", style = UniHubTheme.typography.h1, color = UniHubTheme.colorScheme.secondary)
+                    Text(summary.totalCredits.toString(), style = UniHubTheme.typography.h1, color = UniHubTheme.colorScheme.secondary)
                 }
             }
         }
@@ -126,7 +119,7 @@ fun DashboardScreen(
             location = "Bloque 19 - 201",
             time = "08:00 - 10:00",
             color = UniHubTheme.colorScheme.primary,
-            onClick = { onNavigateToSubjectDetail("1") } // Class leads to subject detail
+            onClick = { onNavigateToSubjectDetail("1") }
         )
         
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
@@ -147,24 +140,24 @@ fun DashboardScreen(
         
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
         
-        var task1Completed by remember { mutableStateOf(false) }
-        var task2Completed by remember { mutableStateOf(false) }
-
-        TaskCard(
-            title = "Informe de Investigación", 
-            date = "Mañana", 
-            color = UniHubTheme.colorScheme.warning,
-            isCompleted = task1Completed,
-            onToggle = { task1Completed = !task1Completed }
-        )
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
-        TaskCard(
-            title = "Quiz de Bases de Datos", 
-            date = "Viernes, 18 Ago", 
-            color = UniHubTheme.colorScheme.error,
-            isCompleted = task2Completed,
-            onToggle = { task2Completed = !task2Completed }
-        )
+        if (tasks.isEmpty()) {
+            Text(
+                text = "No tienes tareas pendientes.",
+                style = UniHubTheme.typography.body,
+                color = UniHubTheme.colorScheme.textSecondary
+            )
+        } else {
+            tasks.filter { it.status != TaskStatus.COMPLETED }.forEach { task ->
+                TaskCard(
+                    title = task.title, 
+                    date = task.dueAt ?: "Sin fecha", 
+                    color = UniHubTheme.colorScheme.warning,
+                    isCompleted = false,
+                    onToggle = { viewModel.toggleTaskCompletion(task) }
+                )
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+            }
+        }
     }
 }
 
@@ -270,7 +263,7 @@ fun TaskCard(
                     color = if (isCompleted) UniHubTheme.colorScheme.textDisabled else UniHubTheme.colorScheme.textPrimary
                 )
                 Text(
-                    text = "Entrega: $date", 
+                    text = "Vence: $date",
                     style = UniHubTheme.typography.bodySmall, 
                     color = if (isCompleted) UniHubTheme.colorScheme.textDisabled else color
                 )

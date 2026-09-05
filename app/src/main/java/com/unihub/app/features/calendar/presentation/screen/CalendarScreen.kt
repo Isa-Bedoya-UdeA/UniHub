@@ -2,29 +2,20 @@ package com.unihub.app.features.calendar.presentation.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,75 +23,97 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.academic.UniHubSubjectCard
 import com.unihub.app.core.designsystem.component.foundation.UniHubChip
 import com.unihub.app.core.designsystem.theme.UniHubTheme
-import java.time.DayOfWeek
+import com.unihub.app.features.events.domain.model.Event
+import com.unihub.app.features.events.presentation.viewmodel.EventsViewModel
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 
-enum class CalendarView {
-    Month, Week, Day
-}
-
 @Composable
 fun CalendarScreen(
-    onNavigateToEvent: (String) -> Unit = {}
+    onNavigateToEvent: (String) -> Unit = {},
+    onNavigateToCreate: () -> Unit = {},
+    viewModel: EventsViewModel = hiltViewModel()
 ) {
+    // Correct Timezone for Colombia
+    val today = remember { LocalDate.now(ZoneId.of("America/Bogota")) }
     var selectedView by remember { mutableStateOf(CalendarView.Month) }
-    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    var selectedDate by remember { mutableStateOf(today) }
+    
+    val events by viewModel.events.collectAsState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(UniHubTheme.spacing.md)
-    ) {
-        Text(
-            text = "Mi Agenda",
-            style = UniHubTheme.typography.h1,
-            color = UniHubTheme.colorScheme.textPrimary
-        )
-        
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onNavigateToCreate,
+                containerColor = UniHubTheme.colorScheme.primary,
+                contentColor = UniHubTheme.colorScheme.surface,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Añadir Evento")
+            }
+        },
+        containerColor = UniHubTheme.colorScheme.background
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(UniHubTheme.spacing.md)
         ) {
-            UniHubChip(
-                label = "Mes",
-                selected = selectedView == CalendarView.Month,
-                onClick = { selectedView = CalendarView.Month }
+            Text(
+                text = "Mi Agenda",
+                style = UniHubTheme.typography.h1,
+                color = UniHubTheme.colorScheme.textPrimary
             )
-            UniHubChip(
-                label = "Semana",
-                selected = selectedView == CalendarView.Week,
-                onClick = { selectedView = CalendarView.Week }
-            )
-            UniHubChip(
-                label = "Día",
-                selected = selectedView == CalendarView.Day,
-                onClick = { selectedView = CalendarView.Day }
-            )
-        }
+            
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
 
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
-        
-        when (selectedView) {
-            CalendarView.Month -> MonthlyView(selectedDate, onNavigateToEvent) { selectedDate = it }
-            CalendarView.Week -> WeeklyView(selectedDate, onNavigateToEvent) { selectedDate = it }
-            CalendarView.Day -> DailyView(selectedDate, onNavigateToEvent)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)
+            ) {
+                UniHubChip(
+                    label = "Mes",
+                    selected = selectedView == CalendarView.Month,
+                    onClick = { selectedView = CalendarView.Month }
+                )
+                UniHubChip(
+                    label = "Semana",
+                    selected = selectedView == CalendarView.Week,
+                    onClick = { selectedView = CalendarView.Week }
+                )
+                UniHubChip(
+                    label = "Día",
+                    selected = selectedView == CalendarView.Day,
+                    onClick = { selectedView = CalendarView.Day }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+            
+            when (selectedView) {
+                CalendarView.Month -> MonthlyView(selectedDate, events, onNavigateToEvent) { selectedDate = it }
+                CalendarView.Week -> WeeklyView(selectedDate, events, onNavigateToEvent) { selectedDate = it }
+                CalendarView.Day -> DailyView(selectedDate, events, onNavigateToEvent)
+            }
         }
     }
 }
 
 @Composable
-fun MonthlyView(currentDate: LocalDate, onEventClick: (String) -> Unit, onDateSelected: (LocalDate) -> Unit) {
+fun MonthlyView(currentDate: LocalDate, events: List<Event>, onEventClick: (String) -> Unit, onDateSelected: (LocalDate) -> Unit) {
     val firstDayOfMonth = currentDate.withDayOfMonth(1)
     val lastDayOfMonth = firstDayOfMonth.plusMonths(1).minusDays(1)
     val daysInMonth = (1..lastDayOfMonth.dayOfMonth).toList()
     val locale = Locale.forLanguageTag("es")
+    val today = LocalDate.now(ZoneId.of("America/Bogota"))
     
     Column {
         Text(
@@ -110,7 +123,6 @@ fun MonthlyView(currentDate: LocalDate, onEventClick: (String) -> Unit, onDateSe
             modifier = Modifier.padding(bottom = UniHubTheme.spacing.md)
         )
         
-        // Days of week header
         Row(modifier = Modifier.fillMaxWidth()) {
             val daysOfWeek = listOf("L", "M", "M", "J", "V", "S", "D")
             daysOfWeek.forEach { day ->
@@ -126,22 +138,23 @@ fun MonthlyView(currentDate: LocalDate, onEventClick: (String) -> Unit, onDateSe
         
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
 
-        // Grid of days
+        val rows = (daysInMonth.size + firstDayOfMonth.dayOfWeek.value - 2) / 7 + 1
+        val gridHeight = (rows * 50).dp
+
         LazyVerticalGrid(
             columns = GridCells.Fixed(7),
-            modifier = Modifier.height(280.dp),
+            modifier = Modifier.height(gridHeight),
             userScrollEnabled = false
         ) {
-            // Empty cells for offset (Monday = 1)
             items(firstDayOfMonth.dayOfWeek.value - 1) {
                 Box(modifier = Modifier.aspectRatio(1f))
             }
             
             items(daysInMonth) { day ->
                 val date = firstDayOfMonth.withDayOfMonth(day)
-                val isToday = date == LocalDate.now()
+                val isToday = date == today
                 val isSelected = date == currentDate
-                val hasEvent = day % 3 == 0
+                val hasEvent = events.any { it.startAt.startsWith(date.toString()) }
 
                 Box(
                     modifier = Modifier
@@ -183,14 +196,15 @@ fun MonthlyView(currentDate: LocalDate, onEventClick: (String) -> Unit, onDateSe
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.lg))
         Text(text = "Eventos del día", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.textSecondary)
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
-        DailyEvents(currentDate, onEventClick)
+        DailyEvents(currentDate, events, onEventClick)
     }
 }
 
 @Composable
-fun WeeklyView(currentDate: LocalDate, onEventClick: (String) -> Unit, onDateSelected: (LocalDate) -> Unit) {
+fun WeeklyView(currentDate: LocalDate, events: List<Event>, onEventClick: (String) -> Unit, onDateSelected: (LocalDate) -> Unit) {
     val startOfWeek = currentDate.minusDays((currentDate.dayOfWeek.value - 1).toLong())
     val locale = Locale.forLanguageTag("es")
+    val today = LocalDate.now(ZoneId.of("America/Bogota"))
     
     Column {
         Text(
@@ -207,7 +221,7 @@ fun WeeklyView(currentDate: LocalDate, onEventClick: (String) -> Unit, onDateSel
             (0..6).forEach { i ->
                 val date = startOfWeek.plusDays(i.toLong())
                 val isSelected = date == currentDate
-                val isToday = date == LocalDate.now()
+                val isToday = date == today
                 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -234,12 +248,12 @@ fun WeeklyView(currentDate: LocalDate, onEventClick: (String) -> Unit, onDateSel
         }
         
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
-        DailyEvents(currentDate, onEventClick)
+        DailyEvents(currentDate, events, onEventClick)
     }
 }
 
 @Composable
-fun DailyView(date: LocalDate, onEventClick: (String) -> Unit) {
+fun DailyView(date: LocalDate, events: List<Event>, onEventClick: (String) -> Unit) {
     val locale = Locale.forLanguageTag("es")
     Column {
         Text(
@@ -248,48 +262,38 @@ fun DailyView(date: LocalDate, onEventClick: (String) -> Unit) {
             color = UniHubTheme.colorScheme.secondary,
             modifier = Modifier.padding(bottom = UniHubTheme.spacing.md)
         )
-        DailyEvents(date, onEventClick)
+        DailyEvents(date, events, onEventClick)
     }
 }
 
 @Composable
-fun DailyEvents(date: LocalDate, onEventClick: (String) -> Unit) {
+fun DailyEvents(date: LocalDate, events: List<Event>, onEventClick: (String) -> Unit) {
+    val dayEvents = events.filter { it.startAt.startsWith(date.toString()) }
+    
     Column(
-        modifier = Modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.md)
     ) {
-        // Mock data logic based on date
-        if (date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY) {
+        if (dayEvents.isEmpty()) {
             Text(
                 text = "No tienes eventos programados para este día.",
                 style = UniHubTheme.typography.body,
                 color = UniHubTheme.colorScheme.textSecondary,
-                modifier = Modifier.padding(vertical = 32.dp),
+                modifier = Modifier.padding(vertical = 32.dp).fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
         } else {
-            UniHubSubjectCard(
-                name = "Computación Móvil",
-                professor = "08:00 - 10:00 | Bloque 19",
-                color = UniHubTheme.colorScheme.primary,
-                onClick = { onEventClick("1") }
-            )
-
-            UniHubSubjectCard(
-                name = "Bases de Datos",
-                professor = "10:00 - 12:00 | Bloque 18",
-                color = UniHubTheme.colorScheme.secondary,
-                onClick = { onEventClick("2") }
-            )
-
-            if (date.dayOfMonth % 2 == 0) {
+            dayEvents.forEach { event ->
                 UniHubSubjectCard(
-                    name = "Reunión de Proyecto",
-                    professor = "14:00 - 15:00 | Remoto",
-                    color = UniHubTheme.colorScheme.accent,
-                    onClick = { onEventClick("3") }
+                    name = event.title,
+                    professor = "${event.startAt.split("T").last()} - ${event.endAt.split("T").last()}",
+                    color = UniHubTheme.colorScheme.primary,
+                    onClick = { onEventClick(event.id) }
                 )
             }
         }
     }
+}
+
+enum class CalendarView {
+    Month, Week, Day
 }

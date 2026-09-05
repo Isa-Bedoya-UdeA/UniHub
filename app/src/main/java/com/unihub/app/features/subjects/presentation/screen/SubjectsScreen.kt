@@ -29,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,21 +37,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.component.foundation.UniHubChip
 import com.unihub.app.core.designsystem.theme.UniHubTheme
+import com.unihub.app.features.subjects.presentation.viewmodel.SubjectsViewModel
 
 @Composable
 fun SubjectsScreen(
-    onNavigateToDetails: (String) -> Unit
+    onNavigateToDetails: (String) -> Unit,
+    onNavigateToCreate: () -> Unit,
+    onNavigateToEdit: (String) -> Unit,
+    viewModel: SubjectsViewModel = hiltViewModel()
 ) {
     var selectedSemester by remember { mutableStateOf("2026-2") }
+    val subjects by viewModel.subjects.collectAsState()
 
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* Add Subject */ },
+                onClick = onNavigateToCreate,
                 containerColor = UniHubTheme.colorScheme.primary,
                 contentColor = UniHubTheme.colorScheme.surface,
                 shape = CircleShape
@@ -91,37 +99,29 @@ fun SubjectsScreen(
 
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
 
-            // Subject Cards
-            DetailedSubjectCard(
-                code = "COMP-204",
-                name = "Computación Móvil",
-                professor = "Ing. Juan Perez",
-                average = 4.5f,
-                progressType = ProgressType.GOOD,
-                onClick = { onNavigateToDetails("1") }
-            )
-            
-            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-            
-            DetailedSubjectCard(
-                code = "MAT-302",
-                name = "Cálculo Integral",
-                professor = "Dra. Maria Lopez",
-                average = 3.2f,
-                progressType = ProgressType.REGULAR,
-                onClick = { onNavigateToDetails("2") }
-            )
-
-            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-
-            DetailedSubjectCard(
-                code = "BD-101",
-                name = "Bases de Datos",
-                professor = "Msc. Carlos Ruiz",
-                average = 2.8f,
-                progressType = ProgressType.BAD,
-                onClick = { onNavigateToDetails("3") }
-            )
+            if (subjects.isEmpty()) {
+                Text(
+                    text = "No tienes materias registradas para este semestre.",
+                    style = UniHubTheme.typography.body,
+                    color = UniHubTheme.colorScheme.textSecondary,
+                    modifier = Modifier.padding(vertical = 32.dp)
+                )
+            } else {
+                subjects.forEach { subject ->
+                    DetailedSubjectCard(
+                        code = subject.code ?: "---",
+                        name = subject.name,
+                        professor = subject.professor ?: "Sin profesor",
+                        average = 0.0f, // Logic for average calculation could be added
+                        progressType = ProgressType.REGULAR,
+                        colorHex = subject.color ?: "#4F46E5",
+                        onClick = { onNavigateToDetails(subject.id) },
+                        onEdit = { onNavigateToEdit(subject.id) },
+                        onDelete = { viewModel.deleteSubject(subject.id) }
+                    )
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+                }
+            }
         }
     }
 }
@@ -135,9 +135,13 @@ fun DetailedSubjectCard(
     professor: String,
     average: Float,
     progressType: ProgressType,
-    onClick: () -> Unit
+    colorHex: String,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val color = try { Color(android.graphics.Color.parseColor(colorHex)) } catch (_: Exception) { UniHubTheme.colorScheme.primary }
 
     UniHubCard(
         modifier = Modifier.fillMaxWidth(),
@@ -154,13 +158,13 @@ fun DetailedSubjectCard(
                 Box(
                     modifier = Modifier
                         .clip(UniHubTheme.shape.sm)
-                        .background(UniHubTheme.colorScheme.primary.copy(alpha = 0.1f))
+                        .background(color.copy(alpha = 0.1f))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = code,
                         style = UniHubTheme.typography.label,
-                        color = UniHubTheme.colorScheme.primary
+                        color = color
                     )
                 }
 
@@ -174,11 +178,18 @@ fun DetailedSubjectCard(
                     ) {
                         DropdownMenuItem(
                             text = { Text("Editar") },
-                            onClick = { showMenu = false }
+                            onClick = { 
+                                showMenu = false 
+                                onEdit()
+                            },
+                            leadingIcon = { Icon(Icons.Default.MoreVert, null) } // Replace with Edit icon if available
                         )
                         DropdownMenuItem(
                             text = { Text("Eliminar") },
-                            onClick = { showMenu = false }
+                            onClick = { 
+                                showMenu = false 
+                                onDelete()
+                            }
                         )
                     }
                 }
@@ -197,12 +208,12 @@ fun DetailedSubjectCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Promedio: $average / 5.0",
+                    text = if (average > 0) "Promedio: $average / 5.0" else "Sin notas registradas",
                     style = UniHubTheme.typography.body,
-                    color = UniHubTheme.colorScheme.textPrimary
+                    color = if (average > 0) UniHubTheme.colorScheme.textPrimary else UniHubTheme.colorScheme.textDisabled
                 )
 
-                val (icon, color) = when (progressType) {
+                val (icon, trendColor) = when (progressType) {
                     ProgressType.GOOD -> Icons.AutoMirrored.Filled.ShowChart to UniHubTheme.colorScheme.success
                     ProgressType.REGULAR -> Icons.AutoMirrored.Filled.TrendingFlat to UniHubTheme.colorScheme.warning
                     ProgressType.BAD -> Icons.AutoMirrored.Filled.TrendingDown to UniHubTheme.colorScheme.error
@@ -211,7 +222,7 @@ fun DetailedSubjectCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = color,
+                    tint = trendColor,
                     modifier = Modifier.size(24.dp)
                 )
             }

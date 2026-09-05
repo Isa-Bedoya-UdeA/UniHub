@@ -83,7 +83,6 @@ For the complete functional scope, see:
 - Firebase Authentication.
 - Firebase Firestore synchronization.
 - Ktor backend API.
-- Network-aware error handling.
 - Offline access to locally persisted information.
 
 ### Security

@@ -16,11 +16,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,71 +40,95 @@ import com.unihub.app.core.designsystem.component.foundation.UniHubChip
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 
 @Composable
-fun TasksScreen() {
+fun TasksScreen(
+    onNavigateToCreate: () -> Unit = {}
+) {
     var selectedFilter by remember { mutableStateOf("Todas") }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(UniHubTheme.spacing.md)
-    ) {
-        Text(
-            text = "Mis Tareas",
-            style = UniHubTheme.typography.h1,
-            color = UniHubTheme.colorScheme.textPrimary
-        )
-        
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-
-        // Filter Chips
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)
-        ) {
-            val filters = listOf("Todas", "Pendientes", "En progreso", "Completadas")
-            filters.forEach { filter ->
-                UniHubChip(
-                    label = filter,
-                    selected = selectedFilter == filter,
-                    onClick = { selectedFilter = filter }
-                )
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onNavigateToCreate,
+                containerColor = UniHubTheme.colorScheme.primary,
+                contentColor = UniHubTheme.colorScheme.surface,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Añadir Tarea")
             }
-        }
-
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
-        
+        },
+        containerColor = UniHubTheme.colorScheme.background
+    ) { innerPadding ->
         Column(
             modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.md)
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(UniHubTheme.spacing.md)
         ) {
-            // High Priority
-            DetailedTaskCard(
-                title = "Informe Final de Investigación",
-                subject = "Investigación",
-                date = "Hoy, 23:59",
-                priorityColor = UniHubTheme.colorScheme.error,
-                isCompleted = false
+            Text(
+                text = "Mis Tareas",
+                style = UniHubTheme.typography.h1,
+                color = UniHubTheme.colorScheme.textPrimary
             )
+            
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
 
-            // Medium Priority
-            DetailedTaskCard(
-                title = "Diseño de Interfaces Móviles",
-                subject = "Computación Móvil",
-                date = "Mañana, 18:00",
-                priorityColor = UniHubTheme.colorScheme.warning,
-                isCompleted = false
-            )
+            // Filter Chips
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)
+            ) {
+                val filters = listOf("Todas", "Pendientes", "En progreso", "Completadas")
+                filters.forEach { filter ->
+                    UniHubChip(
+                        label = filter,
+                        selected = selectedFilter == filter,
+                        onClick = { selectedFilter = filter }
+                    )
+                }
+            }
 
-            // Success / Completed
-            DetailedTaskCard(
-                title = "Quiz de Normalización",
-                subject = "Bases de Datos",
-                date = "Finalizado ayer",
-                priorityColor = UniHubTheme.colorScheme.success,
-                isCompleted = true
-            )
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+            
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.md)
+            ) {
+                var task1Comp by remember { mutableStateOf(false) }
+                var task2Comp by remember { mutableStateOf(false) }
+                var task3Comp by remember { mutableStateOf(true) }
+
+                // High Priority
+                DetailedTaskCard(
+                    title = "Informe Final de Investigación",
+                    subject = "Investigación",
+                    date = "Hoy, 23:59",
+                    priorityColor = UniHubTheme.colorScheme.error,
+                    isCompleted = task1Comp,
+                    onToggle = { task1Comp = !task1Comp }
+                )
+
+                // Medium Priority
+                DetailedTaskCard(
+                    title = "Diseño de Interfaces Móviles",
+                    subject = "Computación Móvil",
+                    date = "Mañana, 18:00",
+                    priorityColor = UniHubTheme.colorScheme.warning,
+                    isCompleted = task2Comp,
+                    onToggle = { task2Comp = !task2Comp }
+                )
+
+                // Success / Completed
+                DetailedTaskCard(
+                    title = "Quiz de Normalización",
+                    subject = "Bases de Datos",
+                    date = "Finalizado ayer",
+                    priorityColor = UniHubTheme.colorScheme.success,
+                    isCompleted = task3Comp,
+                    onToggle = { task3Comp = !task3Comp }
+                )
+            }
         }
     }
 }
@@ -111,11 +139,13 @@ fun DetailedTaskCard(
     subject: String,
     date: String,
     priorityColor: Color,
-    isCompleted: Boolean
+    isCompleted: Boolean,
+    onToggle: () -> Unit = {}
 ) {
     UniHubCard(
         padding = 0.dp,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onToggle
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
             // Priority Indicator
@@ -137,9 +167,7 @@ fun DetailedTaskCard(
                     imageVector = if (isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                     contentDescription = null,
                     tint = if (isCompleted) UniHubTheme.colorScheme.success else UniHubTheme.colorScheme.textDisabled,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable { }
+                    modifier = Modifier.size(24.dp)
                 )
                 
                 Spacer(modifier = Modifier.width(UniHubTheme.spacing.md))

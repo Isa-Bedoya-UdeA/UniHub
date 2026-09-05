@@ -1,52 +1,63 @@
 package com.unihub.app.features.events.presentation.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.StickyNote2
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.academic.UniHubLocationCard
+import com.unihub.app.core.designsystem.component.academic.UniHubRemoteMeetingCard
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.theme.UniHubTheme
+import com.unihub.app.features.events.domain.model.LocationType
+import com.unihub.app.features.events.presentation.viewmodel.EventsViewModel
 
 @Composable
 fun EventDetailsScreen(
     eventId: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToEdit: (String) -> Unit,
+    viewModel: EventsViewModel = hiltViewModel()
 ) {
+    val events by viewModel.events.collectAsState()
+    val event = events.find { it.id == eventId }
     var remindMe by remember { mutableStateOf(true) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog && event != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar Evento") },
+            text = { Text("¿Estás seguro de que deseas eliminar el evento '${event.title}'? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.removeEvent(event.id)
+                        showDeleteDialog = false
+                        onBack()
+                    }
+                ) {
+                    Text("Eliminar", color = UniHubTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 
     Scaffold(
         containerColor = UniHubTheme.colorScheme.background
@@ -58,15 +69,27 @@ fun EventDetailsScreen(
                 .padding(UniHubTheme.spacing.md)
                 .verticalScroll(rememberScrollState())
         ) {
+            if (event == null) {
+                Text("Evento no encontrado", style = UniHubTheme.typography.h2)
+                return@Scaffold
+            }
+
             // Badges
             Row(horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)) {
-                TypeBadge(text = "COMP-204", color = UniHubTheme.colorScheme.primary)
-                TypeBadge(text = "Clase", color = UniHubTheme.colorScheme.secondary)
+                TypeBadge(text = if (event.subjectId != null) "Materia" else "Personal", color = UniHubTheme.colorScheme.primary)
+                TypeBadge(
+                    text = when(event.locationType) {
+                        LocationType.PHYSICAL -> "Presencial"
+                        LocationType.REMOTE -> "Remoto"
+                        LocationType.NONE -> "General"
+                    },
+                    color = UniHubTheme.colorScheme.secondary
+                )
             }
             
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
             
-            Text(text = "Computación Móvil", style = UniHubTheme.typography.h1)
+            Text(text = event.title, style = UniHubTheme.typography.h1)
             
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
             
@@ -84,66 +107,50 @@ fun EventDetailsScreen(
                     }
                     Spacer(modifier = Modifier.width(UniHubTheme.spacing.md))
                     Column {
-                        Text(text = "Jueves, 24 Oct", style = UniHubTheme.typography.h4)
-                        Text(text = "18:00 - 20:00", style = UniHubTheme.typography.body, color = UniHubTheme.colorScheme.textSecondary)
+                        Text(text = event.startAt.split("T").first(), style = UniHubTheme.typography.h4)
+                        val timeRange = if (event.startAt.contains("T")) {
+                            "${event.startAt.split("T").last()} - ${event.endAt.split("T").last()}"
+                        } else {
+                            "Todo el día"
+                        }
+                        Text(text = timeRange, style = UniHubTheme.typography.body, color = UniHubTheme.colorScheme.textSecondary)
                     }
                 }
             }
             
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
             
-            // Location Card
-            UniHubLocationCard(
-                place = "UdeA",
-                room = "204",
-                building = "Bloque de Ingeniería",
-                onOpenInMaps = {}
-            )
-            
-            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-            
-            // Professor/Subject Details Card
-            UniHubCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(UniHubTheme.colorScheme.border),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Person, null, tint = UniHubTheme.colorScheme.textSecondary)
-                        }
-                        Spacer(modifier = Modifier.width(UniHubTheme.spacing.md))
-                        Column {
-                            Text(text = "Dr. Elena Rodriguez", style = UniHubTheme.typography.h4)
-                            Text(text = "Profesor • Detalles de Materia", style = UniHubTheme.typography.bodySmall, color = UniHubTheme.colorScheme.textSecondary)
-                        }
-                    }
-                    Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, null, modifier = Modifier.size(16.dp), tint = UniHubTheme.colorScheme.textDisabled)
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-            
-            // Notes Card
-            UniHubCard {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.StickyNote2, null, tint = UniHubTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(UniHubTheme.spacing.xs))
-                        Text(text = "Notas", style = UniHubTheme.typography.label)
-                    }
-                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
-                    Text(
-                        text = "Trae tu laptop para el laboratorio de Jetpack Compose y Hilt. Asegúrate de tener la última versión de Android Studio instalada.",
-                        style = UniHubTheme.typography.bodySmall
+            // Location Logic
+            when(event.locationType) {
+                LocationType.PHYSICAL -> {
+                    UniHubLocationCard(
+                        place = "UdeA",
+                        room = "Por definir",
+                        building = event.notes ?: "Sin detalles",
+                        onOpenInMaps = {}
                     )
+                }
+                LocationType.REMOTE -> {
+                    UniHubRemoteMeetingCard(onJoinMeeting = { /* Open URL */ })
+                    event.meetingUrl?.let {
+                        Text(text = it, style = UniHubTheme.typography.bodySmall, color = UniHubTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
+                LocationType.NONE -> {}
+            }
+            
+            if (event.notes != null && event.locationType != LocationType.PHYSICAL) {
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+                UniHubCard {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.StickyNote2, null, tint = UniHubTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(UniHubTheme.spacing.xs))
+                            Text(text = "Notas", style = UniHubTheme.typography.label)
+                        }
+                        Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+                        Text(text = event.notes, style = UniHubTheme.typography.bodySmall)
+                    }
                 }
             }
             
@@ -170,12 +177,20 @@ fun EventDetailsScreen(
             UniHubButton(
                 text = "Editar Evento",
                 variant = UniHubButtonVariant.Outlined,
-                onClick = { },
+                onClick = { onNavigateToEdit(event.id) },
                 leadingIcon = Icons.Default.Edit,
                 modifier = Modifier.fillMaxWidth()
             )
             
-            Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+            UniHubButton(
+                text = "Eliminar Evento",
+                variant = UniHubButtonVariant.Text,
+                onClick = { showDeleteDialog = true },
+                leadingIcon = Icons.Default.Delete,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

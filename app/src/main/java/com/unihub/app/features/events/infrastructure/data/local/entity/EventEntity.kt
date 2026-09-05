@@ -1,0 +1,83 @@
+package com.unihub.app.features.events.infrastructure.data.local.entity
+
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import com.unihub.app.features.events.domain.model.LocationType
+
+@Entity(tableName = "Event")
+data class EventEntity(
+    @PrimaryKey
+    @ColumnInfo(name = "event_id")
+    val id: String,
+    
+    @ColumnInfo(name = "user_id")
+    val userId: String,
+    
+    @ColumnInfo(name = "academic_period_id")
+    val academicPeriodId: String?,
+    
+    @ColumnInfo(name = "subject_id")
+    val subjectId: String?,
+    
+    @ColumnInfo(name = "location_id")
+    val locationId: String?,
+    
+    @ColumnInfo(name = "recurrence_rule_id")
+    val recurrenceRuleId: String?,
+    
+    @ColumnInfo(name = "title")
+    val title: String,
+    
+    @ColumnInfo(name = "start_at")
+    val startAt: String,
+    
+    @ColumnInfo(name = "end_at")
+    val endAt: String,
+    
+    @ColumnInfo(name = "location_type")
+    val locationType: LocationType,
+    
+    @ColumnInfo(name = "meeting_url")
+    val meetingUrl: String?,
+    
+    @ColumnInfo(name = "notes")
+    val notes: String?,
+    
+    @ColumnInfo(name = "created_at")
+    val createdAt: String,
+    
+    @ColumnInfo(name = "updated_at")
+    val updatedAt: String
+)
+
+@Entity(tableName = "Location")
+data class LocationEntity(
+    @PrimaryKey
+    @ColumnInfo(name = "location_id")
+    val id: String,
+    
+    @ColumnInfo(name = "user_id")
+    val userId: String,
+    
+    @ColumnInfo(name = "name")
+    val name: String?,
+    
+    @ColumnInfo(name = "address")
+    val address: String?,
+    
+    @ColumnInfo(name = "latitude")
+    val latitude: Double?,
+    
+    @ColumnInfo(name = "longitude")
+    val longitude: Double?,
+    
+    @ColumnInfo(name = "place_id")
+    val placeId: String?,
+    
+    @ColumnInfo(name = "created_at")
+    val createdAt: String,
+    
+    @ColumnInfo(name = "updated_at")
+    val updatedAt: String
+)

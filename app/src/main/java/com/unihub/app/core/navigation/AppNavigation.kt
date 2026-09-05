@@ -16,16 +16,23 @@ import androidx.navigation.navArgument
 import com.unihub.app.core.designsystem.component.foundation.UniHubBottomNavigation
 import com.unihub.app.core.designsystem.component.foundation.UniHubTopBar
 import com.unihub.app.core.designsystem.theme.UniHubTheme
+import com.unihub.app.features.academic.presentation.screen.AcademicPeriodsScreen
 import com.unihub.app.features.academic.presentation.screen.AcademicScreen
+import com.unihub.app.features.academic.presentation.screen.CreateGradeScreen
+import com.unihub.app.features.academic.presentation.screen.GradeSimulatorScreen
 import com.unihub.app.features.auth.presentation.screen.LoginScreen
 import com.unihub.app.features.auth.presentation.screen.OnboardingScreen
 import com.unihub.app.features.auth.presentation.screen.SplashScreen
 import com.unihub.app.features.calendar.presentation.screen.CalendarScreen
 import com.unihub.app.features.dashboard.presentation.screen.DashboardScreen
+import com.unihub.app.features.events.presentation.screen.CreateEventScreen
 import com.unihub.app.features.events.presentation.screen.EventDetailsScreen
 import com.unihub.app.features.settings.presentation.screen.SettingsScreen
+import com.unihub.app.features.subjects.presentation.screen.CreateSubjectScreen
+import com.unihub.app.features.subjects.presentation.screen.EditSubjectScreen
 import com.unihub.app.features.subjects.presentation.screen.SubjectDetailsScreen
 import com.unihub.app.features.subjects.presentation.screen.SubjectsScreen
+import com.unihub.app.features.tasks.presentation.screen.CreateTaskScreen
 import com.unihub.app.features.tasks.presentation.screen.TasksScreen
 
 @Composable
@@ -45,8 +52,6 @@ fun AppNavigation(
         Screen.Settings.route
     )
     
-    // Auth screens don't show the top bar with logo usually, but user said "always"
-    // Let's hide it for Splash/Onboarding/Login for better UX unless they specifically want it there.
     val showTopBar = currentRoute !in listOf(
         Screen.Splash.route,
         Screen.Onboarding.route,
@@ -124,6 +129,9 @@ fun AppNavigation(
                 CalendarScreen(
                     onNavigateToEvent = { id ->
                         navController.navigate(Screen.EventDetail.createRoute(id))
+                    },
+                    onNavigateToCreate = {
+                        navController.navigate(Screen.CreateEvent.route)
                     }
                 )
             }
@@ -131,6 +139,12 @@ fun AppNavigation(
                 SubjectsScreen(
                     onNavigateToDetails = { id -> 
                         navController.navigate(Screen.SubjectDetail.createRoute(id)) 
+                    },
+                    onNavigateToCreate = {
+                        navController.navigate(Screen.CreateSubject.route)
+                    },
+                    onNavigateToEdit = { id ->
+                        navController.navigate(Screen.EditSubject.createRoute(id))
                     }
                 )
             }
@@ -144,17 +158,57 @@ fun AppNavigation(
                     onNavigateToEvent = { id -> 
                         navController.navigate(Screen.EventDetail.createRoute(id)) 
                     },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onNavigateToCreateTask = {
+                        navController.navigate(Screen.CreateTask.createRoute(subjectId = subjectId))
+                    },
+                    onNavigateToCreateGrade = {
+                        navController.navigate(Screen.AcademicGrades.createRoute(subjectId = subjectId))
+                    },
+                    onNavigateToEditGrade = { gradeId ->
+                        navController.navigate(Screen.AcademicGrades.createRoute(subjectId = subjectId, gradeId = gradeId))
+                    },
+                    onNavigateToEditTask = { taskId ->
+                        navController.navigate(Screen.CreateTask.createRoute(subjectId = subjectId, taskId = taskId))
+                    },
+                    onNavigateToSimulator = {
+                        navController.navigate(Screen.GradeSimulator.createRoute(subjectId))
+                    },
+                    onNavigateToCreateEvent = {
+                        navController.navigate(Screen.CreateEvent.route)
+                    }
                 )
             }
             composable(Screen.Tasks.route) {
-                TasksScreen()
+                TasksScreen(
+                    onNavigateToCreate = {
+                        navController.navigate(Screen.CreateTask.route)
+                    }
+                )
             }
             composable(Screen.Academic.route) {
                 AcademicScreen(
                     onNavigateToSubjectDetail = { id ->
                         navController.navigate(Screen.SubjectDetail.createRoute(id))
+                    },
+                    onNavigateToManagePeriods = {
+                        navController.navigate(Screen.AcademicPeriods.route)
                     }
+                )
+            }
+            composable(Screen.AcademicPeriods.route) {
+                AcademicPeriodsScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Screen.GradeSimulator.route,
+                arguments = listOf(navArgument("subjectId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val subjectId = backStackEntry.arguments?.getString("subjectId") ?: ""
+                GradeSimulatorScreen(
+                    subjectId = subjectId,
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable(Screen.Settings.route) {
@@ -165,6 +219,76 @@ fun AppNavigation(
                 }
             }
             
+            // Creation Screens
+            composable(Screen.CreateSubject.route) {
+                CreateSubjectScreen(
+                    onSubjectCreated = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Screen.CreateTask.route,
+                arguments = listOf(
+                    navArgument("subjectId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                    navArgument("taskId") { type = NavType.StringType; nullable = true; defaultValue = null }
+                )
+            ) { backStackEntry ->
+                val subjectId = backStackEntry.arguments?.getString("subjectId")
+                val taskId = backStackEntry.arguments?.getString("taskId")
+                CreateTaskScreen(
+                    subjectId = subjectId,
+                    taskId = taskId,
+                    onTaskCreated = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.CreateEvent.route) {
+                CreateEventScreen(
+                    onEventCreated = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Screen.EditEvent.route,
+                arguments = listOf(navArgument("eventId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val eventId = backStackEntry.arguments?.getString("eventId")
+                CreateEventScreen(
+                    eventId = eventId,
+                    onEventCreated = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Screen.AcademicGrades.route,
+                arguments = listOf(
+                    navArgument("subjectId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                    navArgument("gradeId") { type = NavType.StringType; nullable = true; defaultValue = null }
+                )
+            ) { backStackEntry ->
+                val subjectId = backStackEntry.arguments?.getString("subjectId") ?: ""
+                val gradeId = backStackEntry.arguments?.getString("gradeId")
+                CreateGradeScreen(
+                    subjectId = subjectId,
+                    gradeId = gradeId,
+                    onGradeCreated = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            // Edit Screens
+            composable(
+                route = Screen.EditSubject.route,
+                arguments = listOf(navArgument("subjectId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val subjectId = backStackEntry.arguments?.getString("subjectId") ?: ""
+                EditSubjectScreen(
+                    subjectId = subjectId,
+                    onSubjectUpdated = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            
             // Event Details
             composable(
                 route = Screen.EventDetail.route,
@@ -173,7 +297,10 @@ fun AppNavigation(
                 val eventId = backStackEntry.arguments?.getString("eventId") ?: ""
                 EventDetailsScreen(
                     eventId = eventId,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onNavigateToEdit = { id -> 
+                        navController.navigate(Screen.EditEvent.createRoute(id))
+                    }
                 )
             }
         }

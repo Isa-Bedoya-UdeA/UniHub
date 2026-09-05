@@ -123,17 +123,17 @@ The project follows a Conventional Commits-inspired format:
 
 ### Commit Types
 
-| Type | Purpose |
-|---|---|
-| `feat` | New functionality |
-| `fix` | Bug fix |
+| Type       | Purpose                                    |
+|------------|--------------------------------------------|
+| `feat`     | New functionality                          |
+| `fix`      | Bug fix                                    |
 | `refactor` | Code restructuring without behavior change |
-| `docs` | Documentation changes |
-| `test` | Tests |
-| `build` | Build system or dependency changes |
-| `ci` | CI/CD changes |
-| `style` | Formatting or non-functional style changes |
-| `chore` | Maintenance tasks |
+| `docs`     | Documentation changes                      |
+| `test`     | Tests                                      |
+| `build`    | Build system or dependency changes         |
+| `ci`       | CI/CD changes                              |
+| `style`    | Formatting or non-functional style changes |
+| `chore`    | Maintenance tasks                          |
 
 Examples:
 
@@ -283,18 +283,18 @@ Documentation is considered part of the implementation.
 
 When a change affects the following areas, update the corresponding document:
 
-| Change | Documentation |
-|---|---|
-| Product scope | `SPEC.md` |
-| Requirements | `docs/requirements/REQUIREMENTS.md` |
-| Architecture | `docs/architecture/ARCHITECTURE.md` |
-| Database | `docs/database/DATABASE.md` |
-| API | `docs/api/API.md` |
-| Security | `docs/security/SECURITY.md` |
-| Deployment | `docs/deploy/DEPLOY.md` |
-| UI/UX | `docs/design/DESIGNSYSTEM.md` |
-| User flows | `docs/design/USERJOURNEY.md` |
-| Project schedule | `docs/PLANNING.md` |
+| Change           | Documentation                       |
+|------------------|-------------------------------------|
+| Product scope    | `SPEC.md`                           |
+| Requirements     | `docs/requirements/REQUIREMENTS.md` |
+| Architecture     | `docs/architecture/ARCHITECTURE.md` |
+| Database         | `docs/database/DATABASE.md`         |
+| API              | `docs/api/API.md`                   |
+| Security         | `docs/security/SECURITY.md`         |
+| Deployment       | `docs/deploy/DEPLOY.md`             |
+| UI/UX            | `docs/design/DESIGNSYSTEM.md`       |
+| User flows       | `docs/design/USERJOURNEY.md`        |
+| Project schedule | `docs/PLANNING.md`                  |
 
 Architectural decisions should be documented rather than existing only in source code or commit messages.
 

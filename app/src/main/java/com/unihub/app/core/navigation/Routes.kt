@@ -32,17 +32,38 @@ sealed class Screen(val route: String) {
         fun createRoute(subjectId: String) = "subject/$subjectId/edit"
     }
 
-    object CreateTask : Screen("task/create")
+    object CreateTask : Screen("task/create?subjectId={subjectId}&taskId={taskId}") {
+        fun createRoute(subjectId: String? = null, taskId: String? = null): String {
+            var r = "task/create"
+            val params = mutableListOf<String>()
+            if (subjectId != null) params.add("subjectId=$subjectId")
+            if (taskId != null) params.add("taskId=$taskId")
+            if (params.isNotEmpty()) r += "?" + params.joinToString("&")
+            return r
+        }
+    }
     object TaskDetail : Screen("task/{taskId}") {
         fun createRoute(taskId: String) = "task/$taskId"
     }
 
-    object AcademicGrades : Screen("academic/grades")
+    object AcademicGrades : Screen("academic/grades?subjectId={subjectId}&gradeId={gradeId}") {
+        fun createRoute(subjectId: String? = null, gradeId: String? = null): String {
+            var r = "academic/grades"
+            val params = mutableListOf<String>()
+            if (subjectId != null) params.add("subjectId=$subjectId")
+            if (gradeId != null) params.add("gradeId=$gradeId")
+            if (params.isNotEmpty()) r += "?" + params.joinToString("&")
+            return r
+        }
+    }
+    object AcademicPeriods : Screen("academic/periods")
     object GradeDetail : Screen("academic/grade/{gradeId}") {
         fun createRoute(gradeId: String) = "academic/grade/$gradeId"
     }
     object GradeCalculator : Screen("academic/calculator")
-    object GradeSimulator : Screen("academic/simulator")
+    object GradeSimulator : Screen("academic/simulator?subjectId={subjectId}") {
+        fun createRoute(subjectId: String) = "academic/simulator?subjectId=$subjectId"
+    }
 
     object AiChat : Screen("ai/chat")
 

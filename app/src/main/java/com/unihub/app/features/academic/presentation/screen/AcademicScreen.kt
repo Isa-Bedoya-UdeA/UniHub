@@ -1,48 +1,61 @@
 package com.unihub.app.features.academic.presentation.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.theme.UniHubTheme
+import com.unihub.app.features.academic.presentation.viewmodel.AcademicViewModel
+import java.util.Locale
 
 @Composable
 fun AcademicScreen(
-    onNavigateToSubjectDetail: (String) -> Unit
+    onNavigateToSubjectDetail: (String) -> Unit,
+    onNavigateToManagePeriods: () -> Unit,
+    viewModel: AcademicViewModel = hiltViewModel()
 ) {
+    val state by viewModel.state.collectAsState()
+    val summary = state.summary
+    val subjects = state.subjects
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(UniHubTheme.spacing.md)
     ) {
-        Text(
-            text = "Mi Progreso",
-            style = UniHubTheme.typography.h1,
-            color = UniHubTheme.colorScheme.textPrimary
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Mi Progreso",
+                style = UniHubTheme.typography.h1,
+                color = UniHubTheme.colorScheme.textPrimary
+            )
+            
+            Text(
+                text = "Gestionar Periodos",
+                style = UniHubTheme.typography.label,
+                color = UniHubTheme.colorScheme.primary,
+                modifier = Modifier.clickable { onNavigateToManagePeriods() }
+            )
+        }
         
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
         
@@ -55,7 +68,7 @@ fun AcademicScreen(
                     color = UniHubTheme.colorScheme.textSecondary
                 )
                 Text(
-                    text = "4.2",
+                    text = String.format(Locale.getDefault(), "%.2f", summary.cumulativeGpa),
                     style = UniHubTheme.typography.h1,
                     color = UniHubTheme.colorScheme.primary,
                     fontWeight = FontWeight.Black
@@ -67,13 +80,12 @@ fun AcademicScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    AcademicStat(label = "Créditos", value = "112 / 160")
-                    AcademicStat(label = "Progreso", value = "70%")
+                    AcademicStat(label = "Créditos", value = "${summary.totalCredits} / 160")
+                    AcademicStat(label = "Progreso", value = "${summary.progressPercentage.toInt()}%")
                 }
                 
                 Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
                 
-                // Progress Bar Placeholder
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -83,7 +95,7 @@ fun AcademicScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(0.7f)
+                            .fillMaxWidth(summary.progressPercentage.toFloat() / 100f)
                             .fillMaxHeight()
                             .clip(CircleShape)
                             .background(UniHubTheme.colorScheme.accent)
@@ -102,33 +114,29 @@ fun AcademicScreen(
 
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
 
-        // Subject Cards
-        AcademicSubjectCard(
-            code = "COM-101",
-            name = "Computación Móvil",
-            grade = "4.5",
-            progress = 60,
-            color = UniHubTheme.colorScheme.primary,
-            onClick = { onNavigateToSubjectDetail("1") }
-        )
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-        AcademicSubjectCard(
-            code = "MAT-202",
-            name = "Cálculo Integral",
-            grade = "3.2",
-            progress = 45,
-            color = UniHubTheme.colorScheme.secondary,
-            onClick = { onNavigateToSubjectDetail("2") }
-        )
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-        AcademicSubjectCard(
-            code = "BD-303",
-            name = "Bases de Datos",
-            grade = "4.0",
-            progress = 30,
-            color = UniHubTheme.colorScheme.accent,
-            onClick = { onNavigateToSubjectDetail("3") }
-        )
+        if (subjects.isEmpty()) {
+            Text(
+                text = "No tienes materias registradas.",
+                style = UniHubTheme.typography.body,
+                color = UniHubTheme.colorScheme.textSecondary,
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+        } else {
+            subjects.forEach { item ->
+                val subject = item.subject
+                val color = try { Color(android.graphics.Color.parseColor(subject.color ?: "#4F46E5")) } catch (_: Exception) { UniHubTheme.colorScheme.primary }
+                
+                AcademicSubjectCard(
+                    code = subject.code ?: "---",
+                    name = subject.name,
+                    grade = if (item.average > 0) String.format(Locale.getDefault(), "%.1f", item.average) else "---",
+                    progress = item.progress,
+                    color = color,
+                    onClick = { onNavigateToSubjectDetail(subject.id) }
+                )
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+            }
+        }
     }
 }
 
