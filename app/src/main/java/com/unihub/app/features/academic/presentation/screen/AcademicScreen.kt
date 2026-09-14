@@ -17,9 +17,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.unihub.app.core.designsystem.component.academic.UniHubStudySelector
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.academic.presentation.viewmodel.AcademicViewModel
+import com.unihub.app.features.academic.presentation.viewmodel.SubjectWithGrade
 import java.util.Locale
 
 @Composable
@@ -57,6 +59,15 @@ fun AcademicScreen(
             )
         }
         
+        Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+        UniHubStudySelector(
+            studies = state.studies,
+            selectedStudyId = state.selectedStudyId,
+            onStudySelected = { viewModel.selectStudy(it) },
+            modifier = Modifier.fillMaxWidth()
+        )
+
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
         
         // Cumulative Card
@@ -80,7 +91,7 @@ fun AcademicScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    AcademicStat(label = "Créditos", value = "${summary.totalCredits} / 160")
+                    AcademicStat(label = "Créditos", value = "${summary.earnedCredits} / ${summary.targetCredits}")
                     AcademicStat(label = "Progreso", value = "${summary.progressPercentage.toInt()}%")
                 }
                 
@@ -107,7 +118,7 @@ fun AcademicScreen(
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.twoXl))
 
         Text(
-            text = "Semestre Actual (2026-2)",
+            text = "Semestre Actual",
             style = UniHubTheme.typography.h3,
             color = UniHubTheme.colorScheme.textPrimary
         )
@@ -116,9 +127,9 @@ fun AcademicScreen(
 
         if (subjects.isEmpty()) {
             Text(
-                text = "No tienes materias registradas.",
+                text = "No tienes materias registradas para el periodo seleccionado.",
                 style = UniHubTheme.typography.body,
-                color = UniHubTheme.colorScheme.textSecondary,
+                color = UniHubTheme.colorScheme.info,
                 modifier = Modifier.padding(vertical = 16.dp)
             )
         } else {

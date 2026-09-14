@@ -1,12 +1,10 @@
 package com.unihub.app.features.events.infrastructure.data.mapper
 
-import com.unihub.app.features.events.domain.model.Event
-import com.unihub.app.features.events.domain.model.Location
-import com.unihub.app.features.events.domain.model.LocationType
-import com.unihub.app.features.events.infrastructure.data.local.entity.EventEntity
-import com.unihub.app.features.events.infrastructure.data.local.entity.LocationEntity
+import com.unihub.app.features.events.domain.model.*
+import com.unihub.app.features.location.domain.model.Location
+import com.unihub.app.features.events.infrastructure.data.local.entity.*
 import com.unihub.app.features.events.infrastructure.data.remote.dto.EventDto
-import com.unihub.app.features.events.infrastructure.data.remote.dto.LocationDto
+import com.unihub.app.features.location.infrastructure.data.remote.dto.LocationDto
 
 fun Event.toEntity(): EventEntity {
     return EventEntity(
@@ -20,6 +18,7 @@ fun Event.toEntity(): EventEntity {
         startAt = startAt,
         endAt = endAt,
         locationType = locationType,
+        eventType = eventType,
         meetingUrl = meetingUrl,
         notes = notes,
         createdAt = createdAt,
@@ -27,7 +26,7 @@ fun Event.toEntity(): EventEntity {
     )
 }
 
-fun EventEntity.toDomain(): Event {
+fun EventEntity.toDomain(reminders: List<EventReminder> = emptyList()): Event {
     return Event(
         id = id,
         userId = userId,
@@ -39,10 +38,66 @@ fun EventEntity.toDomain(): Event {
         startAt = startAt,
         endAt = endAt,
         locationType = locationType,
+        eventType = eventType,
         meetingUrl = meetingUrl,
         notes = notes,
+        reminders = reminders,
         createdAt = createdAt,
         updatedAt = updatedAt
+    )
+}
+
+fun RecurrenceRule.toEntity(): RecurrenceRuleEntity {
+    return RecurrenceRuleEntity(
+        id = id,
+        userId = userId,
+        frequency = frequency,
+        interval = interval,
+        startDate = startDate,
+        endDate = endDate,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
+}
+
+fun RecurrenceRuleEntity.toDomain(): RecurrenceRule {
+    return RecurrenceRule(
+        id = id,
+        userId = userId,
+        frequency = frequency,
+        interval = interval,
+        startDate = startDate,
+        endDate = endDate,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
+}
+
+fun RecurrenceDay.toEntity(): RecurrenceDayEntity {
+    return RecurrenceDayEntity(
+        recurrenceRuleId = recurrenceRuleId,
+        dayOfWeek = dayOfWeek
+    )
+}
+
+fun RecurrenceDayEntity.toDomain(): RecurrenceDay {
+    return RecurrenceDay(
+        recurrenceRuleId = recurrenceRuleId,
+        dayOfWeek = dayOfWeek
+    )
+}
+
+fun EventTag.toEntity(): EventTagEntity {
+    return EventTagEntity(
+        eventId = eventId,
+        tagId = tagId
+    )
+}
+
+fun EventTagEntity.toDomain(): EventTag {
+    return EventTag(
+        eventId = eventId,
+        tagId = tagId
     )
 }
 
@@ -58,8 +113,10 @@ fun EventDto.toDomain(userId: String): Event {
         startAt = startAt.toString(),
         endAt = endAt.toString(),
         locationType = try { LocationType.valueOf(locationType) } catch (e: Exception) { LocationType.NONE },
+        eventType = EventType.OTHER,
         meetingUrl = meetingUrl,
         notes = notes,
+        reminders = emptyList(),
         createdAt = createdAt.toString(),
         updatedAt = updatedAt.toString()
     )

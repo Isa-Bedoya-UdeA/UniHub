@@ -5,7 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.unihub.app.features.academic.application.usecase.CalculateRequiredGradeUseCase
 import com.unihub.app.features.academic.application.usecase.GetGradesBySubjectUseCase
+import com.unihub.app.features.academic.application.usecase.SimulationResult
 import com.unihub.app.features.subjects.application.usecase.GetSubjectByIdUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
@@ -14,19 +16,18 @@ import javax.inject.Inject
 
 data class GradeSimulatorState(
     val subjectName: String = "",
-    val currentAverage: Double = 0.0,
+    val currentWeightedSum: Double = 0.0,
     val evaluatedWeight: Double = 0.0,
     val targetGrade: Double = 3.0,
-    val requiredGrade: Double? = null,
-    val isPossible: Boolean = true,
-    val isAlreadyPassed: Boolean = false,
+    val simulationResult: SimulationResult? = null,
     val isLoading: Boolean = false
 )
 
 @HiltViewModel
 class GradeSimulatorViewModel @Inject constructor(
     private val getSubjectByIdUseCase: GetSubjectByIdUseCase,
-    private val getGradesBySubjectUseCase: GetGradesBySubjectUseCase
+    private val getGradesBySubjectUseCase: GetGradesBySubjectUseCase,
+    private val calculateRequiredGradeUseCase: CalculateRequiredGradeUseCase
 ) : ViewModel() {
 
     var state by mutableStateOf(GradeSimulatorState())
@@ -40,11 +41,10 @@ class GradeSimulatorViewModel @Inject constructor(
             
             val totalWeight = grades.sumOf { it.weight }
             val weightedSum = grades.sumOf { it.value * it.weight }
-            val currentAvg = if (totalWeight > 0.0) weightedSum / totalWeight else 0.0
             
             state = state.copy(
                 subjectName = subject?.name ?: "",
-                currentAverage = currentAvg,
+                currentWeightedSum = weightedSum,
                 evaluatedWeight = totalWeight,
                 isLoading = false
             )
@@ -59,25 +59,11 @@ class GradeSimulatorViewModel @Inject constructor(
     }
 
     private fun calculate() {
-        val target = state.targetGrade
-        val weightedSum = state.currentAverage * state.evaluatedWeight
-        val remainingWeight = 1.0 - state.evaluatedWeight
-        
-        if (state.evaluatedWeight >= 1.0) {
-            state = state.copy(
-                requiredGrade = null,
-                isAlreadyPassed = weightedSum >= target,
-                isPossible = weightedSum >= target
-            )
-            return
-        }
-
-        val needed = (target - weightedSum) / remainingWeight
-        
-        state = state.copy(
-            requiredGrade = needed,
-            isPossible = needed <= 5.0,
-            isAlreadyPassed = weightedSum >= target
+        val result = calculateRequiredGradeUseCase(
+            currentWeightedSum = state.currentWeightedSum,
+            evaluatedWeight = state.evaluatedWeight,
+            targetGrade = state.targetGrade
         )
+        state = state.copy(simulationResult = result)
     }
 }

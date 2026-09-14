@@ -78,6 +78,8 @@ core/designsystem/
 │   ├── UniHubRemoteMeetingCard.kt
 │   ├── UniHubAcademicSummary.kt
 │   ├── UniHubGradeSimulator.kt
+│   ├── UniHubStudySelector.kt
+│   ├── StudyOption.kt
 │   ├── UniHubAIAssistantInput.kt
 │   └── UniHubAIMessage.kt
 ├── shape/
@@ -283,6 +285,7 @@ UniHubLocationCard
 UniHubRemoteMeetingCard
 UniHubAcademicSummary
 UniHubGradeSimulator
+UniHubStudySelector
 ```
 
 ### 9.4 AI components
@@ -816,6 +819,32 @@ Weighted average
 Credits
 Subject performance
 Target progress
+```
+
+### `UniHubStudySelector`
+
+Purpose:
+
+Allow the user to select the active academic program (study) from a dropdown.
+
+Structure:
+
+``` text
+Leading icon (School)
+Selected study name
+Institution subtitle
+Dropdown with study options
+```
+
+Uses `StudyOption` as its UI model to avoid coupling the Design System to
+domain models. Each option shows the study name and institution.
+
+Use in:
+
+``` text
+Academic view (progress)
+Subjects view
+Any screen that filters content by study
 ```
 
 ## 23. Navigation

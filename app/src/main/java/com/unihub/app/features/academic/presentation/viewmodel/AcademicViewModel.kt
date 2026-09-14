@@ -2,18 +2,35 @@ package com.unihub.app.features.academic.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.unihub.app.features.academic.application.usecase.GetAcademicPeriodsUseCase
+import com.unihub.app.core.common.state.MessageType
+import com.unihub.app.core.common.state.UiEvent
+import com.unihub.app.core.designsystem.component.academic.StudyOption
+import com.unihub.app.features.academic.application.usecase.DeleteAcademicPeriodUseCase
+import com.unihub.app.features.academic.application.usecase.GetAcademicPeriodsByStudyUseCase
 import com.unihub.app.features.academic.application.usecase.GetAcademicSummaryUseCase
 import com.unihub.app.features.academic.application.usecase.GetGradesBySubjectUseCase
+import com.unihub.app.features.academic.application.usecase.GetStudiesUseCase
 import com.unihub.app.features.academic.application.usecase.SaveAcademicPeriodUseCase
-import com.unihub.app.features.academic.application.usecase.DeleteAcademicPeriodUseCase
+import com.unihub.app.features.academic.application.usecase.SetCurrentPeriodUseCase
+import com.unihub.app.features.academic.application.usecase.SetActiveStudyUseCase
 import com.unihub.app.features.academic.domain.model.AcademicPeriod
 import com.unihub.app.features.academic.domain.model.AcademicSummary
-import com.unihub.app.features.academic.domain.repository.AcademicRepository
+import com.unihub.app.features.academic.presentation.state.AcademicState
 import com.unihub.app.features.subjects.application.usecase.GetSubjectsUseCase
 import com.unihub.app.features.subjects.domain.model.Subject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -23,72 +40,186 @@ data class SubjectWithGrade(
     val progress: Int
 )
 
-data class AcademicUiState(
-    val summary: AcademicSummary = AcademicSummary(0.0, 0.0, 0, 0.0),
-    val subjects: List<SubjectWithGrade> = emptyList(),
-    val periods: List<AcademicPeriod> = emptyList(),
-    val isLoading: Boolean = false
-)
-
 @HiltViewModel
 class AcademicViewModel @Inject constructor(
-    getAcademicSummaryUseCase: GetAcademicSummaryUseCase,
-    getSubjectsUseCase: GetSubjectsUseCase,
-    getAcademicPeriodsUseCase: GetAcademicPeriodsUseCase,
+    private val getStudiesUseCase: GetStudiesUseCase,
+    private val getAcademicSummaryUseCase: GetAcademicSummaryUseCase,
+    private val getSubjectsUseCase: GetSubjectsUseCase,
+    private val getAcademicPeriodsByStudyUseCase: GetAcademicPeriodsByStudyUseCase,
+    private val setActiveStudyUseCase: SetActiveStudyUseCase,
+    private val setCurrentPeriodUseCase: SetCurrentPeriodUseCase,
     private val saveAcademicPeriodUseCase: SaveAcademicPeriodUseCase,
     private val deleteAcademicPeriodUseCase: DeleteAcademicPeriodUseCase,
-    private val getGradesBySubjectUseCase: GetGradesBySubjectUseCase,
-    private val repository: AcademicRepository // Directly for simplicity in mock
+    private val getGradesBySubjectUseCase: GetGradesBySubjectUseCase
 ) : ViewModel() {
 
-    private val userId = "user123"
-    private val periodId = "2026-2"
+    private val _state = MutableStateFlow(AcademicState())
+    val state: StateFlow<AcademicState> = _state.asStateFlow()
 
-    private val _state = MutableStateFlow(AcademicUiState())
-    val state = _state.asStateFlow()
+    private val _selectedStudyId = MutableStateFlow<String?>(null)
+
+    private val _uiEvent = MutableSharedFlow<UiEvent>()
+    val uiEvent = _uiEvent.asSharedFlow()
 
     init {
-        combine(
-            getAcademicSummaryUseCase(userId),
-            getSubjectsUseCase(userId, periodId),
-            getAcademicPeriodsUseCase(userId)
-        ) { summary, subjects, periods ->
-            val subjectsWithGrades = subjects.map { subject ->
-                val grades = getGradesBySubjectUseCase(subject.id).first()
-                val weightedSum = grades.sumOf { it.value * it.weight }
-                val totalWeight = grades.sumOf { it.weight }
-                val avg = if (totalWeight > 0) weightedSum / totalWeight else 0.0
-                val progress = (totalWeight * 100).toInt().coerceIn(0, 100)
-                
-                SubjectWithGrade(subject, avg, progress)
+        loadStudies()
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun loadStudies() {
+        viewModelScope.launch {
+            try {
+                getStudiesUseCase("current_user").onEach { studies ->
+                    val currentSelection = _selectedStudyId.value
+                    val activeStudy = studies.find { it.isActive } ?: studies.firstOrNull()
+                    if (currentSelection == null && activeStudy != null) {
+                        _selectedStudyId.value = activeStudy.id
+                    }
+                    val studyOptions = studies.map { StudyOption(id = it.id, name = it.name, institution = it.institution) }
+                    _state.update { it.copy(studies = studyOptions, isLoading = false) }
+                }.launchIn(viewModelScope)
+
+                _selectedStudyId.onEach { studyId ->
+                    if (studyId != null) {
+                        _state.update { it.copy(selectedStudyId = studyId) }
+                    }
+                }.launchIn(viewModelScope)
+
+                _selectedStudyId
+                    .flatMapLatest { studyId ->
+                        if (studyId == null) return@flatMapLatest flowOf(
+                            Triple(emptyList<AcademicPeriod>(), emptyList<SubjectWithGrade>(), AcademicSummary(0.0, 0.0, 0, 0, 0.0))
+                        )
+                        combine(
+                            getAcademicPeriodsByStudyUseCase("current_user", studyId),
+                            getAcademicSummaryUseCase("current_user", studyId)
+                        ) { periods, summary ->
+                            Triple(periods, emptyList<SubjectWithGrade>(), summary)
+                        }
+                    }
+                    .onEach { (periods, _, summary) ->
+                        _state.update { it.copy(periods = periods, summary = summary) }
+                    }
+                    .launchIn(viewModelScope)
+
+                _selectedStudyId
+                    .flatMapLatest { studyId ->
+                        if (studyId == null) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
+                        getAcademicPeriodsByStudyUseCase("current_user", studyId)
+                            .flatMapLatest { periods ->
+                                val currentPeriod = periods.find { it.isCurrent } ?: periods.firstOrNull()
+                                if (currentPeriod == null) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
+                                getSubjectsUseCase("current_user", currentPeriod.id)
+                                    .flatMapLatest { subjects ->
+                                        if (subjects.isEmpty()) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
+                                        val subjectFlows = subjects.map { subject ->
+                                            getGradesBySubjectUseCase(subject.id).combine(flowOf(subject)) { grades, subj ->
+                                                val totalWeight = grades.sumOf { it.weight }
+                                                val weightedSum = grades.sumOf { it.value * it.weight }
+                                                val avg = if (totalWeight > 0) weightedSum / totalWeight else 0.0
+                                                SubjectWithGrade(subj, avg, (totalWeight * 100).toInt())
+                                            }
+                                        }
+                                        combine(subjectFlows) { it.toList() }
+                                    }
+                            }
+                    }
+                    .onEach { subjectsWithGrades ->
+                        _state.update { it.copy(subjects = subjectsWithGrades) }
+                    }
+                    .launchIn(viewModelScope)
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, errorMessage = e.message) }
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Error al cargar los datos: ${e.message ?: "Error desconocido"}",
+                        type = MessageType.ERROR
+                    )
+                )
             }
-            
-            AcademicUiState(
-                summary = summary,
-                subjects = subjectsWithGrades,
-                periods = periods,
-                isLoading = false
-            )
-        }.onEach { newState ->
-            _state.value = newState
-        }.launchIn(viewModelScope)
+        }
+    }
+
+    fun selectStudy(studyId: String) {
+        _selectedStudyId.value = studyId
+        viewModelScope.launch {
+            try {
+                setActiveStudyUseCase("current_user", studyId)
+            } catch (e: Exception) {
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Error al seleccionar el programa: ${e.message ?: "Error desconocido"}",
+                        type = MessageType.ERROR
+                    )
+                )
+            }
+        }
+    }
+
+    fun setCurrentPeriod(periodId: String) {
+        viewModelScope.launch {
+            try {
+                setCurrentPeriodUseCase("current_user", periodId)
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Periodo actualizado exitosamente",
+                        type = MessageType.SUCCESS
+                    )
+                )
+            } catch (e: Exception) {
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Error al actualizar el periodo: ${e.message ?: "Error desconocido"}",
+                        type = MessageType.ERROR
+                    )
+                )
+            }
+        }
     }
 
     fun addPeriod(period: AcademicPeriod) {
         viewModelScope.launch {
-            saveAcademicPeriodUseCase(period)
+            try {
+                saveAcademicPeriodUseCase(period)
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Periodo creado exitosamente",
+                        type = MessageType.SUCCESS
+                    )
+                )
+            } catch (e: Exception) {
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Error al crear el periodo: ${e.message ?: "Error desconocido"}",
+                        type = MessageType.ERROR
+                    )
+                )
+            }
         }
     }
 
-    fun deletePeriod(id: String) {
+    fun deletePeriod(periodId: String) {
         viewModelScope.launch {
-            deleteAcademicPeriodUseCase(id)
+            try {
+                deleteAcademicPeriodUseCase(periodId)
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Periodo eliminado exitosamente",
+                        type = MessageType.SUCCESS
+                    )
+                )
+            } catch (e: Exception) {
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Error al eliminar el periodo: ${e.message ?: "Error desconocido"}",
+                        type = MessageType.ERROR
+                    )
+                )
+            }
         }
     }
 
-    fun setCurrentPeriod(id: String) {
-        viewModelScope.launch {
-            repository.setCurrentPeriod(id)
-        }
+    fun clearError() {
+        _state.update { it.copy(errorMessage = null) }
     }
 }

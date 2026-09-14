@@ -4,98 +4,121 @@ import com.unihub.app.features.academic.domain.model.AcademicPeriod
 import com.unihub.app.features.academic.domain.model.AcademicSummary
 import com.unihub.app.features.academic.domain.model.Grade
 import com.unihub.app.features.academic.domain.repository.AcademicRepository
+import com.unihub.app.features.academic.infrastructure.data.local.dao.AcademicDao
+import com.unihub.app.features.academic.infrastructure.data.local.dao.StudyDao
+import com.unihub.app.features.academic.infrastructure.data.mapper.toDomain
+import com.unihub.app.features.academic.infrastructure.data.mapper.toEntity
+import com.unihub.app.features.subjects.infrastructure.data.local.dao.SubjectDao
+import com.unihub.app.features.subjects.infrastructure.data.mapper.toDomain as toSubjectDomain
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AcademicRepositoryImpl @Inject constructor() : AcademicRepository {
-
-    private val mockPeriods = MutableStateFlow<List<AcademicPeriod>>(
-        listOf(
-            AcademicPeriod("1", "user123", "2026-2", "01-08-2026", "15-12-2026", true, "", "")
-        )
-    )
-    
-    private val mockGrades = MutableStateFlow<List<Grade>>(
-        listOf(
-            Grade("g1", "user123", "1", "1", "Parcial 1", 4.5, 0.3, null, "", ""),
-            Grade("g2", "user123", "1", "1", "Taller 1", 4.0, 0.2, null, "", "")
-        )
-    )
+class AcademicRepositoryImpl @Inject constructor(
+    private val academicDao: AcademicDao,
+    private val subjectDao: SubjectDao,
+    private val studyDao: StudyDao
+) : AcademicRepository {
 
     override fun getAcademicPeriods(userId: String): Flow<List<AcademicPeriod>> =
-        mockPeriods.map { it.filter { p -> p.userId == userId } }
+        academicDao.getAcademicPeriods(userId).map { entities ->
+            entities.map { it.toDomain() }
+        }
+
+    override fun getAcademicPeriodsByStudy(userId: String, studyId: String): Flow<List<AcademicPeriod>> =
+        academicDao.getAcademicPeriodsByStudy(userId, studyId).map { entities ->
+            entities.map { it.toDomain() }
+        }
 
     override suspend fun saveAcademicPeriod(period: AcademicPeriod) {
-        val current = mockPeriods.value.toMutableList()
-        val index = current.indexOfFirst { it.id == period.id }
-        if (index != -1) current[index] = period else current.add(period)
-        mockPeriods.emit(current)
+        academicDao.insertPeriod(period.toEntity())
     }
 
     override suspend fun updateAcademicPeriod(period: AcademicPeriod) {
-        saveAcademicPeriod(period)
+        academicDao.insertPeriod(period.toEntity())
     }
 
     override suspend fun deleteAcademicPeriod(id: String) {
-        mockPeriods.emit(mockPeriods.value.filter { it.id != id })
+        academicDao.deletePeriod(id)
     }
 
-    override suspend fun setCurrentPeriod(id: String) {
-        val current = mockPeriods.value.map { 
-            it.copy(isCurrent = it.id == id)
-        }
-        mockPeriods.emit(current)
+    override suspend fun setCurrentPeriod(userId: String, id: String) {
+        academicDao.setCurrentPeriod(userId, id)
     }
 
     override fun getGradesBySubject(subjectId: String): Flow<List<Grade>> =
-        mockGrades.map { it.filter { g -> g.subjectId == subjectId } }
+        academicDao.getGradesBySubject(subjectId).map { entities ->
+            entities.map { it.toDomain() }
+        }
 
     override suspend fun saveGrade(grade: Grade) {
-        val current = mockGrades.value.toMutableList()
-        val index = current.indexOfFirst { it.id == grade.id }
-        if (index != -1) current[index] = grade else current.add(grade)
-        mockGrades.emit(current)
+        academicDao.insertGrade(grade.toEntity())
     }
 
     override suspend fun updateGrade(grade: Grade) {
-        saveGrade(grade)
+        academicDao.insertGrade(grade.toEntity())
     }
 
     override suspend fun deleteGrade(id: String) {
-        mockGrades.emit(mockGrades.value.filter { it.id != id })
+        academicDao.deleteGrade(id)
     }
 
-    override fun getAcademicSummary(userId: String): Flow<AcademicSummary> {
-        return mockGrades.map { grades ->
-            val userGrades = grades.filter { it.userId == userId }
-            if (userGrades.isEmpty()) {
-                AcademicSummary(0.0, 0.0, 0, 0.0)
+    override fun getAcademicSummary(userId: String, studyId: String): Flow<AcademicSummary> {
+        return combine(
+            academicDao.getAllGrades(userId),
+            subjectDao.getAllSubjects(userId),
+            studyDao.getStudyById(studyId)
+        ) { gradeEntities, subjectEntities, studyEntity ->
+            val userGrades = gradeEntities.map { it.toDomain() }
+            val allSubjects = subjectEntities.map { it.toSubjectDomain() }
+            val study = studyEntity?.toDomain()
+
+            val totalTargetCredits = study?.totalCredits ?: 0
+
+            val filteredSubjects = allSubjects.filter { it.studyId == studyId }
+            val filteredGrades = userGrades.filter { grade ->
+                filteredSubjects.any { it.id == grade.subjectId }
+            }
+
+            val earnedCredits = filteredSubjects.filter { subject ->
+                val subjectGrades = filteredGrades.filter { it.subjectId == subject.id }
+                if (subjectGrades.isEmpty()) return@filter false
+                val weight = subjectGrades.sumOf { it.weight }
+                val value = subjectGrades.sumOf { it.value * it.weight }
+                val avg = if (weight > 0.0) value / weight else 0.0
+                avg >= 3.0
+            }.sumOf { it.credits ?: 0 }
+
+            if (filteredGrades.isEmpty() || totalTargetCredits == 0) {
+                AcademicSummary(
+                    cumulativeGpa = 0.0,
+                    currentSemesterGpa = 0.0,
+                    earnedCredits = earnedCredits,
+                    targetCredits = totalTargetCredits,
+                    progressPercentage = 0.0
+                )
             } else {
-                // Correct Weighted Average Calculation
-                val totalWeight = userGrades.sumOf { it.weight }
-                val weightedSum = userGrades.sumOf { it.value * it.weight }
-                
-                // If total weight < 1.0, we assume the rest of the 100% hasn't been graded yet.
-                // Professional standard: Current GPA is based on what HAS been graded.
-                val avg = if (totalWeight > 0.0) weightedSum / totalWeight else 0.0
-                
-                // Cumulative GPA across all subjects
-                val subjectsSum = userGrades.groupBy { it.subjectId }.map { (_, subjectGrades) ->
-                    val sWeight = subjectGrades.sumOf { it.weight }
-                    val sSum = subjectGrades.sumOf { it.value * it.weight }
+                val totalWeight = filteredGrades.sumOf { it.weight }
+                val weightedSum = filteredGrades.sumOf { it.value * it.weight }
+                val currentSemesterAvg = if (totalWeight > 0.0) weightedSum / totalWeight else 0.0
+
+                val subjectsSum = filteredGrades.groupBy { it.subjectId }.map { (_, sGrades) ->
+                    val sWeight = sGrades.sumOf { it.weight }
+                    val sSum = sGrades.sumOf { it.value * it.weight }
                     if (sWeight > 0.0) sSum / sWeight else 0.0
                 }
                 val cumulativeGpa = if (subjectsSum.isNotEmpty()) subjectsSum.average() else 0.0
 
                 AcademicSummary(
                     cumulativeGpa = cumulativeGpa,
-                    currentSemesterGpa = avg,
-                    totalCredits = 18, // Mock total
-                    progressPercentage = (totalWeight * 100).coerceIn(0.0, 100.0)
+                    currentSemesterGpa = currentSemesterAvg,
+                    earnedCredits = earnedCredits,
+                    targetCredits = totalTargetCredits,
+                    progressPercentage = (earnedCredits.toDouble() / totalTargetCredits.toDouble() * 100.0)
+                        .coerceIn(0.0, 100.0)
                 )
             }
         }

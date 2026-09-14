@@ -14,6 +14,8 @@ data class Task(
     val priority: TaskPriority,
     val status: TaskStatus,
     val notes: String?,
+    val reminderAt: String?,
+    val isDeadlineReminderEnabled: Boolean,
     val createdAt: String,
     val updatedAt: String
 )

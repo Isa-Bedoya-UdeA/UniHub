@@ -25,6 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.dashboard.presentation.viewmodel.DashboardViewModel
+import com.unihub.app.features.events.domain.model.LocationType
 import com.unihub.app.features.tasks.domain.model.TaskStatus
 import java.time.LocalDate
 import java.time.ZoneId
@@ -39,11 +40,10 @@ fun DashboardScreen(
     onNavigateToSubjectDetail: (String) -> Unit,
     onNavigateToEvent: (String) -> Unit
 ) {
-    val summary by viewModel.academicSummary.collectAsState()
-    val tasks by viewModel.pendingTasks.collectAsState()
+    val state by viewModel.state.collectAsState()
     
     // Colombian Time
-    val today = remember { LocalDate.now(ZoneId.of("America/Bogota")) }
+    val today = remember { LocalDate.now(ZoneId.systemDefault()) }
     val locale = Locale.forLanguageTag("es")
     val dateText = "${today.dayOfWeek.getDisplayName(TextStyle.FULL, locale).replaceFirstChar { it.uppercase() }}, ${today.dayOfMonth} de ${today.month.getDisplayName(TextStyle.FULL, locale)}"
 
@@ -92,7 +92,7 @@ fun DashboardScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text("Promedio", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.textSecondary)
-                    Text(String.format(locale, "%.1f", summary.cumulativeGpa), style = UniHubTheme.typography.h1, color = UniHubTheme.colorScheme.primary)
+                    Text(String.format(locale, "%.1f", state.summary.cumulativeGpa), style = UniHubTheme.typography.h1, color = UniHubTheme.colorScheme.primary)
                 }
             }
             UniHubCard(
@@ -101,7 +101,7 @@ fun DashboardScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text("Créditos", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.textSecondary)
-                    Text(summary.totalCredits.toString(), style = UniHubTheme.typography.h1, color = UniHubTheme.colorScheme.secondary)
+                    Text(state.summary.earnedCredits.toString(), style = UniHubTheme.typography.h1, color = UniHubTheme.colorScheme.secondary)
                 }
             }
         }
@@ -113,41 +113,38 @@ fun DashboardScreen(
         
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
         
-        ActivityCard(
-            title = "Computación Móvil",
-            isClass = true,
-            location = "Bloque 19 - 201",
-            time = "08:00 - 10:00",
-            color = UniHubTheme.colorScheme.primary,
-            onClick = { onNavigateToSubjectDetail("1") }
-        )
-        
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-        
-        ActivityCard(
-            title = "Reunión Scrum",
-            isClass = false,
-            meetingUrl = "meet.google.com/abc-defg-hij",
-            time = "14:00 - 15:00",
-            color = UniHubTheme.colorScheme.accent,
-            onClick = { onNavigateToEvent("2") }
-        )
+        if (state.upcomingEvents.isEmpty()) {
+            Text("No tienes actividades próximas.", style = UniHubTheme.typography.body, color = UniHubTheme.colorScheme.info)
+        } else {
+            state.upcomingEvents.take(3).forEach { event ->
+                ActivityCard(
+                    title = event.title,
+                    isClass = event.subjectId != null,
+                    location = if (event.locationType == LocationType.PHYSICAL) event.notes else null,
+                    meetingUrl = if (event.locationType == LocationType.REMOTE) event.meetingUrl else null,
+                    time = if (event.startAt.contains("T")) "${event.startAt.split("T").last()} - ${event.endAt.split("T").last()}" else "Todo el día",
+                    color = if (event.subjectId != null) UniHubTheme.colorScheme.primary else UniHubTheme.colorScheme.accent,
+                    onClick = { onNavigateToEvent(event.id) }
+                )
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+            }
+        }
 
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.twoXl))
+        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
 
         // Pending Tasks
         SectionHeader(title = "Tareas Pendientes", onSeeAll = onNavigateToTasks)
         
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
         
-        if (tasks.isEmpty()) {
+        if (state.pendingTasks.isEmpty()) {
             Text(
                 text = "No tienes tareas pendientes.",
                 style = UniHubTheme.typography.body,
-                color = UniHubTheme.colorScheme.textSecondary
+                color = UniHubTheme.colorScheme.success
             )
         } else {
-            tasks.filter { it.status != TaskStatus.COMPLETED }.forEach { task ->
+            state.pendingTasks.take(3).forEach { task ->
                 TaskCard(
                     title = task.title, 
                     date = task.dueAt ?: "Sin fecha", 
@@ -209,26 +206,27 @@ fun ActivityCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(text = time, style = UniHubTheme.typography.bodySmall, color = UniHubTheme.colorScheme.textSecondary)
                 
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                if (location != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.LocationOn, null, tint = UniHubTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(location, style = UniHubTheme.typography.bodySmall)
-                    }
-                } else if (meetingUrl != null) {
-                    Row(
-                        modifier = Modifier
-                            .clip(UniHubTheme.shape.sm)
-                            .background(UniHubTheme.colorScheme.primary.copy(0.1f))
-                            .clickable { }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Link, null, tint = UniHubTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Unirse a reunión", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.primary)
+                if (location != null || meetingUrl != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (location != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.LocationOn, null, tint = UniHubTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(location, style = UniHubTheme.typography.bodySmall)
+                        }
+                    } else if (meetingUrl != null) {
+                        Row(
+                            modifier = Modifier
+                                .clip(UniHubTheme.shape.sm)
+                                .background(UniHubTheme.colorScheme.primary.copy(0.1f))
+                                .clickable { }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Link, null, tint = UniHubTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Unirse a reunión", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.primary)
+                        }
                     }
                 }
             }

@@ -2,17 +2,7 @@ package com.unihub.app.features.settings.presentation.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -22,25 +12,37 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.theme.UniHubTheme
+import com.unihub.app.core.util.PreferencesManager
+import com.unihub.app.features.settings.domain.model.ThemeMode
+import com.unihub.app.features.settings.presentation.viewmodel.SettingsViewModel
 
 @Composable
 fun SettingsScreen(
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onNavigateToManageStudies: () -> Unit,
+    onNavigateToPermissionGuide: () -> Unit = {},
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val state by viewModel.state.collectAsState()
+    var showThemeDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -67,10 +69,13 @@ fun SettingsScreen(
                     .background(UniHubTheme.colorScheme.secondary),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "JD",
-                    style = UniHubTheme.typography.h2,
-                    color = UniHubTheme.colorScheme.surface
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    tint = UniHubTheme.colorScheme.surface,
+                    modifier = Modifier
+                        .size(80.dp)
+                        .padding(UniHubTheme.spacing.md)
                 )
             }
             
@@ -101,9 +106,9 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.twoXl))
 
-        // Account & Security
+        // Academic Programs
         Text(
-            text = "Cuenta y Seguridad",
+            text = "Carrera y Programas",
             style = UniHubTheme.typography.label,
             color = UniHubTheme.colorScheme.textSecondary
         )
@@ -111,9 +116,40 @@ fun SettingsScreen(
         UniHubCard(padding = 0.dp) {
             SettingsItem(
                 icon = Icons.Default.School,
-                title = "Información de la universidad",
-                onClick = {}
+                title = "Programas Académicos",
+                onClick = onNavigateToManageStudies,
+                isLast = true
             )
+        }
+
+        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+
+        // Appearance
+        Text(
+            text = "Apariencia",
+            style = UniHubTheme.typography.label,
+            color = UniHubTheme.colorScheme.textSecondary
+        )
+        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
+        UniHubCard(padding = 0.dp) {
+            SettingsItem(
+                icon = Icons.Default.Palette,
+                title = "Tema de la aplicación",
+                onClick = { showThemeDialog = true },
+                isLast = true
+            )
+        }
+
+        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+
+        // Account & Security
+        Text(
+            text = "Seguridad",
+            style = UniHubTheme.typography.label,
+            color = UniHubTheme.colorScheme.textSecondary
+        )
+        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
+        UniHubCard(padding = 0.dp) {
             SettingsItem(
                 icon = Icons.Default.Lock,
                 title = "Cambiar contraseña",
@@ -131,7 +167,7 @@ fun SettingsScreen(
 
         // Academic Preferences
         Text(
-            text = "Preferencias Académicas",
+            text = "Preferencias",
             style = UniHubTheme.typography.label,
             color = UniHubTheme.colorScheme.textSecondary
         )
@@ -141,6 +177,27 @@ fun SettingsScreen(
                 icon = Icons.Default.ColorLens,
                 title = "Colores de las materias",
                 onClick = {},
+                isLast = true
+            )
+        }
+
+        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+
+        // Developer Options
+        Text(
+            text = "Opciones de Desarrollador",
+            style = UniHubTheme.typography.label,
+            color = UniHubTheme.colorScheme.textSecondary
+        )
+        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
+        UniHubCard(padding = 0.dp) {
+            SettingsItem(
+                icon = Icons.Default.Notifications,
+                title = "Resetear guía de permisos",
+                onClick = {
+                    PreferencesManager.setPermissionGuideShown(context, false)
+                    onNavigateToPermissionGuide()
+                },
                 isLast = true
             )
         }
@@ -156,6 +213,65 @@ fun SettingsScreen(
         )
 
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+    }
+
+    if (showThemeDialog) {
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            title = { Text("Seleccionar Tema") },
+            text = {
+                Column {
+                    ThemeOption(
+                        label = "Claro",
+                        selected = state.userPreferences?.themeMode == ThemeMode.LIGHT,
+                        onClick = {
+                            viewModel.updateThemeMode(ThemeMode.LIGHT)
+                            showThemeDialog = false
+                        }
+                    )
+                    ThemeOption(
+                        label = "Oscuro",
+                        selected = state.userPreferences?.themeMode == ThemeMode.DARK,
+                        onClick = {
+                            viewModel.updateThemeMode(ThemeMode.DARK)
+                            showThemeDialog = false
+                        }
+                    )
+                    ThemeOption(
+                        label = "Sistema",
+                        selected = state.userPreferences?.themeMode == ThemeMode.SYSTEM,
+                        onClick = {
+                            viewModel.updateThemeMode(ThemeMode.SYSTEM)
+                            showThemeDialog = false
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showThemeDialog = false }) {
+                    Text("Cerrar")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun ThemeOption(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = UniHubTheme.spacing.xs),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Spacer(modifier = Modifier.width(UniHubTheme.spacing.sm))
+        Text(text = label, style = UniHubTheme.typography.body)
     }
 }
 

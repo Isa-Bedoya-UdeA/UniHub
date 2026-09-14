@@ -13,6 +13,8 @@ data class TaskDto(
     val priority: String = "MEDIUM",
     val status: String = "PENDING",
     val notes: String? = null,
+    val reminderAt: Long? = null,
+    val isDeadlineReminderEnabled: Boolean = false,
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L
 )

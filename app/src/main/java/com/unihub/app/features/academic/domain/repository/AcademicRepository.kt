@@ -6,22 +6,19 @@ import com.unihub.app.features.academic.domain.model.Grade
 import kotlinx.coroutines.flow.Flow
 
 interface AcademicRepository {
-    // Periods
     fun getAcademicPeriods(userId: String): Flow<List<AcademicPeriod>>
+    fun getAcademicPeriodsByStudy(userId: String, studyId: String): Flow<List<AcademicPeriod>>
     suspend fun saveAcademicPeriod(period: AcademicPeriod)
     suspend fun updateAcademicPeriod(period: AcademicPeriod)
     suspend fun deleteAcademicPeriod(id: String)
-    suspend fun setCurrentPeriod(id: String)
-    
-    // Grades
+    suspend fun setCurrentPeriod(userId: String, id: String)
+
     fun getGradesBySubject(subjectId: String): Flow<List<Grade>>
     suspend fun saveGrade(grade: Grade)
     suspend fun updateGrade(grade: Grade)
     suspend fun deleteGrade(id: String)
-    
-    // Summary
-    fun getAcademicSummary(userId: String): Flow<AcademicSummary>
-    
-    // Sync
+
+    fun getAcademicSummary(userId: String, studyId: String): Flow<AcademicSummary>
+
     suspend fun syncAcademicData(userId: String)
 }

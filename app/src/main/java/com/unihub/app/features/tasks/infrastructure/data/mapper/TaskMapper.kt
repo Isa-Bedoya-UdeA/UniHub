@@ -1,9 +1,7 @@
 package com.unihub.app.features.tasks.infrastructure.data.mapper
 
-import com.unihub.app.features.tasks.domain.model.Task
-import com.unihub.app.features.tasks.domain.model.TaskPriority
-import com.unihub.app.features.tasks.domain.model.TaskStatus
-import com.unihub.app.features.tasks.infrastructure.data.local.entity.TaskEntity
+import com.unihub.app.features.tasks.domain.model.*
+import com.unihub.app.features.tasks.infrastructure.data.local.entity.*
 import com.unihub.app.features.tasks.infrastructure.data.remote.dto.TaskDto
 
 fun Task.toEntity(): TaskEntity {
@@ -18,6 +16,8 @@ fun Task.toEntity(): TaskEntity {
         priority = priority,
         status = status,
         notes = notes,
+        reminderAt = reminderAt,
+        isDeadlineReminderEnabled = isDeadlineReminderEnabled,
         createdAt = createdAt,
         updatedAt = updatedAt
     )
@@ -35,10 +35,45 @@ fun TaskEntity.toDomain(): Task {
         priority = priority,
         status = status,
         notes = notes,
+        reminderAt = reminderAt,
+        isDeadlineReminderEnabled = isDeadlineReminderEnabled,
         createdAt = createdAt,
         updatedAt = updatedAt
     )
 }
+
+fun Tag.toEntity(): TagEntity {
+    return TagEntity(
+        id = id,
+        userId = userId,
+        name = name,
+        createdAt = createdAt
+    )
+}
+
+fun TagEntity.toDomain(): Tag {
+    return Tag(
+        id = id,
+        userId = userId,
+        name = name,
+        createdAt = createdAt
+    )
+}
+
+fun TaskTag.toEntity(): TaskTagEntity {
+    return TaskTagEntity(
+        taskId = taskId,
+        tagId = tagId
+    )
+}
+
+fun TaskTagEntity.toDomain(): TaskTag {
+    return TaskTag(
+        taskId = taskId,
+        tagId = tagId
+    )
+}
+
 
 fun TaskDto.toDomain(userId: String): Task {
     return Task(
@@ -52,6 +87,8 @@ fun TaskDto.toDomain(userId: String): Task {
         priority = try { TaskPriority.valueOf(priority) } catch (e: Exception) { TaskPriority.MEDIUM },
         status = try { TaskStatus.valueOf(status) } catch (e: Exception) { TaskStatus.PENDING },
         notes = notes,
+        reminderAt = null,
+        isDeadlineReminderEnabled = false,
         createdAt = createdAt.toString(),
         updatedAt = updatedAt.toString()
     )

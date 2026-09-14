@@ -3,6 +3,7 @@ package com.unihub.app.core.navigation
 sealed class Screen(val route: String) {
     // Root routes
     object Splash : Screen("splash")
+    object PermissionGuide : Screen("permission_guide")
     object Onboarding : Screen("onboarding")
     object Login : Screen("login")
     object Main : Screen("main")
@@ -16,7 +17,11 @@ sealed class Screen(val route: String) {
     object Settings : Screen("settings")
 
     // Detail and creation routes
-    object CreateEvent : Screen("event/create")
+    object CreateEvent : Screen("event/create?subjectId={subjectId}") {
+        fun createRoute(subjectId: String? = null): String {
+            return if (subjectId != null) "event/create?subjectId=$subjectId" else "event/create"
+        }
+    }
     object EventDetail : Screen("event/{eventId}") {
         fun createRoute(eventId: String) = "event/$eventId"
     }
@@ -68,6 +73,7 @@ sealed class Screen(val route: String) {
     object AiChat : Screen("ai/chat")
 
     object Profile : Screen("settings/profile")
+    object ManageStudies : Screen("settings/studies")
     object Notifications : Screen("settings/notifications")
     object Security : Screen("settings/security")
 }

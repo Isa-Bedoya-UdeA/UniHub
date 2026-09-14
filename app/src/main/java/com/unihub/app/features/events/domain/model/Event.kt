@@ -2,6 +2,8 @@ package com.unihub.app.features.events.domain.model
 
 enum class LocationType { PHYSICAL, REMOTE, NONE }
 
+enum class EventType { CLASS, EXAM, MEETING, PERSONAL, OTHER }
+
 data class Event(
     val id: String,
     val userId: String,
@@ -13,20 +15,18 @@ data class Event(
     val startAt: String,
     val endAt: String,
     val locationType: LocationType,
+    val eventType: EventType,
     val meetingUrl: String?,
     val notes: String?,
+    val reminders: List<EventReminder> = emptyList(),
     val createdAt: String,
     val updatedAt: String
-)
+) {
+    val isReminderEnabled: Boolean
+        get() = reminders.any { it.isEnabled }
 
-data class Location(
-    val id: String,
-    val userId: String,
-    val name: String?,
-    val address: String?,
-    val latitude: Double?,
-    val longitude: Double?,
-    val placeId: String?,
-    val createdAt: String,
-    val updatedAt: String
-)
+    val reminderMinutesBefore: Int?
+        get() = reminders
+            .filter { it.isEnabled }
+            .minOfOrNull { it.getTotalMinutesBefore().toInt() }
+}

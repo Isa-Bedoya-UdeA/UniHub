@@ -13,9 +13,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
@@ -61,7 +59,8 @@ fun GradeSimulatorScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    SimulatorStat(label = "Promedio Actual", value = String.format(Locale.getDefault(), "%.2f", state.currentAverage))
+                    val currentAvg = if (state.evaluatedWeight > 0.0) state.currentWeightedSum / state.evaluatedWeight else 0.0
+                    SimulatorStat(label = "Promedio Actual", value = String.format(Locale.getDefault(), "%.2f", currentAvg))
                     SimulatorStat(label = "% Evaluado", value = "${(state.evaluatedWeight * 100).toInt()}%")
                 }
                 
@@ -89,9 +88,10 @@ fun GradeSimulatorScreen(
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
 
         // Results Card
+        val result = state.simulationResult
         val resultColor = when {
-            state.isAlreadyPassed -> UniHubTheme.colorScheme.success
-            !state.isPossible -> UniHubTheme.colorScheme.error
+            result?.isAlreadyPassed == true -> UniHubTheme.colorScheme.success
+            result?.isPossible == false -> UniHubTheme.colorScheme.error
             else -> UniHubTheme.colorScheme.primary
         }
 
@@ -102,8 +102,8 @@ fun GradeSimulatorScreen(
             ) {
                 Text(
                     text = when {
-                        state.isAlreadyPassed -> "¡Materia Ganada!"
-                        !state.isPossible -> "Objetivo Inalcanzable"
+                        result?.isAlreadyPassed == true -> "¡Materia Ganada!"
+                        result?.isPossible == false -> "Objetivo Inalcanzable"
                         else -> "Necesitas"
                     },
                     style = UniHubTheme.typography.label,
@@ -111,7 +111,7 @@ fun GradeSimulatorScreen(
                 )
                 
                 Text(
-                    text = if (state.requiredGrade != null) String.format(Locale.getDefault(), "%.2f", state.requiredGrade.coerceAtLeast(0.0)) else "---",
+                    text = if (result != null) String.format(Locale.getDefault(), "%.2f", result.requiredGrade.coerceAtLeast(0.0)) else "---",
                     style = UniHubTheme.typography.h1,
                     color = resultColor,
                     fontWeight = FontWeight.Black
@@ -125,7 +125,7 @@ fun GradeSimulatorScreen(
             }
         }
 
-        if (!state.isPossible && !state.isAlreadyPassed) {
+        if (result?.isPossible == false && result.isAlreadyPassed == false) {
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
             Row(
                 modifier = Modifier

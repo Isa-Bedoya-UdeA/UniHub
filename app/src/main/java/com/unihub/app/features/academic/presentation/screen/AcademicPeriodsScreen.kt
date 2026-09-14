@@ -12,7 +12,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.unihub.app.core.designsystem.component.foundation.UniHubConfirmationDialog
+import com.unihub.app.core.designsystem.component.foundation.UniHubAlert
+import com.unihub.app.core.designsystem.component.foundation.UniHubAlertVariant
+import com.unihub.app.core.designsystem.component.foundation.UniHubButton
+import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
+import com.unihub.app.core.designsystem.component.foundation.UniHubDialog
+import com.unihub.app.core.designsystem.component.foundation.UniHubTextField
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.academic.domain.model.AcademicPeriod
 import com.unihub.app.features.academic.presentation.viewmodel.AcademicViewModel
@@ -29,40 +36,52 @@ fun AcademicPeriodsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val periods = state.periods
-    
+    val selectedStudyId = state.selectedStudyId
+    val hasStudies = state.studies.isNotEmpty()
+
     var periodToDelete by remember { mutableStateOf<AcademicPeriod?>(null) }
     var periodToEdit by remember { mutableStateOf<AcademicPeriod?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
 
     if (periodToDelete != null) {
-        AlertDialog(
+        UniHubConfirmationDialog(
             onDismissRequest = { periodToDelete = null },
-            title = { Text("Eliminar Periodo") },
-            text = { Text("¿Estás seguro de que quieres eliminar '${periodToDelete?.name}'? Esta acción no se puede deshacer.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    periodToDelete?.let { viewModel.deletePeriod(it.id) }
-                    periodToDelete = null
-                }) { Text("Eliminar", color = UniHubTheme.colorScheme.error) }
+            onConfirm = {
+                periodToDelete?.let { viewModel.deletePeriod(it.id) }
+                periodToDelete = null
             },
-            dismissButton = {
-                TextButton(onClick = { periodToDelete = null }) { Text("Cancelar") }
-            }
+            title = "Eliminar Periodo",
+            message = "¿Estás seguro de que quieres eliminar '${periodToDelete?.name}'? Esta acción no se puede deshacer.",
+            confirmText = "Eliminar",
+            dismissText = "Cancelar",
+            isDestructive = true
         )
     }
 
     if (showAddDialog || periodToEdit != null) {
         PeriodDialog(
             period = periodToEdit,
-            onDismiss = { 
+            onDismiss = {
                 showAddDialog = false
                 periodToEdit = null
             },
             onSave = { name, start, end ->
                 if (periodToEdit != null) {
                     viewModel.addPeriod(periodToEdit!!.copy(name = name, startDate = start, endDate = end))
-                } else {
-                    viewModel.addPeriod(AcademicPeriod(UUID.randomUUID().toString(), "user123", name, start, end, periods.isEmpty(), "", ""))
+                } else if (selectedStudyId != null) {
+                    viewModel.addPeriod(
+                        AcademicPeriod(
+                            id = UUID.randomUUID().toString(),
+                            userId = "current_user",
+                            studyId = selectedStudyId,
+                            name = name,
+                            startDate = start,
+                            endDate = end,
+                            isCurrent = periods.isEmpty(),
+                            createdAt = Instant.now().toString(),
+                            updatedAt = Instant.now().toString()
+                        )
+                    )
                 }
                 showAddDialog = false
                 periodToEdit = null
@@ -72,13 +91,15 @@ fun AcademicPeriodsScreen(
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true },
-                containerColor = UniHubTheme.colorScheme.primary,
-                contentColor = UniHubTheme.colorScheme.surface,
-                shape = CircleShape
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Nuevo Periodo")
+            if (hasStudies) {
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = UniHubTheme.colorScheme.primary,
+                    contentColor = UniHubTheme.colorScheme.surface,
+                    shape = CircleShape
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Nuevo Periodo")
+                }
             }
         },
         containerColor = UniHubTheme.colorScheme.background
@@ -94,12 +115,26 @@ fun AcademicPeriodsScreen(
                 style = UniHubTheme.typography.h2,
                 color = UniHubTheme.colorScheme.textPrimary
             )
-            
+
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
 
-            if (periods.isEmpty()) {
+            if (!hasStudies) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No hay periodos configurados.", color = UniHubTheme.colorScheme.textSecondary)
+                    UniHubAlert(
+                        variant = UniHubAlertVariant.Warning,
+                        title = "No hay programas académicos",
+                        message = "Debes crear al menos un programa académico en Ajustes antes de poder añadir periodos.",
+                        icon = Icons.Default.Info
+                    )
+                }
+            } else if (periods.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    UniHubAlert(
+                        variant = UniHubAlertVariant.Info,
+                        title = "Sin periodos",
+                        message = "No hay periodos configurados para este programa. Usa el botón + para añadir uno.",
+                        icon = Icons.Default.Info
+                    )
                 }
             } else {
                 LazyColumn(
@@ -154,7 +189,8 @@ fun PeriodDialog(
     var name by remember { mutableStateOf(period?.name ?: "") }
     var startDateText by remember { mutableStateOf(period?.startDate ?: "") }
     var endDateText by remember { mutableStateOf(period?.endDate ?: "") }
-    
+    var nameError by remember { mutableStateOf<String?>(null) }
+
     val datePickerState = rememberDatePickerState()
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
@@ -165,7 +201,7 @@ fun PeriodDialog(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let {
-                        val date = Instant.ofEpochMilli(it).atZone(ZoneId.of("UTC")).toLocalDate()
+                        val date = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
                         startDateText = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
                     }
                     showStartDatePicker = false
@@ -180,7 +216,7 @@ fun PeriodDialog(
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let {
-                        val date = Instant.ofEpochMilli(it).atZone(ZoneId.of("UTC")).toLocalDate()
+                        val date = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
                         endDateText = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
                     }
                     showEndDatePicker = false
@@ -189,54 +225,88 @@ fun PeriodDialog(
         ) { DatePicker(state = datePickerState) }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (period == null) "Nuevo Periodo" else "Editar Periodo") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name, 
-                    onValueChange = { name = it }, 
-                    label = { Text("Nombre (Ej: 2024-2)") },
-                    modifier = Modifier.fillMaxWidth()
+    UniHubDialog(onDismissRequest = onDismiss) {
+        Column {
+            Text(
+                text = if (period == null) "Nuevo Periodo" else "Editar Periodo",
+                style = UniHubTheme.typography.h3
+            )
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.lg))
+
+            UniHubTextField(
+                value = name,
+                onValueChange = { name = it; nameError = null },
+                label = "Nombre",
+                placeholder = "Ej: 2024-2",
+                isError = nameError != null,
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (nameError != null) {
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.xxs))
+                Text(
+                    text = nameError!!,
+                    style = UniHubTheme.typography.bodySmall,
+                    color = UniHubTheme.colorScheme.error
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = startDateText, 
-                    onValueChange = {}, 
-                    label = { Text("Inicio") },
-                    modifier = Modifier.fillMaxWidth(),
-                    readOnly = true,
-                    trailingIcon = {
-                        IconButton(onClick = { showStartDatePicker = true }) {
-                            Icon(Icons.Default.CalendarToday, null)
-                        }
+            }
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+            UniHubTextField(
+                value = startDateText,
+                onValueChange = {},
+                label = "Fecha de inicio",
+                placeholder = "Seleccionar fecha",
+                readOnly = true,
+                trailingIcon = {
+                    IconButton(onClick = { showStartDatePicker = true }) {
+                        Icon(Icons.Default.CalendarToday, contentDescription = "Seleccionar fecha inicio")
                     }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+            UniHubTextField(
+                value = endDateText,
+                onValueChange = {},
+                label = "Fecha de fin",
+                placeholder = "Seleccionar fecha",
+                readOnly = true,
+                trailingIcon = {
+                    IconButton(onClick = { showEndDatePicker = true }) {
+                        Icon(Icons.Default.CalendarToday, contentDescription = "Seleccionar fecha fin")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                UniHubButton(
+                    text = "Cancelar",
+                    variant = UniHubButtonVariant.Text,
+                    onClick = onDismiss
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = endDateText, 
-                    onValueChange = {}, 
-                    label = { Text("Fin") },
-                    modifier = Modifier.fillMaxWidth(),
-                    readOnly = true,
-                    trailingIcon = {
-                        IconButton(onClick = { showEndDatePicker = true }) {
-                            Icon(Icons.Default.CalendarToday, null)
+                Spacer(modifier = Modifier.width(UniHubTheme.spacing.xs))
+                UniHubButton(
+                    text = "Guardar",
+                    variant = UniHubButtonVariant.Primary,
+                    onClick = {
+                        if (name.isBlank()) {
+                            nameError = "El nombre es obligatorio"
+                        } else {
+                            onSave(name, startDateText, endDateText)
                         }
                     }
                 )
             }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                if (name.isNotBlank()) {
-                    onSave(name, startDateText, endDateText)
-                }
-            }) { Text("Guardar") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar") }
         }
-    )
+    }
 }

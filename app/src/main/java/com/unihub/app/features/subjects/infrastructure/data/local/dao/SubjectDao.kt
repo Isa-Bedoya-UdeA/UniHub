@@ -9,6 +9,9 @@ interface SubjectDao {
     @Query("SELECT * FROM Subject WHERE user_id = :userId AND academic_period_id = :periodId")
     fun getSubjects(userId: String, periodId: String): Flow<List<SubjectEntity>>
 
+    @Query("SELECT * FROM Subject WHERE user_id = :userId")
+    fun getAllSubjects(userId: String): Flow<List<SubjectEntity>>
+
     @Query("SELECT * FROM Subject WHERE subject_id = :id")
     fun getSubjectById(id: String): Flow<SubjectEntity?>
 

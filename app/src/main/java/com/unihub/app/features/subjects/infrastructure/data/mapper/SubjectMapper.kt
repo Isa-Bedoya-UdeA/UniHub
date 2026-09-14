@@ -8,6 +8,7 @@ fun Subject.toEntity(): SubjectEntity {
     return SubjectEntity(
         id = id,
         userId = userId,
+        studyId = studyId,
         academicPeriodId = academicPeriodId,
         name = name,
         code = code,
@@ -24,6 +25,7 @@ fun SubjectEntity.toDomain(): Subject {
     return Subject(
         id = id,
         userId = userId,
+        studyId = studyId,
         academicPeriodId = academicPeriodId,
         name = name,
         code = code,
@@ -36,11 +38,11 @@ fun SubjectEntity.toDomain(): Subject {
     )
 }
 
-// Note: DTO conversion might need logic to handle userId or date string/long conversions
-fun SubjectDto.toDomain(userId: String): Subject {
+fun SubjectDto.toDomain(userId: String, studyId: String): Subject {
     return Subject(
         id = id,
         userId = userId,
+        studyId = studyId,
         academicPeriodId = academicPeriodId,
         name = name,
         code = code,
@@ -48,7 +50,7 @@ fun SubjectDto.toDomain(userId: String): Subject {
         professor = professor,
         color = color,
         notes = notes,
-        createdAt = createdAt.toString(), // Simplified
+        createdAt = createdAt.toString(),
         updatedAt = updatedAt.toString()
     )
 }

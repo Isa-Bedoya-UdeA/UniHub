@@ -2,15 +2,40 @@ package com.unihub.app.features.academic.infrastructure.data.mapper
 
 import com.unihub.app.features.academic.domain.model.AcademicPeriod
 import com.unihub.app.features.academic.domain.model.Grade
+import com.unihub.app.features.academic.domain.model.Study
 import com.unihub.app.features.academic.infrastructure.data.local.entity.AcademicPeriodEntity
 import com.unihub.app.features.academic.infrastructure.data.local.entity.GradeEntity
+import com.unihub.app.features.academic.infrastructure.data.local.entity.StudyEntity
 import com.unihub.app.features.academic.infrastructure.data.remote.dto.AcademicPeriodDto
 import com.unihub.app.features.academic.infrastructure.data.remote.dto.GradeDto
+
+fun Study.toEntity(): StudyEntity = StudyEntity(
+    id = id,
+    userId = userId,
+    name = name,
+    institution = institution,
+    totalCredits = totalCredits,
+    isActive = isActive,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
+
+fun StudyEntity.toDomain(): Study = Study(
+    id = id,
+    userId = userId,
+    name = name,
+    institution = institution,
+    totalCredits = totalCredits,
+    isActive = isActive,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
 
 fun AcademicPeriod.toEntity(): AcademicPeriodEntity {
     return AcademicPeriodEntity(
         id = id,
         userId = userId,
+        studyId = studyId,
         name = name,
         startDate = startDate,
         endDate = endDate,
@@ -24,6 +49,7 @@ fun AcademicPeriodEntity.toDomain(): AcademicPeriod {
     return AcademicPeriod(
         id = id,
         userId = userId,
+        studyId = studyId,
         name = name,
         startDate = startDate,
         endDate = endDate,
@@ -63,11 +89,12 @@ fun GradeEntity.toDomain(): Grade {
     )
 }
 
-// DTO Mappers (Simplifying timestamp conversions)
-fun AcademicPeriodDto.toDomain(userId: String): AcademicPeriod {
+// DTO Mappers
+fun AcademicPeriodDto.toDomain(userId: String, studyId: String): AcademicPeriod {
     return AcademicPeriod(
         id = id,
         userId = userId,
+        studyId = studyId,
         name = name,
         startDate = startDate.toString(),
         endDate = endDate.toString(),

@@ -16,6 +16,7 @@ import androidx.navigation.navArgument
 import com.unihub.app.core.designsystem.component.foundation.UniHubBottomNavigation
 import com.unihub.app.core.designsystem.component.foundation.UniHubTopBar
 import com.unihub.app.core.designsystem.theme.UniHubTheme
+import com.unihub.app.core.util.PreferencesManager
 import com.unihub.app.features.academic.presentation.screen.AcademicPeriodsScreen
 import com.unihub.app.features.academic.presentation.screen.AcademicScreen
 import com.unihub.app.features.academic.presentation.screen.CreateGradeScreen
@@ -27,6 +28,8 @@ import com.unihub.app.features.calendar.presentation.screen.CalendarScreen
 import com.unihub.app.features.dashboard.presentation.screen.DashboardScreen
 import com.unihub.app.features.events.presentation.screen.CreateEventScreen
 import com.unihub.app.features.events.presentation.screen.EventDetailsScreen
+import com.unihub.app.features.settings.presentation.screen.ManageStudiesScreen
+import com.unihub.app.features.settings.presentation.screen.PermissionGuideScreen
 import com.unihub.app.features.settings.presentation.screen.SettingsScreen
 import com.unihub.app.features.subjects.presentation.screen.CreateSubjectScreen
 import com.unihub.app.features.subjects.presentation.screen.EditSubjectScreen
@@ -39,6 +42,7 @@ import com.unihub.app.features.tasks.presentation.screen.TasksScreen
 fun AppNavigation(
     navController: NavHostController = rememberNavController(),
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -54,6 +58,7 @@ fun AppNavigation(
     
     val showTopBar = currentRoute !in listOf(
         Screen.Splash.route,
+        Screen.PermissionGuide.route,
         Screen.Onboarding.route,
         Screen.Login.route
     )
@@ -92,13 +97,47 @@ fun AppNavigation(
             // Auth Flow
             composable(Screen.Splash.route) {
                 SplashScreen {
-                    navController.navigate(Screen.Onboarding.route) {
-                        popUpTo(Screen.Splash.route) { inclusive = true }
+                    val permissionGuideShown = PreferencesManager.isPermissionGuideShown(context)
+                    val onboardingShown = PreferencesManager.isOnboardingShown(context)
+                    val hasNotificationPermission = checkNotificationPermission(context)
+                    
+                    when {
+                        !hasNotificationPermission -> {
+                            navController.navigate(Screen.PermissionGuide.route) {
+                                popUpTo(Screen.Splash.route) { inclusive = true }
+                            }
+                        }
+                        !onboardingShown -> {
+                            navController.navigate(Screen.Onboarding.route) {
+                                popUpTo(Screen.Splash.route) { inclusive = true }
+                            }
+                        }
+                        else -> {
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(Screen.Splash.route) { inclusive = true }
+                            }
+                        }
+                    }
+                }
+            }
+            composable(Screen.PermissionGuide.route) {
+                PermissionGuideScreen {
+                    PreferencesManager.setPermissionGuideShown(context, true)
+                    val onboardingShown = PreferencesManager.isOnboardingShown(context)
+                    if (!onboardingShown) {
+                        navController.navigate(Screen.Onboarding.route) {
+                            popUpTo(Screen.PermissionGuide.route) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.PermissionGuide.route) { inclusive = true }
+                        }
                     }
                 }
             }
             composable(Screen.Onboarding.route) {
                 OnboardingScreen {
+                    PreferencesManager.setOnboardingShown(context, true)
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
@@ -175,7 +214,7 @@ fun AppNavigation(
                         navController.navigate(Screen.GradeSimulator.createRoute(subjectId))
                     },
                     onNavigateToCreateEvent = {
-                        navController.navigate(Screen.CreateEvent.route)
+                        navController.navigate(Screen.CreateEvent.createRoute(subjectId = subjectId))
                     }
                 )
             }
@@ -212,11 +251,26 @@ fun AppNavigation(
                 )
             }
             composable(Screen.Settings.route) {
-                SettingsScreen {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Dashboard.route) { inclusive = true }
+                SettingsScreen(
+                    onLogout = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Dashboard.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToManageStudies = {
+                        navController.navigate(Screen.ManageStudies.route)
+                    },
+                    onNavigateToPermissionGuide = {
+                        navController.navigate(Screen.PermissionGuide.route) {
+                            popUpTo(Screen.Settings.route) { inclusive = true }
+                        }
                     }
-                }
+                )
+            }
+            composable(Screen.ManageStudies.route) {
+                ManageStudiesScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
             
             // Creation Screens
@@ -242,8 +296,15 @@ fun AppNavigation(
                     onBack = { navController.popBackStack() }
                 )
             }
-            composable(Screen.CreateEvent.route) {
+            composable(
+                route = Screen.CreateEvent.route,
+                arguments = listOf(
+                    navArgument("subjectId") { type = NavType.StringType; nullable = true; defaultValue = null }
+                )
+            ) { backStackEntry ->
+                val subjectId = backStackEntry.arguments?.getString("subjectId")
                 CreateEventScreen(
+                    subjectId = subjectId,
                     onEventCreated = { navController.popBackStack() },
                     onBack = { navController.popBackStack() }
                 )
@@ -305,4 +366,8 @@ fun AppNavigation(
             }
         }
     }
+}
+
+private fun checkNotificationPermission(context: android.content.Context): Boolean {
+    return androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
 }

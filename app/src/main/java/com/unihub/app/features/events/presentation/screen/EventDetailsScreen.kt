@@ -32,7 +32,6 @@ fun EventDetailsScreen(
 ) {
     val events by viewModel.events.collectAsState()
     val event = events.find { it.id == eventId }
-    var remindMe by remember { mutableStateOf(true) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     if (showDeleteDialog && event != null) {
@@ -156,19 +155,52 @@ fun EventDetailsScreen(
             
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
             
-            // Reminder Switch
-            UniHubCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Notifications, null, tint = UniHubTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(UniHubTheme.spacing.md))
-                        Text(text = "Recordarme 15 mins antes", style = UniHubTheme.typography.body)
+            // Reminders Section
+            if (event.reminders.isNotEmpty()) {
+                UniHubCard {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Notifications, null, tint = UniHubTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(UniHubTheme.spacing.xs))
+                            Text(text = "Recordatorios", style = UniHubTheme.typography.h4)
+                        }
+                        Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+                        event.reminders.forEach { reminder ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = reminder.getDisplayText(),
+                                    style = UniHubTheme.typography.body,
+                                    color = if (reminder.isEnabled) UniHubTheme.colorScheme.textPrimary 
+                                    else UniHubTheme.colorScheme.textDisabled
+                                )
+                                Text(
+                                    text = if (reminder.isEnabled) "Activo" else "Inactivo",
+                                    style = UniHubTheme.typography.bodySmall,
+                                    color = if (reminder.isEnabled) UniHubTheme.colorScheme.success 
+                                    else UniHubTheme.colorScheme.textDisabled
+                                )
+                            }
+                            if (reminder != event.reminders.last()) {
+                                Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
+                            }
+                        }
                     }
-                    Switch(checked = remindMe, onCheckedChange = { remindMe = it })
+                }
+            } else {
+                UniHubCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.Notifications, null, tint = UniHubTheme.colorScheme.textDisabled)
+                        Spacer(modifier = Modifier.width(UniHubTheme.spacing.xs))
+                        Text(text = "Sin recordatorios", style = UniHubTheme.typography.body, color = UniHubTheme.colorScheme.textDisabled)
+                    }
                 }
             }
             

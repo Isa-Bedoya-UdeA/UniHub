@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface SubjectRepository {
     fun getSubjects(userId: String, academicPeriodId: String): Flow<List<Subject>>
+    fun getAllSubjects(userId: String): Flow<List<Subject>>
     fun getSubjectById(id: String): Flow<Subject?>
     suspend fun saveSubject(subject: Subject)
     suspend fun updateSubject(subject: Subject)

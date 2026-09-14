@@ -3,6 +3,7 @@ package com.unihub.app.features.subjects.domain.model
 data class Subject(
     val id: String,
     val userId: String,
+    val studyId: String,
     val academicPeriodId: String,
     val name: String,
     val code: String?,

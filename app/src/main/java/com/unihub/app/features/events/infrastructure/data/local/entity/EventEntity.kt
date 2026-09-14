@@ -3,6 +3,7 @@ package com.unihub.app.features.events.infrastructure.data.local.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.unihub.app.features.events.domain.model.EventType
 import com.unihub.app.features.events.domain.model.LocationType
 
 @Entity(tableName = "Event")
@@ -38,12 +39,15 @@ data class EventEntity(
     @ColumnInfo(name = "location_type")
     val locationType: LocationType,
     
+    @ColumnInfo(name = "event_type")
+    val eventType: EventType,
+    
     @ColumnInfo(name = "meeting_url")
     val meetingUrl: String?,
     
     @ColumnInfo(name = "notes")
     val notes: String?,
-    
+
     @ColumnInfo(name = "created_at")
     val createdAt: String,
     

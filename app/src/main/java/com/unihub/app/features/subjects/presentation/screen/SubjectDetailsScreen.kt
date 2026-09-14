@@ -17,12 +17,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.unihub.app.core.common.state.MessageType
+import com.unihub.app.core.common.state.UiEvent
+import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
+import com.unihub.app.core.designsystem.component.foundation.UniHubDialog
 import com.unihub.app.core.designsystem.component.foundation.UniHubProgressBar
 import com.unihub.app.core.designsystem.theme.UniHubTheme
+import com.unihub.app.features.dashboard.presentation.screen.ActivityCard
+import com.unihub.app.features.dashboard.presentation.screen.TaskCard
 import com.unihub.app.features.subjects.presentation.viewmodel.SubjectDetailsViewModel
 import com.unihub.app.features.tasks.domain.model.Task
 import com.unihub.app.features.tasks.domain.model.TaskStatus
+import kotlinx.coroutines.flow.collectLatest
 import java.util.Locale
 
 @Composable
@@ -39,52 +46,84 @@ fun SubjectDetailsScreen(
     viewModel: SubjectDetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
     var showFabMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(subjectId) {
         viewModel.loadSubject(subjectId)
     }
 
-    Scaffold(
-        floatingActionButton = {
-            Box {
-                FloatingActionButton(
-                    onClick = { showFabMenu = true },
-                    containerColor = UniHubTheme.colorScheme.primary,
-                    contentColor = UniHubTheme.colorScheme.surface,
-                    shape = CircleShape
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Acciones")
+    LaunchedEffect(key1 = true) {
+        viewModel.uiEvent.collectLatest { event ->
+            when (event) {
+                is UiEvent.ShowMessage -> {
+                    snackbarHostState.showSnackbar(
+                        message = event.message,
+                        duration = SnackbarDuration.Short
+                    )
                 }
-                DropdownMenu(
-                    expanded = showFabMenu,
+                else -> {}
+            }
+        }
+    }
+
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        },
+        floatingActionButton = {
+            if (showFabMenu) {
+                UniHubDialog(
                     onDismissRequest = { showFabMenu = false }
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Nueva Tarea") },
-                        onClick = { 
-                            showFabMenu = false
-                            onNavigateToCreateTask()
-                        },
-                        leadingIcon = { Icon(Icons.Default.Task, null) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Nueva Nota") },
-                        onClick = { 
-                            showFabMenu = false
-                            onNavigateToCreateGrade()
-                        },
-                        leadingIcon = { Icon(Icons.Default.Grade, null) }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Nuevo Evento") },
-                        onClick = { 
-                            showFabMenu = false
-                            onNavigateToCreateEvent()
-                        },
-                        leadingIcon = { Icon(Icons.Default.Event, null) }
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "¿Qué deseas crear?",
+                            style = UniHubTheme.typography.h3,
+                            modifier = Modifier.padding(bottom = UniHubTheme.spacing.md)
+                        )
+                        UniHubButton(
+                            text = "Nueva Tarea",
+                            onClick = {
+                                showFabMenu = false
+                                onNavigateToCreateTask()
+                            },
+                            leadingIcon = Icons.Default.Task,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+                        UniHubButton(
+                            text = "Nueva Nota",
+                            onClick = {
+                                showFabMenu = false
+                                onNavigateToCreateGrade()
+                            },
+                            leadingIcon = Icons.Default.Grade,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+                        UniHubButton(
+                            text = "Nuevo Evento",
+                            onClick = {
+                                showFabMenu = false
+                                onNavigateToCreateEvent()
+                            },
+                            leadingIcon = Icons.Default.Event,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
+            }
+            FloatingActionButton(
+                onClick = { showFabMenu = true },
+                containerColor = UniHubTheme.colorScheme.primary,
+                contentColor = UniHubTheme.colorScheme.surface,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Acciones")
             }
         },
         containerColor = UniHubTheme.colorScheme.background
@@ -153,31 +192,37 @@ fun SubjectDetailsScreen(
             
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
             
-            Text(text = "Siguiente clase", style = UniHubTheme.typography.h3)
-            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-            
-            EventCard(
-                name = "Clase Magistral",
-                date = "Mañana, 24 Oct",
-                time = "18:00 - 20:00",
-                location = "Bloque 19 - 201",
-                onClick = { onNavigateToEvent("1") }
-            )
-            
-            Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+            if (state.nextClass != null) {
+                Text(text = "Siguiente clase", style = UniHubTheme.typography.h3)
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+                
+                val nextClass = state.nextClass!!
+                ActivityCard(
+                    title = nextClass.title,
+                    isClass = true,
+                    time = if (nextClass.startAt.contains("T")) "${nextClass.startAt.split("T").last()} - ${nextClass.endAt.split("T").last()}" else "Todo el día",
+                    location = if (nextClass.locationType == com.unihub.app.features.events.domain.model.LocationType.PHYSICAL) nextClass.notes else null,
+                    meetingUrl = if (nextClass.locationType == com.unihub.app.features.events.domain.model.LocationType.REMOTE) nextClass.meetingUrl else null,
+                    color = UniHubTheme.colorScheme.primary,
+                    onClick = { onNavigateToEvent(nextClass.id) }
+                )
+                
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+            }
             
             if (state.tasks.isNotEmpty()) {
                 Text(text = "Tareas", style = UniHubTheme.typography.h3)
                 Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
                 
                 state.tasks.forEach { task ->
-                    TaskDetailItem(
-                        task = task,
-                        onToggle = { viewModel.toggleTask(task) },
-                        onEdit = { onNavigateToEditTask(task.id) },
-                        onDelete = { viewModel.deleteTask(task.id) }
+                    TaskCard(
+                        title = task.title,
+                        date = task.dueAt ?: "Sin fecha",
+                        color = UniHubTheme.colorScheme.warning,
+                        isCompleted = task.status == TaskStatus.COMPLETED,
+                        onToggle = { viewModel.toggleTask(task) }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
                 }
                 Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
             }
@@ -195,53 +240,6 @@ fun SubjectDetailsScreen(
                         onDelete = { viewModel.deleteGrade(grade.id) }
                     )
                     Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun TaskDetailItem(
-    task: Task,
-    onToggle: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var showMenu by remember { mutableStateOf(false) }
-    val isCompleted = task.status == TaskStatus.COMPLETED
-
-    UniHubCard(padding = 0.dp) {
-        Row(
-            modifier = Modifier.padding(UniHubTheme.spacing.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                contentDescription = null,
-                tint = if (isCompleted) UniHubTheme.colorScheme.success else UniHubTheme.colorScheme.textDisabled,
-                modifier = Modifier.size(24.dp).clickable { onToggle() }
-            )
-            Spacer(modifier = Modifier.width(UniHubTheme.spacing.md))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = task.title, 
-                    style = UniHubTheme.typography.h4,
-                    color = if (isCompleted) UniHubTheme.colorScheme.textDisabled else UniHubTheme.colorScheme.textPrimary
-                )
-                Text(
-                    text = "Vence: ${task.dueAt ?: "Sin fecha"}", 
-                    style = UniHubTheme.typography.bodySmall, 
-                    color = UniHubTheme.colorScheme.textSecondary
-                )
-            }
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.MoreVert, null, tint = UniHubTheme.colorScheme.textDisabled)
-                }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(text = { Text("Editar") }, onClick = { showMenu = false; onEdit() })
-                    DropdownMenuItem(text = { Text("Eliminar") }, onClick = { showMenu = false; onDelete() })
                 }
             }
         }
@@ -324,35 +322,6 @@ fun MetricCard(
                 
                 Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
                 Text(text = value, style = UniHubTheme.typography.h4, color = borderColor, modifier = Modifier.align(Alignment.End))
-            }
-        }
-    }
-}
-
-@Composable
-fun EventCard(
-    name: String,
-    date: String,
-    time: String,
-    location: String,
-    onClick: () -> Unit
-) {
-    UniHubCard(onClick = onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(UniHubTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.CalendarMonth, null, tint = UniHubTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-            }
-            Spacer(modifier = Modifier.width(UniHubTheme.spacing.md))
-            Column {
-                Text(text = name, style = UniHubTheme.typography.h4)
-                Text(text = "$date | $time", style = UniHubTheme.typography.bodySmall, color = UniHubTheme.colorScheme.textSecondary)
-                Text(text = location, style = UniHubTheme.typography.bodySmall, color = UniHubTheme.colorScheme.textSecondary)
             }
         }
     }

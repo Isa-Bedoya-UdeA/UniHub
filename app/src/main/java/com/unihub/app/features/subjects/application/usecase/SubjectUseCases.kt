@@ -8,6 +8,10 @@ class GetSubjectsUseCase @Inject constructor(private val repository: SubjectRepo
     operator fun invoke(userId: String, periodId: String) = repository.getSubjects(userId, periodId)
 }
 
+class GetAllSubjectsUseCase @Inject constructor(private val repository: SubjectRepository) {
+    operator fun invoke(userId: String) = repository.getAllSubjects(userId)
+}
+
 class GetSubjectByIdUseCase @Inject constructor(private val repository: SubjectRepository) {
     operator fun invoke(id: String) = repository.getSubjectById(id)
 }

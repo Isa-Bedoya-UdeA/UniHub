@@ -105,15 +105,26 @@ The application does not use continuous location tracking or arrival-based notif
 * User profile.
 * Secure access to protected information.
 
-### 4.2 Subject Management
+### 4.2 Study Management
+
+* Create academic programs (studies).
+* Edit academic programs.
+* Delete academic programs.
+* Set an active study.
+* Each study has a name, institution, and total credits target.
+* Subjects and academic periods are associated with a study.
+* Academic progress is calculated per study.
+
+### 4.3 Subject Management
 
 * Create subjects.
 * Edit subjects.
 * Delete subjects.
 * View subjects.
 * Associate events, tasks, and grades with subjects.
+* Subjects belong to a study and an academic period.
 
-### 4.3 Event Management
+### 4.4 Event Management
 
 * Create events.
 * Edit events.
@@ -127,7 +138,7 @@ The application does not use continuous location tracking or arrival-based notif
 * Remote events.
 * Meeting URLs.
 
-### 4.4 Location
+### 4.5 Location
 
 Geolocation functionality is limited to event-related location management.
 
@@ -141,7 +152,7 @@ The user can:
 
 UniHub does not continuously track the user.
 
-### 4.5 Task Management
+### 4.6 Task Management
 
 * Create tasks.
 * Edit tasks.
@@ -151,7 +162,7 @@ UniHub does not continuously track the user.
 * Set deadlines.
 * Associate tasks with subjects.
 
-### 4.6 Academic Calculations
+### 4.7 Academic Calculations
 
 * Register grades.
 * Register evaluation weights.
@@ -161,7 +172,7 @@ UniHub does not continuously track the user.
 
 Academic calculations are implemented as deterministic application logic.
 
-### 4.7 AI Interaction
+### 4.8 AI Interaction
 
 The AI assistant can:
 
@@ -176,13 +187,13 @@ The AI assistant can:
 * Register grades.
 * Recommend daily planning strategies.
 
-### 4.8 Local and Cloud Persistence
+### 4.9 Local and Cloud Persistence
 
 Core academic information is persisted locally and synchronized with Firebase when applicable.
 
 The application is designed to remain useful during temporary network interruptions.
 
-### 4.9 Security
+### 4.10 Security
 
 The system includes:
 

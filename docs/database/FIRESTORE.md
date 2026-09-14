@@ -35,12 +35,8 @@ The Firestore model follows these principles:
 - Every protected resource belongs to an authenticated user.
 - User data is isolated by user ownership.
 - Data is organized around application access patterns.
-- Avoid deeply nested collections when they provide no practical benefit.
-- Avoid unnecessary duplication.
-- Denormalize only when it improves required reads and the consistency cost is understood.
-- Keep recurrence definitions separate from generated calendar occurrences.
-- Do not store one document for every recurring event occurrence.
-- Do not expose infrastructure models directly to the Domain layer.
+- All documents related to a user are under the `users/{userId}/` root.
+- Maintain consistency with the relational model's business logic.
 
 ## 4. Root Collection Structure
 
@@ -52,6 +48,9 @@ users/
         profile/
             {profileId}/
 
+        studies/
+            {studyId}/
+
         academicPeriods/
             {academicPeriodId}/
 
@@ -60,6 +59,8 @@ users/
 
         events/
             {eventId}/
+                reminders/
+                    {reminderId}/
 
         recurrenceRules/
             {recurrenceRuleId}/
@@ -77,25 +78,14 @@ users/
 
         tags/
             {tagId}/
+        
+        preferences/
+            settings/
 ```
-
-All application data is scoped beneath:
-
-```text
-users/{userId}/
-```
-
-This structure makes ownership explicit and simplifies Firestore Security Rules.
 
 ## 5. User Profile
 
-Path:
-
-```text
-users/{userId}/profile/{profileId}
-```
-
-Suggested fields:
+Path: `users/{userId}/profile/{profileId}`
 
 | Field             | Type      | Required | Description           |
 |-------------------|-----------|---------:|-----------------------|
@@ -105,20 +95,26 @@ Suggested fields:
 | `createdAt`       | timestamp |      Yes | Creation timestamp    |
 | `updatedAt`       | timestamp |      Yes | Last update timestamp |
 
-The Firebase UID is obtained from the document path and authentication context and is not treated as a user-controlled ownership value.
+## 6. Study (Academic Program)
 
-## 6. Academic Period
+Path: `users/{userId}/studies/{studyId}`
 
-Path:
+| Field          | Type      | Required | Description                                 |
+|----------------|-----------|---------:|---------------------------------------------|
+| `name`         | string    |      Yes | Program name (e.g. "Ing de Sistemas")      |
+| `institution`  | string    |      Yes | Institution (e.g. "UdeA")                   |
+| `totalCredits` | number    |      Yes | Target credits for completion               |
+| `isActive`     | boolean   |      Yes | Whether it is the user's primary study      |
+| `createdAt`    | timestamp |      Yes | Creation timestamp                          |
+| `updatedAt`    | timestamp |      Yes | Last update timestamp                       |
 
-```text
-users/{userId}/academicPeriods/{academicPeriodId}
-```
+## 7. Academic Period
 
-An Academic Period represents a university semester or equivalent academic period.
+Path: `users/{userId}/academicPeriods/{academicPeriodId}`
 
 | Field       | Type        | Required | Description                     |
 |-------------|-------------|---------:|---------------------------------|
+| `studyId`   | string      |      Yes | Associated study/program        |
 | `name`      | string      |      Yes | Display name, e.g. `2026-2`     |
 | `startDate` | string/date |      Yes | Period start                    |
 | `endDate`   | string/date |      Yes | Period end                      |
@@ -126,18 +122,13 @@ An Academic Period represents a university semester or equivalent academic perio
 | `createdAt` | timestamp   |      Yes | Creation timestamp              |
 | `updatedAt` | timestamp   |      Yes | Last update timestamp           |
 
-Multiple academic periods may coexist. The active period is selected by application state rather than deleting previous data.
+## 8. Subject
 
-## 7. Subject
-
-Path:
-
-```text
-users/{userId}/subjects/{subjectId}
-```
+Path: `users/{userId}/subjects/{subjectId}`
 
 | Field              | Type      | Required | Description                |
 |--------------------|-----------|---------:|----------------------------|
+| `studyId`          | string    |      Yes | Associated study/program   |
 | `academicPeriodId` | string    |      Yes | Associated academic period |
 | `name`             | string    |      Yes | Subject name               |
 | `code`             | string    |       No | University course code     |
@@ -147,15 +138,9 @@ users/{userId}/subjects/{subjectId}
 | `createdAt`        | timestamp |      Yes | Creation timestamp         |
 | `updatedAt`        | timestamp |      Yes | Last update timestamp      |
 
-A subject belongs to one academic period and can have multiple event definitions.
+## 9. Event
 
-## 8. Event
-
-Path:
-
-```text
-users/{userId}/events/{eventId}
-```
+Path: `users/{userId}/events/{eventId}`
 
 | Field              | Type      | Required | Description                      |
 |--------------------|-----------|---------:|----------------------------------|
@@ -167,20 +152,14 @@ users/{userId}/events/{eventId}
 | `recurrenceRuleId` | string    |       No | Associated recurrence definition |
 | `locationId`       | string    |       No | Physical location                |
 | `meetingUrl`       | string    |       No | Remote meeting URL               |
-| `isRemote`         | boolean   |      Yes | Remote event indicator           |
+| `locationType`     | string    |      Yes | `PHYSICAL`, `REMOTE`, or `NONE`  |
 | `notes`            | string    |       No | Private event notes              |
 | `createdAt`        | timestamp |      Yes | Creation timestamp               |
 | `updatedAt`        | timestamp |      Yes | Last update timestamp            |
 
-An event may be academic or personal, physical or remote, associated with a subject or independent of one.
+## 10. Recurrence Rule
 
-## 9. Recurrence Rule
-
-Path:
-
-```text
-users/{userId}/recurrenceRules/{recurrenceRuleId}
-```
+Path: `users/{userId}/recurrenceRules/{recurrenceRuleId}`
 
 | Field       | Type        | Required | Description                               |
 |-------------|-------------|---------:|-------------------------------------------|
@@ -191,48 +170,17 @@ users/{userId}/recurrenceRules/{recurrenceRuleId}
 | `createdAt` | timestamp   |      Yes | Creation timestamp                        |
 | `updatedAt` | timestamp   |      Yes | Last update timestamp                     |
 
-One recurrence rule represents one event time interval.
+## 11. Recurrence Days
 
-## 10. Recurrence Days
-
-Path:
-
-```text
-users/{userId}/recurrenceRules/{recurrenceRuleId}/days/{dayId}
-```
+Path: `users/{userId}/recurrenceRules/{recurrenceRuleId}/days/{dayId}`
 
 | Field       | Type   | Required | Description             |
 |-------------|--------|---------:|-------------------------|
 | `dayOfWeek` | number |      Yes | ISO weekday from 1 to 7 |
 
-Example:
+## 12. Location
 
-```text
-recurrenceRules/
-    {ruleId}/
-        days/
-            {day1}/
-                dayOfWeek: 2
-            {day2}/
-                dayOfWeek: 4
-```
-
-For different weekly time intervals, use separate event definitions.
-
-```text
-Event A → Rule A → Tuesday + Thursday → 16:00–18:00
-Event B → Rule B → Saturday → 14:00–16:00
-```
-
-Both can reference the same subject and academic period.
-
-## 11. Location
-
-Path:
-
-```text
-users/{userId}/locations/{locationId}
-```
+Path: `users/{userId}/locations/{locationId}`
 
 | Field       | Type      | Required | Description                  |
 |-------------|-----------|---------:|------------------------------|
@@ -244,15 +192,9 @@ users/{userId}/locations/{locationId}
 | `createdAt` | timestamp |      Yes | Creation timestamp           |
 | `updatedAt` | timestamp |      Yes | Last update timestamp        |
 
-Location data is used for events. UniHub does not use location for arrival-based notifications.
+## 13. Task
 
-## 12. Task
-
-Path:
-
-```text
-users/{userId}/tasks/{taskId}
-```
+Path: `users/{userId}/tasks/{taskId}`
 
 | Field              | Type      | Required | Description                |
 |--------------------|-----------|---------:|----------------------------|
@@ -267,15 +209,9 @@ users/{userId}/tasks/{taskId}
 | `createdAt`        | timestamp |      Yes | Creation timestamp         |
 | `updatedAt`        | timestamp |      Yes | Last update timestamp      |
 
-A task can be academic or personal.
+## 14. Grade
 
-## 13. Grade
-
-Path:
-
-```text
-users/{userId}/grades/{gradeId}
-```
+Path: `users/{userId}/grades/{gradeId}`
 
 | Field              | Type      | Required | Description                |
 |--------------------|-----------|---------:|----------------------------|
@@ -287,15 +223,9 @@ users/{userId}/grades/{gradeId}
 | `createdAt`        | timestamp |      Yes | Creation timestamp         |
 | `updatedAt`        | timestamp |      Yes | Last update timestamp      |
 
-Academic calculations are deterministic and do not depend on AI.
+## 15. Tag
 
-## 14. Tag
-
-Path:
-
-```text
-users/{userId}/tags/{tagId}
-```
+Path: `users/{userId}/tags/{tagId}`
 
 | Field       | Type      | Required | Description           |
 |-------------|-----------|---------:|-----------------------|
@@ -303,228 +233,24 @@ users/{userId}/tags/{tagId}
 | `createdAt` | timestamp |      Yes | Creation timestamp    |
 | `updatedAt` | timestamp |      Yes | Last update timestamp |
 
-Tags may be associated with events or tasks. The final representation will be selected according to actual query requirements.
+## 16. Preferences
 
-## 15. Logical Relationships
+Path: `users/{userId}/preferences/settings`
 
-Firestore does not enforce SQL-style foreign keys. The application therefore maintains logical references.
+| Field       | Type      | Required | Description                        |
+|-------------|-----------|---------:|------------------------------------|
+| `themeMode` | string    |      Yes | `LIGHT`, `DARK`, or `SYSTEM`       |
 
-```text
-AcademicPeriod
-      │
-      └────── 0..N Subject
-                    │
-                    ├────── 0..N Event
-                    ├────── 0..N Task
-                    └────── 0..N Grade
-
-Event
-  ├────── 0..1 RecurrenceRule
-  └────── 0..1 Location
-```
-
-Referenced identifiers must belong to the authenticated user before a relationship is created or updated.
-
-## 16. Recurring Event Storage
-
-UniHub does not create one Firestore document per recurring occurrence.
-
-Instead:
+## 17. Logical Relationships
 
 ```text
-Event
-  ↓
-RecurrenceRule
-  ↓
-RecurrenceDay(s)
-  ↓
-Calendar occurrence calculation
+Study
+  │
+  └────── 0..N AcademicPeriod
+                │
+                └────── 0..N Subject
+                              │
+                              ├────── 0..N Event
+                              ├────── 0..N Task
+                              └────── 0..N Grade
 ```
-
-For example:
-
-```text
-Event:
-    title: "Computación Móvil"
-    startAt: 2026-08-04T16:00
-    endAt: 2026-08-04T18:00
-
-RecurrenceRule:
-    frequency: WEEKLY
-    startDate: 2026-08-03
-    endDate: 2026-12-06
-
-RecurrenceDays:
-    TUESDAY
-    THURSDAY
-```
-
-The calendar generates occurrences for the visible date range.
-
-## 17. Room Synchronization
-
-Room remains the local persistence layer.
-
-Remote-to-local flow:
-
-```text
-Firestore
-    ↓
-Remote DTO
-    ↓
-Mapper
-    ↓
-Room Entity
-    ↓
-DAO
-    ↓
-Local Repository
-    ↓
-Domain Model
-    ↓
-Use Case
-    ↓
-ViewModel
-    ↓
-Compose UI
-```
-
-Local-to-cloud flow:
-
-```text
-Compose UI
-    ↓
-ViewModel
-    ↓
-Use Case
-    ↓
-Repository
-    ↓
-Room
-    ↓
-Synchronization
-    ↓
-Firestore
-```
-
-The final synchronization strategy must define conflict behavior before multi-device synchronization is considered complete.
-
-## 18. Offline Behavior
-
-UniHub should remain useful without network connectivity.
-
-The MVP prioritizes:
-
-- Reading locally persisted subjects.
-- Reading events.
-- Reading tasks.
-- Reading grades.
-- Performing academic calculations locally.
-- Creating and editing supported local data.
-
-Cloud synchronization resumes when connectivity is restored.
-
-Network-dependent operations must expose appropriate loading, offline, and error states.
-
-## 19. Security Boundary
-
-The proposed structure supports user-scoped Firestore Security Rules:
-
-```text
-users/{userId}/...
-        │
-        └── request.auth.uid == userId
-```
-
-Security details are documented in:
-
-[Security Documentation](../security/SECURITY.md)
-
-Client-side UI restrictions are not considered authorization.
-
-## 20. Query and Index Considerations
-
-Expected queries include:
-
-```text
-Events by user + date range
-Events by user + subject
-Events by user + recurrence
-Tasks by user + due date
-Tasks by user + status
-Grades by user + subject
-Grades by user + academic period
-Subjects by user + academic period
-```
-
-Firestore composite indexes should be created only when required by actual queries.
-
-## 21. Data Validation
-
-The application must validate:
-
-- Required fields.
-- Valid identifiers.
-- Event start/end consistency.
-- Recurrence date ranges.
-- Valid recurrence days.
-- Subject ownership.
-- Academic-period ownership.
-- Location ownership.
-- Grade values.
-- Grade weights.
-- Task status values.
-- Meeting URLs where applicable.
-
-Security Rules provide a second boundary for ownership and supported write conditions.
-
-## 22. Data Lifecycle
-
-Academic periods are not deleted simply because a semester ends.
-
-Multiple periods may coexist:
-
-```text
-2026-1
-2026-2
-2027-1
-...
-```
-
-The active academic period determines the default context shown by the application.
-
-Historical information remains available unless explicitly deleted by the user.
-
-## 23. Relationship with the Relational Model
-
-The normalized Room model is documented in:
-
-[Database Documentation](DATABASE.md)
-
-The Room model remains relational and normalized.
-
-Firestore is intentionally organized around document access patterns and ownership.
-
-Therefore:
-
-```text
-Room tables ≠ Firestore collections
-```
-
-What must remain consistent is the business meaning of the data.
-
-## 24. Evolution
-
-Any schema change must be reflected in:
-
-1. Firestore model.
-2. Room model.
-3. Domain models where affected.
-4. Mappers.
-5. Repository implementations.
-6. Security Rules.
-7. Relevant tests.
-8. Database documentation.
-
-Existing cloud documents must be considered before introducing breaking changes.
-

@@ -3,6 +3,7 @@ package com.unihub.app.features.academic.domain.model
 data class AcademicPeriod(
     val id: String,
     val userId: String,
+    val studyId: String,
     val name: String,
     val startDate: String,
     val endDate: String,
@@ -27,6 +28,7 @@ data class Grade(
 data class AcademicSummary(
     val cumulativeGpa: Double,
     val currentSemesterGpa: Double,
-    val totalCredits: Int,
+    val earnedCredits: Int,
+    val targetCredits: Int,
     val progressPercentage: Double
 )

@@ -13,6 +13,9 @@ data class SubjectEntity(
     @ColumnInfo(name = "user_id")
     val userId: String,
     
+    @ColumnInfo(name = "study_id")
+    val studyId: String,
+    
     @ColumnInfo(name = "academic_period_id")
     val academicPeriodId: String,
     

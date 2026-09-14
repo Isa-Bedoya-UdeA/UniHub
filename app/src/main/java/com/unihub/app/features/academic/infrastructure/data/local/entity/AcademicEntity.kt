@@ -13,6 +13,9 @@ data class AcademicPeriodEntity(
     @ColumnInfo(name = "user_id")
     val userId: String,
     
+    @ColumnInfo(name = "study_id")
+    val studyId: String,
+    
     @ColumnInfo(name = "name")
     val name: String,
     

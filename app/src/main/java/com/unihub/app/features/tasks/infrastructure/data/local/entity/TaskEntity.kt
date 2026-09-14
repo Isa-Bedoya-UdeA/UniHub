@@ -38,7 +38,13 @@ data class TaskEntity(
     
     @ColumnInfo(name = "notes")
     val notes: String?,
-    
+
+    @ColumnInfo(name = "reminder_at")
+    val reminderAt: String?,
+
+    @ColumnInfo(name = "is_deadline_reminder_enabled")
+    val isDeadlineReminderEnabled: Boolean = false,
+
     @ColumnInfo(name = "created_at")
     val createdAt: String,
     

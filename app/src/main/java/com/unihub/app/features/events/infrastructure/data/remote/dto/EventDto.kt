@@ -15,6 +15,8 @@ data class EventDto(
     val locationType: String = "NONE",
     val meetingUrl: String? = null,
     val notes: String? = null,
+    val reminderMinutesBefore: Int? = null,
+    val isReminderEnabled: Boolean = false,
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L
 )

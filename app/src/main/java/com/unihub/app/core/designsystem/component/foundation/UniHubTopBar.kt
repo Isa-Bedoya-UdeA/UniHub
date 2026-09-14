@@ -1,6 +1,7 @@
 package com.unihub.app.core.designsystem.component.foundation
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
@@ -44,7 +45,9 @@ fun UniHubTopBar(
                     Image(
                         painter = painterResource(id = R.drawable.ic_app_logo_2),
                         contentDescription = null,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier
+                            .size(32.dp)
+                            .padding(4.dp)
                     )
                 }
             }

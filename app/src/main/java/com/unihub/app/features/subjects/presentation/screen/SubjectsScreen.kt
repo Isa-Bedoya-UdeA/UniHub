@@ -1,16 +1,7 @@
 package com.unihub.app.features.subjects.presentation.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -19,27 +10,18 @@ import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingFlat
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.unihub.app.core.designsystem.component.academic.UniHubStudySelector
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.component.foundation.UniHubChip
 import com.unihub.app.core.designsystem.theme.UniHubTheme
@@ -52,8 +34,7 @@ fun SubjectsScreen(
     onNavigateToEdit: (String) -> Unit,
     viewModel: SubjectsViewModel = hiltViewModel()
 ) {
-    var selectedSemester by remember { mutableStateOf("2026-2") }
-    val subjects by viewModel.subjects.collectAsState()
+    val state by viewModel.state.collectAsState()
 
     Scaffold(
         floatingActionButton = {
@@ -83,36 +64,52 @@ fun SubjectsScreen(
             
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)
-            ) {
-                val semesters = listOf("2026-2", "2026-1", "2025-2")
-                semesters.forEach { semester ->
-                    UniHubChip(
-                        label = semester,
-                        selected = selectedSemester == semester,
-                        onClick = { selectedSemester = semester }
-                    )
+            UniHubStudySelector(
+                studies = state.studies,
+                selectedStudyId = state.selectedStudyId,
+                onStudySelected = { viewModel.selectStudy(it) },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+            if (state.periods.isEmpty()) {
+                Text(
+                    text = "No hay periodos registrados para este programa.",
+                    style = UniHubTheme.typography.bodySmall,
+                    color = UniHubTheme.colorScheme.warning
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)
+                ) {
+                    state.periods.forEach { period ->
+                        UniHubChip(
+                            label = period.name,
+                            selected = state.selectedPeriodId == period.id,
+                            onClick = { viewModel.selectPeriod(period.id) }
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
 
-            if (subjects.isEmpty()) {
+            if (state.subjects.isEmpty()) {
                 Text(
-                    text = "No tienes materias registradas para este semestre.",
+                    text = "No tienes materias registradas para este periodo.",
                     style = UniHubTheme.typography.body,
-                    color = UniHubTheme.colorScheme.textSecondary,
+                    color = UniHubTheme.colorScheme.info,
                     modifier = Modifier.padding(vertical = 32.dp)
                 )
             } else {
-                subjects.forEach { subject ->
+                state.subjects.forEach { subject ->
                     DetailedSubjectCard(
                         code = subject.code ?: "---",
                         name = subject.name,
                         professor = subject.professor ?: "Sin profesor",
-                        average = 0.0f, // Logic for average calculation could be added
+                        average = 0.0f,
                         progressType = ProgressType.REGULAR,
                         colorHex = subject.color ?: "#4F46E5",
                         onClick = { onNavigateToDetails(subject.id) },
@@ -182,14 +179,15 @@ fun DetailedSubjectCard(
                                 showMenu = false 
                                 onEdit()
                             },
-                            leadingIcon = { Icon(Icons.Default.MoreVert, null) } // Replace with Edit icon if available
+                            leadingIcon = { Icon(Icons.Default.Edit, null) }
                         )
                         DropdownMenuItem(
                             text = { Text("Eliminar") },
                             onClick = { 
                                 showMenu = false 
                                 onDelete()
-                            }
+                            },
+                            leadingIcon = { Icon(Icons.Default.Delete, null) }
                         )
                     }
                 }

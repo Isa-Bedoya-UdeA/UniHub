@@ -1,6 +1,9 @@
 package com.unihub.app.core.designsystem.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
@@ -43,12 +46,45 @@ fun UniHubTheme(
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    
+    // Map UniHub colors to Material3 colors for fallback in internal M3 components
+    val materialColorScheme = if (darkTheme) {
+        darkColorScheme(
+            primary = colorScheme.primary,
+            secondary = colorScheme.secondary,
+            background = colorScheme.background,
+            surface = colorScheme.surface,
+            error = colorScheme.error,
+            onPrimary = androidx.compose.ui.graphics.Color.White,
+            onSecondary = androidx.compose.ui.graphics.Color.White,
+            onBackground = colorScheme.textPrimary,
+            onSurface = colorScheme.textPrimary,
+            onError = androidx.compose.ui.graphics.Color.White
+        )
+    } else {
+        lightColorScheme(
+            primary = colorScheme.primary,
+            secondary = colorScheme.secondary,
+            background = colorScheme.background,
+            surface = colorScheme.surface,
+            error = colorScheme.error,
+            onPrimary = androidx.compose.ui.graphics.Color.White,
+            onSecondary = androidx.compose.ui.graphics.Color.White,
+            onBackground = colorScheme.textPrimary,
+            onSurface = colorScheme.textPrimary,
+            onError = androidx.compose.ui.graphics.Color.White
+        )
+    }
 
     CompositionLocalProvider(
         LocalUniHubColorScheme provides colorScheme,
         LocalUniHubTypography provides UniHubTypography(),
         LocalUniHubSpacing provides UniHubSpacing(),
-        LocalUniHubShape provides UniHubShape(),
-        content = content
-    )
+        LocalUniHubShape provides UniHubShape()
+    ) {
+        MaterialTheme(
+            colorScheme = materialColorScheme,
+            content = content
+        )
+    }
 }

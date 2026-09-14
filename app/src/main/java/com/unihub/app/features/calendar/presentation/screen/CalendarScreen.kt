@@ -24,11 +24,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.unihub.app.core.designsystem.component.academic.UniHubSubjectCard
 import com.unihub.app.core.designsystem.component.foundation.UniHubChip
 import com.unihub.app.core.designsystem.theme.UniHubTheme
+import com.unihub.app.features.calendar.presentation.viewmodel.CalendarViewModel
+import com.unihub.app.features.dashboard.presentation.screen.ActivityCard
 import com.unihub.app.features.events.domain.model.Event
-import com.unihub.app.features.events.presentation.viewmodel.EventsViewModel
+import com.unihub.app.features.events.domain.model.LocationType
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.TextStyle
@@ -38,14 +39,15 @@ import java.util.Locale
 fun CalendarScreen(
     onNavigateToEvent: (String) -> Unit = {},
     onNavigateToCreate: () -> Unit = {},
-    viewModel: EventsViewModel = hiltViewModel()
+    viewModel: CalendarViewModel = hiltViewModel()
 ) {
     // Correct Timezone for Colombia
-    val today = remember { LocalDate.now(ZoneId.of("America/Bogota")) }
+    val today = remember { LocalDate.now(ZoneId.systemDefault()) }
     var selectedView by remember { mutableStateOf(CalendarView.Month) }
     var selectedDate by remember { mutableStateOf(today) }
     
-    val events by viewModel.events.collectAsState()
+    val state by viewModel.state.collectAsState()
+    val events = state.events
 
     Scaffold(
         floatingActionButton = {
@@ -113,7 +115,7 @@ fun MonthlyView(currentDate: LocalDate, events: List<Event>, onEventClick: (Stri
     val lastDayOfMonth = firstDayOfMonth.plusMonths(1).minusDays(1)
     val daysInMonth = (1..lastDayOfMonth.dayOfMonth).toList()
     val locale = Locale.forLanguageTag("es")
-    val today = LocalDate.now(ZoneId.of("America/Bogota"))
+    val today = LocalDate.now(ZoneId.systemDefault())
     
     Column {
         Text(
@@ -204,7 +206,7 @@ fun MonthlyView(currentDate: LocalDate, events: List<Event>, onEventClick: (Stri
 fun WeeklyView(currentDate: LocalDate, events: List<Event>, onEventClick: (String) -> Unit, onDateSelected: (LocalDate) -> Unit) {
     val startOfWeek = currentDate.minusDays((currentDate.dayOfWeek.value - 1).toLong())
     val locale = Locale.forLanguageTag("es")
-    val today = LocalDate.now(ZoneId.of("America/Bogota"))
+    val today = LocalDate.now(ZoneId.systemDefault())
     
     Column {
         Text(
@@ -277,16 +279,19 @@ fun DailyEvents(date: LocalDate, events: List<Event>, onEventClick: (String) -> 
             Text(
                 text = "No tienes eventos programados para este día.",
                 style = UniHubTheme.typography.body,
-                color = UniHubTheme.colorScheme.textSecondary,
+                color = UniHubTheme.colorScheme.info,
                 modifier = Modifier.padding(vertical = 32.dp).fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
         } else {
             dayEvents.forEach { event ->
-                UniHubSubjectCard(
-                    name = event.title,
-                    professor = "${event.startAt.split("T").last()} - ${event.endAt.split("T").last()}",
-                    color = UniHubTheme.colorScheme.primary,
+                ActivityCard(
+                    title = event.title,
+                    isClass = event.subjectId != null,
+                    time = if (event.startAt.contains("T")) "${event.startAt.split("T").last()} - ${event.endAt.split("T").last()}" else "Todo el día",
+                    location = if (event.locationType == LocationType.PHYSICAL) event.notes else null,
+                    meetingUrl = if (event.locationType == LocationType.REMOTE) event.meetingUrl else null,
+                    color = if (event.subjectId != null) UniHubTheme.colorScheme.primary else UniHubTheme.colorScheme.accent,
                     onClick = { onEventClick(event.id) }
                 )
             }

@@ -24,9 +24,9 @@ class EventsViewModel @Inject constructor(
     private val deleteEventUseCase: DeleteEventUseCase
 ) : ViewModel() {
 
-    private val userId = "user123"
+    private val userId = "current_user"
     // Fetch a wider range for the calendar to be useful
-    private val today = LocalDate.now(ZoneId.of("America/Bogota"))
+    private val today = LocalDate.now(ZoneId.systemDefault())
     private val rangeStart = today.minusMonths(6).toString()
     private val rangeEnd = today.plusMonths(12).toString()
 
