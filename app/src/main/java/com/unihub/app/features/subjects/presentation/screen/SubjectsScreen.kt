@@ -182,12 +182,12 @@ fun DetailedSubjectCard(
                             leadingIcon = { Icon(Icons.Default.Edit, null) }
                         )
                         DropdownMenuItem(
-                            text = { Text("Eliminar") },
+                            text = { Text("Eliminar", color = UniHubTheme.colorScheme.error) },
                             onClick = { 
                                 showMenu = false 
                                 onDelete()
                             },
-                            leadingIcon = { Icon(Icons.Default.Delete, null) }
+                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = UniHubTheme.colorScheme.error) }
                         )
                     }
                 }

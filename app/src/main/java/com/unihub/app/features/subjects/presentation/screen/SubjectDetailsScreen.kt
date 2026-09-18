@@ -278,7 +278,10 @@ fun GradeDetailItem(
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(text = { Text("Editar") }, onClick = { showMenu = false; onEdit() })
-                        DropdownMenuItem(text = { Text("Eliminar") }, onClick = { showMenu = false; onDelete() })
+                        DropdownMenuItem(
+                            text = { Text("Eliminar", color = UniHubTheme.colorScheme.error) }, 
+                            onClick = { showMenu = false; onDelete() }
+                        )
                     }
                 }
             }

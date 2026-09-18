@@ -12,8 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
+import com.unihub.app.core.designsystem.component.foundation.SelectOption
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
-import com.unihub.app.core.designsystem.component.foundation.UniHubDialog
+import com.unihub.app.core.designsystem.component.foundation.UniHubSelect
 import com.unihub.app.core.designsystem.component.foundation.UniHubTextField
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.subjects.presentation.viewmodel.SubjectFormEvent
@@ -29,8 +30,6 @@ fun CreateSubjectScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    var showStudyDialog by remember { mutableStateOf(false) }
-    var showPeriodDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(key1 = true) {
         viewModel.uiEvent.collectLatest { event ->
@@ -49,65 +48,16 @@ fun CreateSubjectScreen(
         }
     }
 
-    if (showStudyDialog) {
-        UniHubDialog(
-            onDismissRequest = { showStudyDialog = false }
-        ) {
-            Column {
-                Text(
-                    text = "Seleccionar Programa",
-                    style = UniHubTheme.typography.h3
-                )
-                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-                state.studies.forEach { study ->
-                    Text(
-                        text = study.name,
-                        style = UniHubTheme.typography.body,
-                        color = if (state.studyId == study.id) UniHubTheme.colorScheme.primary else UniHubTheme.colorScheme.textPrimary,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                viewModel.onEvent(SubjectFormEvent.StudySelected(study.id))
-                                showStudyDialog = false
-                            }
-                            .padding(UniHubTheme.spacing.sm)
-                    )
-                }
-            }
-        }
-    }
-
-    if (showPeriodDialog) {
-        UniHubDialog(
-            onDismissRequest = { showPeriodDialog = false }
-        ) {
-            Column {
-                Text(
-                    text = "Seleccionar Periodo",
-                    style = UniHubTheme.typography.h3
-                )
-                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-                state.periods.forEach { period ->
-                    Text(
-                        text = period.name,
-                        style = UniHubTheme.typography.body,
-                        color = if (state.academicPeriodId == period.id) UniHubTheme.colorScheme.primary else UniHubTheme.colorScheme.textPrimary,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                viewModel.onEvent(SubjectFormEvent.PeriodSelected(period.id))
-                                showPeriodDialog = false
-                            }
-                            .padding(UniHubTheme.spacing.sm)
-                    )
-                }
-            }
-        }
-    }
-
     Scaffold(
         snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                val isSuccess = state.isSuccess
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = if (isSuccess) UniHubTheme.colorScheme.success else UniHubTheme.colorScheme.error,
+                    contentColor = androidx.compose.ui.graphics.Color.White
+                )
+            }
         },
         containerColor = UniHubTheme.colorScheme.background
     ) { paddingValues ->
@@ -126,17 +76,14 @@ fun CreateSubjectScreen(
 
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.lg))
 
-        Text("Programa Académico", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.textSecondary)
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
-        UniHubTextField(
-            value = state.studies.find { it.id == state.studyId }?.name ?: "Seleccionar programa",
-            onValueChange = {},
-            readOnly = true,
+        val studyOptions = state.studies.map { SelectOption(it.id, it.name) }
+        UniHubSelect(
+            options = studyOptions,
+            selectedValue = state.studyId,
+            onOptionSelected = { viewModel.onEvent(SubjectFormEvent.StudySelected(it)) },
+            label = "Programa Académico",
             isError = state.studyError != null,
-            trailingIcon = { Icon(Icons.Default.ArrowDropDown, null) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { showStudyDialog = true }
+            modifier = Modifier.fillMaxWidth()
         )
         state.studyError?.let {
             Text(text = it, color = UniHubTheme.colorScheme.error, style = UniHubTheme.typography.bodySmall)
@@ -144,17 +91,14 @@ fun CreateSubjectScreen(
 
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
 
-        Text("Periodo Académico", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.textSecondary)
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
-        UniHubTextField(
-            value = state.periods.find { it.id == state.academicPeriodId }?.name ?: "Seleccionar periodo",
-            onValueChange = {},
-            readOnly = true,
+        val periodOptions = state.periods.map { SelectOption(it.id, it.name) }
+        UniHubSelect(
+            options = periodOptions,
+            selectedValue = state.academicPeriodId,
+            onOptionSelected = { viewModel.onEvent(SubjectFormEvent.PeriodSelected(it)) },
+            label = "Periodo Académico",
             isError = state.academicPeriodError != null,
-            trailingIcon = { Icon(Icons.Default.ArrowDropDown, null) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { showPeriodDialog = true }
+            modifier = Modifier.fillMaxWidth()
         )
         state.academicPeriodError?.let {
             Text(text = it, color = UniHubTheme.colorScheme.error, style = UniHubTheme.typography.bodySmall)

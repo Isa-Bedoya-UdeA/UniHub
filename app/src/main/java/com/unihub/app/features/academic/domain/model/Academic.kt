@@ -30,5 +30,6 @@ data class AcademicSummary(
     val currentSemesterGpa: Double,
     val earnedCredits: Int,
     val targetCredits: Int,
-    val progressPercentage: Double
+    val progressPercentage: Double,
+    val hasManualData: Boolean = false
 )

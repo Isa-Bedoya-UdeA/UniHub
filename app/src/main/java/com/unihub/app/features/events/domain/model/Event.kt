@@ -19,6 +19,8 @@ data class Event(
     val meetingUrl: String?,
     val notes: String?,
     val reminders: List<EventReminder> = emptyList(),
+    val recurrenceRule: RecurrenceRule? = null,
+    val recurrenceDays: List<Int> = emptyList(),
     val createdAt: String,
     val updatedAt: String
 ) {

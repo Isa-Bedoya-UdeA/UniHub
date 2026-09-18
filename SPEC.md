@@ -62,6 +62,8 @@ Users can create and manage academic tasks with deadlines, priorities, subjects,
 
 Users can register grades and weights, calculate academic averages, and simulate the grade required to achieve a target final grade.
 
+Users who already have completed semesters can optionally register their previously approved credits and cumulative GPA when creating or editing an academic program. This allows the system to calculate accurate overall academic progress without requiring users to manually recreate all past subjects and grades.
+
 ### Dashboard
 
 The dashboard presents actionable academic information such as upcoming activities, pending tasks, deadlines, academic performance, and the next physical location the user needs to attend.
@@ -84,7 +86,7 @@ AI-generated modifications are validated before being executed.
 
 Core information is persisted locally and synchronized with Firebase where applicable.
 
-Firebase Authentication provides user authentication, while Firebase Firestore provides cloud persistence.
+Firebase Authentication provides user authentication, Firebase Firestore provides cloud persistence, and Firebase Storage provides cloud file storage for user assets such as profile images.
 
 ### Backend
 

@@ -1562,9 +1562,16 @@ ViewModel states
 Flow
 Coroutines
 Error handling
+
+Previous Academic Status
+Optional fields in Study entity
+Manual approved credits and cumulative GPA
+Combined calculation with current period data
 ```
 
 **Objetivo:** lograr que la aplicación funcione de forma consistente localmente.
+
+**Nota sobre la base de datos:** La entidad `Study` incluye campos opcionales (`approved_credits` y `cumulative_gpa`) para permitir que usuarios con semestres anteriores registrados en otros sistemas puedan ingresar su estado académico previo sin tener que recrear manualmente todas las materias y notas. La base de datos pasó de versión 1 a versión 2 con una migración que agrega estas columnas.
 
 ### Semana 7 — Geolocation + Firebase Foundation
 
@@ -1596,6 +1603,10 @@ Firestore repositories
 Cloud synchronization
 Security Rules
 User ownership
+
+Firebase Storage
+Profile image upload
+Image selection from device
 
 Dashboard real data
 Calendar real data

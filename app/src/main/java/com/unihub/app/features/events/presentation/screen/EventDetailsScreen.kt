@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.unihub.app.core.common.state.MessageType
+import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.core.designsystem.component.academic.UniHubLocationCard
 import com.unihub.app.core.designsystem.component.academic.UniHubRemoteMeetingCard
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
@@ -21,30 +23,52 @@ import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.events.domain.model.LocationType
-import com.unihub.app.features.events.presentation.viewmodel.EventsViewModel
+import com.unihub.app.features.events.presentation.viewmodel.EventDetailsViewModel
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun EventDetailsScreen(
     eventId: String,
     onBack: () -> Unit,
     onNavigateToEdit: (String) -> Unit,
-    viewModel: EventsViewModel = hiltViewModel()
+    viewModel: EventDetailsViewModel = hiltViewModel()
 ) {
-    val events by viewModel.events.collectAsState()
-    val event = events.find { it.id == eventId }
+    val state by viewModel.state.collectAsState()
+    val event = state.event
+    val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(key1 = true) {
+        viewModel.uiEvent.collectLatest { uiEvent ->
+            if (uiEvent is UiEvent.ShowMessage) {
+                snackbarHostState.showSnackbar(
+                    message = uiEvent.message,
+                    duration = SnackbarDuration.Short
+                )
+            }
+        }
+    }
 
     if (showDeleteDialog && event != null) {
+        val isRecurring = event.recurrenceRuleId != null
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Eliminar Evento") },
-            text = { Text("¿Estás seguro de que deseas eliminar el evento '${event.title}'? Esta acción no se puede deshacer.") },
+            title = { Text(if (isRecurring) "Eliminar Serie de Eventos" else "Eliminar Evento") },
+            text = { 
+                Text(
+                    if (isRecurring) 
+                        "Este es un evento recurrente. ¿Estás seguro de que deseas eliminar todas las ocurrencias de '${event.title}'? Esta acción no se puede deshacer."
+                    else 
+                        "¿Estás seguro de que deseas eliminar el evento '${event.title}'? Esta acción no se puede deshacer."
+                ) 
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.removeEvent(event.id)
                         showDeleteDialog = false
-                        onBack()
+                        viewModel.deleteEvent(onDeleted = onBack)
                     }
                 ) {
                     Text("Eliminar", color = UniHubTheme.colorScheme.error)
@@ -59,6 +83,7 @@ fun EventDetailsScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = UniHubTheme.colorScheme.background
     ) { innerPadding ->
         Column(
@@ -120,22 +145,33 @@ fun EventDetailsScreen(
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
             
             // Location Logic
-            when(event.locationType) {
-                LocationType.PHYSICAL -> {
+            if (event.locationType == LocationType.PHYSICAL) {
+                state.location?.let { location ->
                     UniHubLocationCard(
-                        place = "UdeA",
-                        room = "Por definir",
-                        building = event.notes ?: "Sin detalles",
-                        onOpenInMaps = {}
+                        place = location.name ?: "Ubicación",
+                        room = "",
+                        building = location.address ?: "",
+                        onOpenInMaps = { viewModel.openInMaps(context) }
                     )
-                }
-                LocationType.REMOTE -> {
-                    UniHubRemoteMeetingCard(onJoinMeeting = { /* Open URL */ })
-                    event.meetingUrl?.let {
-                        Text(text = it, style = UniHubTheme.typography.bodySmall, color = UniHubTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
+                } ?: run {
+                    UniHubCard {
+                        Text(
+                            text = "Sin detalles de ubicación",
+                            style = UniHubTheme.typography.bodySmall,
+                            color = UniHubTheme.colorScheme.textSecondary,
+                            modifier = Modifier.padding(UniHubTheme.spacing.md)
+                        )
                     }
                 }
-                LocationType.NONE -> {}
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+            }
+            
+            if (event.locationType == LocationType.REMOTE) {
+                UniHubRemoteMeetingCard(onJoinMeeting = { viewModel.openMeetingUrl(context) })
+                event.meetingUrl?.let {
+                    Text(text = it, style = UniHubTheme.typography.bodySmall, color = UniHubTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
+                }
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
             }
             
             if (event.notes != null && event.locationType != LocationType.PHYSICAL) {
@@ -218,7 +254,7 @@ fun EventDetailsScreen(
 
             UniHubButton(
                 text = "Eliminar Evento",
-                variant = UniHubButtonVariant.Text,
+                variant = UniHubButtonVariant.Destructive,
                 onClick = { showDeleteDialog = true },
                 leadingIcon = Icons.Default.Delete,
                 modifier = Modifier.fillMaxWidth()

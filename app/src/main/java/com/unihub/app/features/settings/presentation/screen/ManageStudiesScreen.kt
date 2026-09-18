@@ -70,8 +70,8 @@ fun ManageStudiesScreen(
         StudyFormDialog(
             title = "Nuevo Programa Académico",
             onDismiss = { showAddDialog = false },
-            onConfirm = { name, institution, credits ->
-                viewModel.addStudy(name, institution, credits)
+            onConfirm = { name, institution, credits, approvedCredits, cumulativeGpa ->
+                viewModel.addStudy(name, institution, credits, approvedCredits, cumulativeGpa)
                 showAddDialog = false
             }
         )
@@ -83,9 +83,11 @@ fun ManageStudiesScreen(
             initialName = study.name,
             initialInstitution = study.institution,
             initialCredits = study.totalCredits.toString(),
+            initialApprovedCredits = study.approvedCredits?.toString() ?: "",
+            initialCumulativeGpa = study.cumulativeGpa?.toString() ?: "",
             onDismiss = { studyToEdit = null },
-            onConfirm = { name, institution, credits ->
-                viewModel.updateStudy(study, name, institution, credits)
+            onConfirm = { name, institution, credits, approvedCredits, cumulativeGpa ->
+                viewModel.updateStudy(study, name, institution, credits, approvedCredits, cumulativeGpa)
                 studyToEdit = null
             }
         )
@@ -212,15 +214,21 @@ fun StudyFormDialog(
     initialName: String = "",
     initialInstitution: String = "",
     initialCredits: String = "",
+    initialApprovedCredits: String = "",
+    initialCumulativeGpa: String = "",
     onDismiss: () -> Unit,
-    onConfirm: (String, String, Int) -> Unit
+    onConfirm: (String, String, Int, Int?, Double?) -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
     var institution by remember { mutableStateOf(initialInstitution) }
     var credits by remember { mutableStateOf(initialCredits) }
+    var approvedCredits by remember { mutableStateOf(initialApprovedCredits) }
+    var cumulativeGpa by remember { mutableStateOf(initialCumulativeGpa) }
     var nameError by remember { mutableStateOf<String?>(null) }
     var institutionError by remember { mutableStateOf<String?>(null) }
     var creditsError by remember { mutableStateOf<String?>(null) }
+    var approvedCreditsError by remember { mutableStateOf<String?>(null) }
+    var cumulativeGpaError by remember { mutableStateOf<String?>(null) }
 
     UniHubDialog(onDismissRequest = onDismiss) {
         Column {
@@ -287,6 +295,52 @@ fun StudyFormDialog(
                 )
             }
 
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.lg))
+
+            Text(
+                text = "Estado académico previo (opcional)",
+                style = UniHubTheme.typography.label,
+                color = UniHubTheme.colorScheme.textSecondary
+            )
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+
+            UniHubTextField(
+                value = approvedCredits,
+                onValueChange = { approvedCredits = it; approvedCreditsError = null },
+                label = "Créditos aprobados",
+                placeholder = "Ej: 45",
+                isError = approvedCreditsError != null,
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (approvedCreditsError != null) {
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.xxs))
+                Text(
+                    text = approvedCreditsError!!,
+                    style = UniHubTheme.typography.bodySmall,
+                    color = UniHubTheme.colorScheme.error
+                )
+            }
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+            UniHubTextField(
+                value = cumulativeGpa,
+                onValueChange = { cumulativeGpa = it; cumulativeGpaError = null },
+                label = "Promedio acumulado",
+                placeholder = "Ej: 4.2",
+                isError = cumulativeGpaError != null,
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (cumulativeGpaError != null) {
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.xxs))
+                Text(
+                    text = cumulativeGpaError!!,
+                    style = UniHubTheme.typography.bodySmall,
+                    color = UniHubTheme.colorScheme.error
+                )
+            }
+
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
 
             Row(
@@ -320,8 +374,35 @@ fun StudyFormDialog(
                             creditsError = "Ingresa un número válido"
                             hasError = true
                         }
+                        
+                        val approvedCreditsInt = if (approvedCredits.isNotBlank()) {
+                            approvedCredits.toIntOrNull()?.also {
+                                if (it < 0) {
+                                    approvedCreditsError = "Debe ser un número positivo"
+                                    hasError = true
+                                }
+                            } ?: run {
+                                approvedCreditsError = "Ingresa un número válido"
+                                hasError = true
+                                null
+                            }
+                        } else null
+                        
+                        val cumulativeGpaDouble = if (cumulativeGpa.isNotBlank()) {
+                            cumulativeGpa.toDoubleOrNull()?.also {
+                                if (it < 0.0 || it > 5.0) {
+                                    cumulativeGpaError = "Debe estar entre 0.0 y 5.0"
+                                    hasError = true
+                                }
+                            } ?: run {
+                                cumulativeGpaError = "Ingresa un número válido"
+                                hasError = true
+                                null
+                            }
+                        } else null
+                        
                         if (!hasError) {
-                            onConfirm(name.trim(), institution.trim(), creditsInt!!)
+                            onConfirm(name.trim(), institution.trim(), creditsInt!!, approvedCreditsInt, cumulativeGpaDouble)
                         }
                     }
                 )

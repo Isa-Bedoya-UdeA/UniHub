@@ -99,14 +99,22 @@ Path: `users/{userId}/profile/{profileId}`
 
 Path: `users/{userId}/studies/{studyId}`
 
-| Field          | Type      | Required | Description                                 |
-|----------------|-----------|---------:|---------------------------------------------|
-| `name`         | string    |      Yes | Program name (e.g. "Ing de Sistemas")      |
-| `institution`  | string    |      Yes | Institution (e.g. "UdeA")                   |
-| `totalCredits` | number    |      Yes | Target credits for completion               |
-| `isActive`     | boolean   |      Yes | Whether it is the user's primary study      |
-| `createdAt`    | timestamp |      Yes | Creation timestamp                          |
-| `updatedAt`    | timestamp |      Yes | Last update timestamp                       |
+| Field             | Type      | Required | Description                                                     |
+|-------------------|-----------|---------:|-----------------------------------------------------------------|
+| `name`            | string    |      Yes | Program name (e.g. "Ing de Sistemas")                           |
+| `institution`     | string    |      Yes | Institution (e.g. "UdeA")                                       |
+| `totalCredits`    | number    |      Yes | Target credits for completion                                   |
+| `approvedCredits` | number    |       No | Manually entered credits approved before using the app          |
+| `cumulativeGpa`   | number    |       No | Manually entered cumulative GPA before using the app            |
+| `isActive`        | boolean   |      Yes | Whether it is the user's primary study                          |
+| `createdAt`       | timestamp |      Yes | Creation timestamp                                              |
+| `updatedAt`       | timestamp |      Yes | Last update timestamp                                           |
+
+**Notes**
+
+- `approvedCredits` and `cumulativeGpa` are optional fields for users who already have completed semesters and want to register their previous academic status without having to create all past subjects.
+- When these fields are populated, the system combines them with current period data to calculate the overall academic progress.
+- These fields are particularly useful for users migrating from other systems or starting to use the app mid-career.
 
 ## 7. Academic Period
 

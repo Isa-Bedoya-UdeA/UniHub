@@ -34,7 +34,7 @@ class StudySettingsViewModel @Inject constructor(
     private val _uiEvent = MutableSharedFlow<UiEvent>()
     val uiEvent = _uiEvent.asSharedFlow()
 
-    fun addStudy(name: String, institution: String, credits: Int) {
+    fun addStudy(name: String, institution: String, credits: Int, approvedCredits: Int? = null, cumulativeGpa: Double? = null) {
         if (name.isBlank() || institution.isBlank() || credits <= 0) return
         viewModelScope.launch {
             try {
@@ -45,6 +45,8 @@ class StudySettingsViewModel @Inject constructor(
                     name = name.trim(),
                     institution = institution.trim(),
                     totalCredits = credits,
+                    approvedCredits = approvedCredits,
+                    cumulativeGpa = cumulativeGpa,
                     isActive = false,
                     createdAt = now,
                     updatedAt = now
@@ -67,7 +69,7 @@ class StudySettingsViewModel @Inject constructor(
         }
     }
 
-    fun updateStudy(study: Study, name: String, institution: String, credits: Int) {
+    fun updateStudy(study: Study, name: String, institution: String, credits: Int, approvedCredits: Int? = null, cumulativeGpa: Double? = null) {
         if (name.isBlank() || institution.isBlank() || credits <= 0) return
         viewModelScope.launch {
             try {
@@ -75,6 +77,8 @@ class StudySettingsViewModel @Inject constructor(
                     name = name.trim(),
                     institution = institution.trim(),
                     totalCredits = credits,
+                    approvedCredits = approvedCredits,
+                    cumulativeGpa = cumulativeGpa,
                     updatedAt = Instant.now().toString()
                 )
                 saveStudyUseCase(updatedStudy)

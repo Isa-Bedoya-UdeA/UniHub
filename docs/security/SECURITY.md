@@ -244,6 +244,12 @@ Ktor endpoints must validate:
 - URLs where applicable.
 - Ownership-sensitive identifiers.
 
+For academic program data:
+
+- `approvedCredits` must be a non-negative integer when provided.
+- `cumulativeGpa` must be a valid GPA value within the institution's scale (typically 0.0 to 5.0) when provided.
+- Both fields are optional and may be null.
+
 Invalid requests must return controlled HTTP errors and must not expose internal implementation details.
 
 ## 8. Network Security
@@ -303,7 +309,76 @@ Ktor configuration
 
 The repository may contain safe configuration examples, but never real credentials.
 
-## 11. Google Maps and Third-Party Services
+## 11. Firestore Security Rules
+
+Firestore Security Rules enforce ownership-based access control at the database level.
+
+### 11.1 Ownership Principle
+
+Every document in Firestore belongs to an authenticated user. The fundamental authorization check is:
+
+```text
+request.auth != null
+&& request.auth.uid == userId
+```
+
+### 11.2 Protected Paths
+
+All user data is organized under `/users/{userId}/` with the following structure:
+
+```text
+users/{userId}/
+    profile/{profileId}
+    studies/{studyId}
+    academicPeriods/{academicPeriodId}
+    subjects/{subjectId}
+    events/{eventId}
+        reminders/{reminderId}
+    recurrenceRules/{recurrenceRuleId}
+        days/{dayId}
+    locations/{locationId}
+    tasks/{taskId}
+    grades/{gradeId}
+    tags/{tagId}
+    preferences/{document}
+```
+
+### 11.3 Rule Structure
+
+The security rules use helper functions for consistency:
+
+```text
+isAuthenticated() → checks if user is authenticated
+isOwner(userId) → checks if authenticated user owns the resource
+```
+
+All collections under `/users/{userId}/` enforce ownership validation. Users can only:
+- Read their own data
+- Create data under their own UID
+- Update their own data
+- Delete their own data
+
+### 11.4 Default Deny
+
+A catch-all rule at the end denies access to any path not explicitly allowed:
+
+```text
+match /{document=**} {
+  allow read, write: if false;
+}
+```
+
+### 11.5 Rule Deployment
+
+Security rules are maintained in `firestore.rules` at the repository root and deployed using:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+Rules must be reviewed and updated whenever the data model changes.
+
+## 12. Google Maps and Third-Party Services
 
 Google Maps Platform credentials must be restricted according to Google's Android security recommendations and limited to the required application and APIs.
 
@@ -311,7 +386,7 @@ Third-party credentials must follow least-privilege principles.
 
 Server-only credentials must never be exposed to the Android client.
 
-## 12. AI Security and Privacy
+## 13. AI Security and Privacy
 
 The AI assistant can process user-provided academic information.
 
@@ -361,7 +436,7 @@ Repository
 
 The AI must never directly write to Firestore or Room.
 
-## 13. Voice Input
+## 14. Voice Input
 
 Voice input is converted to text before AI processing.
 
@@ -369,13 +444,13 @@ The same validation and authorization rules apply regardless of whether the comm
 
 Voice input must not bypass confirmation or application validation.
 
-## 14. Notifications
+## 15. Notifications
 
 Notifications must not expose unnecessary private information.
 
 Sensitive notes, private academic details, or confidential content should not be displayed in notification previews unless explicitly designed and enabled by the user.
 
-## 15. Threat Model
+## 16. Threat Model
 
 | Threat                        | Mitigation                                                |
 |-------------------------------|-----------------------------------------------------------|
@@ -391,9 +466,8 @@ Sensitive notes, private academic details, or confidential content should not be
 | Excessive AI data exposure    | Context minimization                                      |
 | Malicious third-party client  | Server-side authorization                                 |
 | Network interception          | HTTPS/TLS                                                 |
-| Accidental destructive action | Confirmation and Use Case validation                      |
 
-## 16. Error Handling
+## 17. Error Handling
 
 Security-related failures must return generic, controlled messages.
 
@@ -418,7 +492,7 @@ User:
 
 Detailed diagnostics may be logged in controlled development environments without exposing sensitive information.
 
-## 17. Dependency Security
+## 18. Dependency Security
 
 Dependencies must be kept reasonably current and reviewed before introducing new libraries.
 
@@ -431,7 +505,7 @@ GitHub Actions may automate:
 
 Unnecessary dependencies should not be introduced.
 
-## 18. Security Rules for Development
+## 19. Security Rules for Development
 
 Development must follow these principles:
 
@@ -445,7 +519,7 @@ Development must follow these principles:
 - Never expose production credentials in local configuration.
 - Keep Firebase Security Rules versioned in the repository.
 
-## 19. Security Testing
+## 20. Security Testing
 
 Security-related tests should cover:
 
@@ -471,7 +545,7 @@ Security-related tests should cover:
 | AI command with invalid data           | Rejected                   |
 | AI command with valid data             | Validated before execution |
 
-## 20. Security Priorities
+## 21. Security Priorities
 
 Given the project's four-month timeframe, security priorities are:
 

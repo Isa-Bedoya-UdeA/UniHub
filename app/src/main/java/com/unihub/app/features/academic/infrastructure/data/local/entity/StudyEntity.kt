@@ -22,6 +22,12 @@ data class StudyEntity(
     @ColumnInfo(name = "total_credits")
     val totalCredits: Int,
     
+    @ColumnInfo(name = "approved_credits")
+    val approvedCredits: Int? = null,
+    
+    @ColumnInfo(name = "cumulative_gpa")
+    val cumulativeGpa: Double? = null,
+    
     @ColumnInfo(name = "is_active")
     val isActive: Boolean,
     

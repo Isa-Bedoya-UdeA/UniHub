@@ -72,6 +72,8 @@ sealed class Screen(val route: String) {
 
     object AiChat : Screen("ai/chat")
 
+    object SelectLocation : Screen("location/select")
+
     object Profile : Screen("settings/profile")
     object ManageStudies : Screen("settings/studies")
     object Notifications : Screen("settings/notifications")

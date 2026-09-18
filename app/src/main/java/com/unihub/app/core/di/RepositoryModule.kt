@@ -12,7 +12,9 @@ import com.unihub.app.features.subjects.domain.repository.SubjectRepository
 import com.unihub.app.features.subjects.infrastructure.repository.SubjectRepositoryImpl
 import com.unihub.app.features.tasks.domain.repository.TaskRepository
 import com.unihub.app.features.tasks.infrastructure.repository.TaskRepositoryImpl
+import com.unihub.app.features.auth.domain.repository.AuthRepository
 import com.unihub.app.features.auth.domain.repository.UserRepository
+import com.unihub.app.features.auth.infrastructure.repository.AuthRepositoryImpl
 import com.unihub.app.features.auth.infrastructure.repository.UserRepositoryImpl
 import com.unihub.app.features.tasks.domain.repository.TagRepository
 import com.unihub.app.features.tasks.infrastructure.repository.TagRepositoryImpl
@@ -63,4 +65,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAuthRepository(impl: AuthRepositoryImpl): AuthRepository
 }

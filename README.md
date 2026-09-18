@@ -57,6 +57,8 @@ For the complete functional scope, see:
 - Calculate subject grades.
 - Calculate weighted academic averages.
 - Simulate the grade required to reach a target final grade.
+- Optionally register previous academic status (approved credits and cumulative GPA) for users with completed semesters.
+- Track overall academic progress combining manual data with current period data.
 
 ### Dashboard
 

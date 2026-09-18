@@ -24,4 +24,6 @@ interface EventRepository {
     fun getRecurrenceDays(ruleId: String): Flow<List<RecurrenceDay>>
     suspend fun saveRecurrenceRule(rule: RecurrenceRule)
     suspend fun saveRecurrenceDay(day: RecurrenceDay)
+    suspend fun deleteRecurrenceRule(id: String)
+    suspend fun deleteRecurrenceDaysByRule(ruleId: String)
 }

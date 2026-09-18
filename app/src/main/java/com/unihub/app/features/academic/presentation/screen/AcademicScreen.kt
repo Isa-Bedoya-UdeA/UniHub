@@ -85,6 +85,15 @@ fun AcademicScreen(
                     fontWeight = FontWeight.Black
                 )
                 
+                if (summary.hasManualData) {
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
+                    Text(
+                        text = "Incluye datos de semestres anteriores",
+                        style = UniHubTheme.typography.bodySmall,
+                        color = UniHubTheme.colorScheme.info
+                    )
+                }
+                
                 Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
                 
                 Row(

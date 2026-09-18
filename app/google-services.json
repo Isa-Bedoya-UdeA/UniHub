@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "963125939027",
+    "project_id": "unihub-cc13d",
+    "storage_bucket": "unihub-cc13d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:963125939027:android:c296b969f603406ae62fa6",
+        "android_client_info": {
+          "package_name": "com.unihub.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "963125939027-dj59jq4m29haiko98h1ehabrk33vc0h0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBLMZ9q2UF4z1CxDRk18wXwLqjUxVSYdNE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "963125939027-dj59jq4m29haiko98h1ehabrk33vc0h0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

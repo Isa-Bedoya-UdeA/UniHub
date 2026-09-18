@@ -19,11 +19,13 @@ import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.component.foundation.UniHubDialog
+import com.unihub.app.core.designsystem.component.foundation.UniHubDropdown
 import com.unihub.app.core.designsystem.component.foundation.UniHubTextField
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.academic.domain.model.AcademicPeriod
 import com.unihub.app.features.academic.presentation.viewmodel.AcademicViewModel
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -44,6 +46,11 @@ fun AcademicPeriodsScreen(
     var showAddDialog by remember { mutableStateOf(false) }
 
     if (periodToDelete != null) {
+        val subjectCount = state.periodSubjectCounts[periodToDelete?.id] ?: 0
+        val extraMessage = if (subjectCount > 0) {
+            "\n\nEste periodo contiene $subjectCount materia(s) que también serán eliminadas."
+        } else ""
+        
         UniHubConfirmationDialog(
             onDismissRequest = { periodToDelete = null },
             onConfirm = {
@@ -51,7 +58,7 @@ fun AcademicPeriodsScreen(
                 periodToDelete = null
             },
             title = "Eliminar Periodo",
-            message = "¿Estás seguro de que quieres eliminar '${periodToDelete?.name}'? Esta acción no se puede deshacer.",
+            message = "¿Estás seguro de que quieres eliminar '${periodToDelete?.name}'? Esta acción no se puede deshacer.$extraMessage",
             confirmText = "Eliminar",
             dismissText = "Cancelar",
             isDestructive = true
@@ -69,6 +76,16 @@ fun AcademicPeriodsScreen(
                 if (periodToEdit != null) {
                     viewModel.addPeriod(periodToEdit!!.copy(name = name, startDate = start, endDate = end))
                 } else if (selectedStudyId != null) {
+                    val formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
+                    val isCurrentCandidate = try {
+                        val startDate = LocalDate.parse(start, formatter)
+                        val endDate = LocalDate.parse(end, formatter)
+                        val today = LocalDate.now()
+                        !today.isBefore(startDate) && !today.isAfter(endDate)
+                    } catch (e: Exception) {
+                        periods.isEmpty()
+                    }
+
                     viewModel.addPeriod(
                         AcademicPeriod(
                             id = UUID.randomUUID().toString(),
@@ -77,7 +94,7 @@ fun AcademicPeriodsScreen(
                             name = name,
                             startDate = start,
                             endDate = end,
-                            isCurrent = periods.isEmpty(),
+                            isCurrent = isCurrentCandidate,
                             createdAt = Instant.now().toString(),
                             updatedAt = Instant.now().toString()
                         )
@@ -117,6 +134,18 @@ fun AcademicPeriodsScreen(
             )
 
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+            if (hasStudies) {
+                val selectedStudy = state.studies.find { it.id == selectedStudyId }
+                UniHubDropdown(
+                    options = state.studies,
+                    selectedOption = selectedStudy,
+                    onOptionSelected = { viewModel.selectStudy(it.id) },
+                    label = "Seleccionar Programa Académico",
+                    optionToString = { "${it.name} (${it.institution})" }
+                )
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.lg))
+            }
 
             if (!hasStudies) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

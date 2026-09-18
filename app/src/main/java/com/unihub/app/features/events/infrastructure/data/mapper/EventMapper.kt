@@ -4,6 +4,7 @@ import com.unihub.app.features.events.domain.model.*
 import com.unihub.app.features.location.domain.model.Location
 import com.unihub.app.features.events.infrastructure.data.local.entity.*
 import com.unihub.app.features.events.infrastructure.data.remote.dto.EventDto
+import com.unihub.app.features.location.infrastructure.data.local.entity.LocationEntity
 import com.unihub.app.features.location.infrastructure.data.remote.dto.LocationDto
 
 fun Event.toEntity(): EventEntity {
@@ -26,7 +27,11 @@ fun Event.toEntity(): EventEntity {
     )
 }
 
-fun EventEntity.toDomain(reminders: List<EventReminder> = emptyList()): Event {
+fun EventEntity.toDomain(
+    reminders: List<EventReminder> = emptyList(),
+    recurrenceRule: RecurrenceRule? = null,
+    recurrenceDays: List<Int> = emptyList()
+): Event {
     return Event(
         id = id,
         userId = userId,
@@ -42,6 +47,8 @@ fun EventEntity.toDomain(reminders: List<EventReminder> = emptyList()): Event {
         meetingUrl = meetingUrl,
         notes = notes,
         reminders = reminders,
+        recurrenceRule = recurrenceRule,
+        recurrenceDays = recurrenceDays,
         createdAt = createdAt,
         updatedAt = updatedAt
     )
@@ -117,6 +124,8 @@ fun EventDto.toDomain(userId: String): Event {
         meetingUrl = meetingUrl,
         notes = notes,
         reminders = emptyList(),
+        recurrenceRule = null,
+        recurrenceDays = emptyList(),
         createdAt = createdAt.toString(),
         updatedAt = updatedAt.toString()
     )

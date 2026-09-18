@@ -13,6 +13,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.foundation.UniHubBottomNavigation
 import com.unihub.app.core.designsystem.component.foundation.UniHubTopBar
 import com.unihub.app.core.designsystem.theme.UniHubTheme
@@ -28,6 +29,8 @@ import com.unihub.app.features.calendar.presentation.screen.CalendarScreen
 import com.unihub.app.features.dashboard.presentation.screen.DashboardScreen
 import com.unihub.app.features.events.presentation.screen.CreateEventScreen
 import com.unihub.app.features.events.presentation.screen.EventDetailsScreen
+import com.unihub.app.features.location.presentation.screen.LocationSelectionScreen
+import com.unihub.app.features.settings.presentation.screen.EditProfileScreen
 import com.unihub.app.features.settings.presentation.screen.ManageStudiesScreen
 import com.unihub.app.features.settings.presentation.screen.PermissionGuideScreen
 import com.unihub.app.features.settings.presentation.screen.SettingsScreen
@@ -96,25 +99,33 @@ fun AppNavigation(
         ) {
             // Auth Flow
             composable(Screen.Splash.route) {
-                SplashScreen {
-                    val permissionGuideShown = PreferencesManager.isPermissionGuideShown(context)
-                    val onboardingShown = PreferencesManager.isOnboardingShown(context)
-                    val hasNotificationPermission = checkNotificationPermission(context)
-                    
-                    when {
-                        !hasNotificationPermission -> {
-                            navController.navigate(Screen.PermissionGuide.route) {
-                                popUpTo(Screen.Splash.route) { inclusive = true }
-                            }
+                SplashScreen { isAuthenticated ->
+                    if (isAuthenticated) {
+                        // User is already authenticated, go directly to Dashboard
+                        navController.navigate(Screen.Dashboard.route) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
                         }
-                        !onboardingShown -> {
-                            navController.navigate(Screen.Onboarding.route) {
-                                popUpTo(Screen.Splash.route) { inclusive = true }
+                    } else {
+                        // User is not authenticated, check onboarding flow
+                        val permissionGuideShown = PreferencesManager.isPermissionGuideShown(context)
+                        val onboardingShown = PreferencesManager.isOnboardingShown(context)
+                        val hasNotificationPermission = checkNotificationPermission(context)
+                        
+                        when {
+                            !hasNotificationPermission -> {
+                                navController.navigate(Screen.PermissionGuide.route) {
+                                    popUpTo(Screen.Splash.route) { inclusive = true }
+                                }
                             }
-                        }
-                        else -> {
-                            navController.navigate(Screen.Login.route) {
-                                popUpTo(Screen.Splash.route) { inclusive = true }
+                            !onboardingShown -> {
+                                navController.navigate(Screen.Onboarding.route) {
+                                    popUpTo(Screen.Splash.route) { inclusive = true }
+                                }
+                            }
+                            else -> {
+                                navController.navigate(Screen.Login.route) {
+                                    popUpTo(Screen.Splash.route) { inclusive = true }
+                                }
                             }
                         }
                     }
@@ -251,24 +262,45 @@ fun AppNavigation(
                 )
             }
             composable(Screen.Settings.route) {
+                val authViewModel: com.unihub.app.features.auth.presentation.viewmodel.AuthViewModel = hiltViewModel()
                 SettingsScreen(
                     onLogout = {
+                        authViewModel.signOut()
                         navController.navigate(Screen.Login.route) {
-                            popUpTo(Screen.Dashboard.route) { inclusive = true }
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = false
+                                inclusive = true
+                            }
                         }
                     },
                     onNavigateToManageStudies = {
                         navController.navigate(Screen.ManageStudies.route)
                     },
-                    onNavigateToPermissionGuide = {
-                        navController.navigate(Screen.PermissionGuide.route) {
-                            popUpTo(Screen.Settings.route) { inclusive = true }
-                        }
+                    onNavigateToEditProfile = {
+                        navController.navigate(Screen.Profile.route)
                     }
                 )
             }
             composable(Screen.ManageStudies.route) {
                 ManageStudiesScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.Profile.route) {
+                EditProfileScreen(
+                    onProfileUpdated = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.SelectLocation.route) {
+                LocationSelectionScreen(
+                    onLocationConfirmed = { locationData ->
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("location_result", locationData)
+                        navController.popBackStack()
+                    },
                     onBack = { navController.popBackStack() }
                 )
             }
@@ -303,9 +335,13 @@ fun AppNavigation(
                 )
             ) { backStackEntry ->
                 val subjectId = backStackEntry.arguments?.getString("subjectId")
+                val locationResult = backStackEntry.savedStateHandle.get<String>("location_result")
+                
                 CreateEventScreen(
                     subjectId = subjectId,
+                    locationResult = locationResult,
                     onEventCreated = { navController.popBackStack() },
+                    onSelectLocation = { navController.navigate(Screen.SelectLocation.route) },
                     onBack = { navController.popBackStack() }
                 )
             }
@@ -314,9 +350,13 @@ fun AppNavigation(
                 arguments = listOf(navArgument("eventId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val eventId = backStackEntry.arguments?.getString("eventId")
+                val locationResult = backStackEntry.savedStateHandle.get<String>("location_result")
+                
                 CreateEventScreen(
                     eventId = eventId,
+                    locationResult = locationResult,
                     onEventCreated = { navController.popBackStack() },
+                    onSelectLocation = { navController.navigate(Screen.SelectLocation.route) },
                     onBack = { navController.popBackStack() }
                 )
             }

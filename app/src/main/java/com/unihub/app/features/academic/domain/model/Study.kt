@@ -6,6 +6,8 @@ data class Study(
     val name: String,
     val institution: String,
     val totalCredits: Int,
+    val approvedCredits: Int? = null,
+    val cumulativeGpa: Double? = null,
     val isActive: Boolean,
     val createdAt: String,
     val updatedAt: String

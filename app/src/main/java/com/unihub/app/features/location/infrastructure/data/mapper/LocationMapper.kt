@@ -3,8 +3,8 @@ package com.unihub.app.features.location.infrastructure.data.mapper
 import com.unihub.app.features.location.domain.model.Location
 import com.unihub.app.features.location.infrastructure.data.local.entity.LocationEntity
 
-fun Location.toEntity(): LocationEntity {
-    return LocationEntity(
+fun LocationEntity.toDomain(): Location {
+    return Location(
         id = id,
         userId = userId,
         name = name,
@@ -17,8 +17,8 @@ fun Location.toEntity(): LocationEntity {
     )
 }
 
-fun LocationEntity.toDomain(): Location {
-    return Location(
+fun Location.toEntity(): LocationEntity {
+    return LocationEntity(
         id = id,
         userId = userId,
         name = name,

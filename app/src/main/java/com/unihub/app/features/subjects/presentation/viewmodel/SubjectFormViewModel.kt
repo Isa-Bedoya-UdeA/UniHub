@@ -7,12 +7,14 @@ import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.features.academic.application.usecase.GetAcademicPeriodsUseCase
 import com.unihub.app.features.academic.application.usecase.GetStudiesUseCase
+import com.unihub.app.features.subjects.application.usecase.DeleteSubjectUseCase
 import com.unihub.app.features.subjects.application.usecase.GetSubjectByIdUseCase
 import com.unihub.app.features.subjects.application.usecase.SaveSubjectUseCase
 import com.unihub.app.features.subjects.application.usecase.UpdateSubjectUseCase
 import com.unihub.app.features.subjects.domain.model.Subject
 import com.unihub.app.features.subjects.presentation.state.SubjectFormState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +30,7 @@ import javax.inject.Inject
 class SubjectFormViewModel @Inject constructor(
     private val saveSubjectUseCase: SaveSubjectUseCase,
     private val updateSubjectUseCase: UpdateSubjectUseCase,
+    private val deleteSubjectUseCase: DeleteSubjectUseCase,
     private val getSubjectByIdUseCase: GetSubjectByIdUseCase,
     private val getAcademicPeriodsUseCase: GetAcademicPeriodsUseCase,
     private val getStudiesUseCase: GetStudiesUseCase,
@@ -41,31 +44,32 @@ class SubjectFormViewModel @Inject constructor(
     val uiEvent = _uiEvent.asSharedFlow()
 
     private var currentSubjectId: String? = null
+    private var periodsJob: Job? = null
 
     init {
         currentSubjectId = savedStateHandle.get<String>("subjectId")
-        loadBaseData()
+        loadStudies()
         currentSubjectId?.let { loadSubject(it) }
     }
 
-    private fun loadBaseData() {
+    private fun loadStudies() {
         viewModelScope.launch {
             try {
                 getStudiesUseCase("current_user").collect { studies ->
-                    _state.update { state ->
-                        state.copy(
-                            studies = studies,
-                            studyId = if (state.studyId == null && studies.isNotEmpty()) {
-                                studies.find { it.isActive }?.id ?: studies.first().id
-                            } else state.studyId
-                        )
+                    _state.update { it.copy(studies = studies) }
+                    
+                    if (_state.value.studyId == null && studies.isNotEmpty()) {
+                        val initialStudyId = studies.find { it.isActive }?.id ?: studies.first().id
+                        _state.update { it.copy(studyId = initialStudyId) }
+                        loadPeriodsForStudy(initialStudyId)
+                    } else if (_state.value.studyId != null) {
+                        loadPeriodsForStudy(_state.value.studyId!!)
                     }
-                    _state.value.studyId?.let { loadPeriodsForStudy(it) }
                 }
             } catch (e: Exception) {
                 _uiEvent.emit(
                     UiEvent.ShowMessage(
-                        message = "Error al cargar los datos: ${e.message ?: "Error desconocido"}",
+                        message = "Error al cargar los programas: ${e.message}",
                         type = MessageType.ERROR
                     )
                 )
@@ -74,23 +78,22 @@ class SubjectFormViewModel @Inject constructor(
     }
 
     private fun loadPeriodsForStudy(studyId: String) {
-        viewModelScope.launch {
+        periodsJob?.cancel()
+        periodsJob = viewModelScope.launch {
             try {
                 getAcademicPeriodsUseCase("current_user").collect { periods ->
                     val filtered = periods.filter { it.studyId == studyId }
-                    _state.update { state ->
-                        state.copy(
-                            periods = filtered,
-                            academicPeriodId = if (state.academicPeriodId == null && filtered.isNotEmpty()) {
-                                filtered.find { it.isCurrent }?.id ?: filtered.first().id
-                            } else state.academicPeriodId
-                        )
+                    _state.update { it.copy(periods = filtered) }
+                    
+                    if (_state.value.academicPeriodId == null && filtered.isNotEmpty()) {
+                        val initialPeriodId = filtered.find { it.isCurrent }?.id ?: filtered.first().id
+                        _state.update { it.copy(academicPeriodId = initialPeriodId) }
                     }
                 }
             } catch (e: Exception) {
                 _uiEvent.emit(
                     UiEvent.ShowMessage(
-                        message = "Error al cargar los periodos: ${e.message ?: "Error desconocido"}",
+                        message = "Error al cargar los periodos: ${e.message}",
                         type = MessageType.ERROR
                     )
                 )
@@ -110,6 +113,7 @@ class SubjectFormViewModel @Inject constructor(
             }
             is SubjectFormEvent.PeriodSelected -> _state.update { it.copy(academicPeriodId = event.value, academicPeriodError = null) }
             is SubjectFormEvent.SaveSubject -> saveSubject()
+            is SubjectFormEvent.DeleteSubject -> deleteSubject()
             is SubjectFormEvent.ClearError -> _state.update { it.copy(errorMessage = null) }
         }
     }
@@ -195,6 +199,21 @@ class SubjectFormViewModel @Inject constructor(
         }
     }
 
+    private fun deleteSubject() {
+        val id = currentSubjectId ?: return
+        viewModelScope.launch {
+            try {
+                _state.update { it.copy(isLoading = true) }
+                deleteSubjectUseCase(id)
+                _state.update { it.copy(isLoading = false, isSuccess = true) }
+                _uiEvent.emit(UiEvent.ShowMessage("Materia eliminada exitosamente", MessageType.SUCCESS))
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, errorMessage = e.message) }
+                _uiEvent.emit(UiEvent.ShowMessage("Error al eliminar la materia: ${e.message}", MessageType.ERROR))
+            }
+        }
+    }
+
     private fun validateInputs(): Boolean {
         var isValid = true
         
@@ -239,5 +258,6 @@ sealed class SubjectFormEvent {
     data class StudySelected(val value: String) : SubjectFormEvent()
     data class PeriodSelected(val value: String) : SubjectFormEvent()
     object SaveSubject : SubjectFormEvent()
+    object DeleteSubject : SubjectFormEvent()
     object ClearError : SubjectFormEvent()
 }

@@ -1,22 +1,13 @@
 package com.unihub.app.core.designsystem.component.foundation
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 
 data class SelectOption<T>(
@@ -24,6 +15,7 @@ data class SelectOption<T>(
     val label: String
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> UniHubSelect(
     options: List<SelectOption<T>>,
@@ -39,34 +31,28 @@ fun <T> UniHubSelect(
     
     val selectedLabel = options.find { it.value == selectedValue }?.label ?: placeholder
 
-    Box(modifier = modifier.fillMaxWidth()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = enabled) { expanded = true }
-        ) {
-            UniHubTextField(
-                value = selectedLabel,
-                onValueChange = {},
-                label = label,
-                placeholder = placeholder,
-                isError = isError,
-                enabled = false,
-                trailingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
-                    )
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (enabled) expanded = it },
+        modifier = modifier.fillMaxWidth()
+    ) {
+        UniHubTextField(
+            value = selectedLabel,
+            onValueChange = {},
+            label = label,
+            placeholder = placeholder,
+            isError = isError,
+            readOnly = true,
+            enabled = enabled,
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled)
+        )
 
-        DropdownMenu(
+        ExposedDropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth(0.9f)
+            onDismissRequest = { expanded = false }
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
@@ -84,7 +70,8 @@ fun <T> UniHubSelect(
                     onClick = {
                         onOptionSelected(option.value)
                         expanded = false
-                    }
+                    },
+                    contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                 )
             }
         }

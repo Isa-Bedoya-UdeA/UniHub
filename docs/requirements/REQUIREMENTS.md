@@ -249,6 +249,27 @@ The simulator shall allow the user to provide:
 
 The system shall calculate the required grade.
 
+#### FR-024 — Previous Academic Status
+
+The system shall allow users to optionally register their previous academic status when creating or editing an academic program.
+
+This feature is intended for users who already have completed semesters and do not want to manually recreate all past subjects and grades.
+
+The user may provide:
+
+- Previously approved credits.
+- Cumulative GPA from previous semesters.
+
+When these fields are populated, the system shall combine them with current period data to calculate:
+
+- Overall cumulative GPA.
+- Total earned credits.
+- Academic progress percentage.
+
+The system shall clearly indicate when manual data is being included in calculations.
+
+These fields are optional. Users who start from their first semester do not need to provide this information.
+
 ### 4.6 Dashboard
 
 #### FR-024 — Dashboard

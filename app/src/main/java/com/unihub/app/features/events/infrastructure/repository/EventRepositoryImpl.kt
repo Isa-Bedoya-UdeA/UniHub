@@ -22,11 +22,20 @@ class EventRepositoryImpl @Inject constructor(
 ) : EventRepository {
 
     override fun getEvents(userId: String, start: String, end: String): Flow<List<Event>> =
-        eventDao.getEvents(userId, start, end).map { entities ->
+        eventDao.getEvents(userId).map { entities ->
             entities.map { entity ->
                 val reminders = eventReminderDao.getRemindersForEvent(entity.id).first()
                     .map { it.toDomain() }
-                entity.toDomain(reminders)
+                
+                var rule: RecurrenceRule? = null
+                var days: List<Int> = emptyList()
+                
+                entity.recurrenceRuleId?.let { ruleId ->
+                    rule = eventDao.getRecurrenceRuleById(ruleId).first()?.toDomain()
+                    days = eventDao.getRecurrenceDays(ruleId).first().map { it.dayOfWeek }
+                }
+                
+                entity.toDomain(reminders, rule, days)
             }
         }
 
@@ -35,7 +44,16 @@ class EventRepositoryImpl @Inject constructor(
             entities.map { entity ->
                 val reminders = eventReminderDao.getRemindersForEvent(entity.id).first()
                     .map { it.toDomain() }
-                entity.toDomain(reminders)
+                
+                var rule: RecurrenceRule? = null
+                var days: List<Int> = emptyList()
+                
+                entity.recurrenceRuleId?.let { ruleId ->
+                    rule = eventDao.getRecurrenceRuleById(ruleId).first()?.toDomain()
+                    days = eventDao.getRecurrenceDays(ruleId).first().map { it.dayOfWeek }
+                }
+                
+                entity.toDomain(reminders, rule, days)
             }
         }
 
@@ -44,7 +62,16 @@ class EventRepositoryImpl @Inject constructor(
             entity?.let {
                 val reminders = eventReminderDao.getRemindersForEvent(it.id).first()
                     .map { reminder -> reminder.toDomain() }
-                it.toDomain(reminders)
+                
+                var rule: RecurrenceRule? = null
+                var days: List<Int> = emptyList()
+                
+                it.recurrenceRuleId?.let { ruleId ->
+                    rule = eventDao.getRecurrenceRuleById(ruleId).first()?.toDomain()
+                    days = eventDao.getRecurrenceDays(ruleId).first().map { it.dayOfWeek }
+                }
+                
+                it.toDomain(reminders, rule, days)
             }
         }
 
@@ -58,6 +85,11 @@ class EventRepositoryImpl @Inject constructor(
 
     override suspend fun deleteEvent(id: String) {
         eventReminderDao.deleteRemindersForEvent(id)
+        val event = eventDao.getEventById(id).first()
+        event?.recurrenceRuleId?.let { ruleId ->
+            eventDao.deleteRecurrenceDaysByRule(ruleId)
+            eventDao.deleteRecurrenceRule(ruleId)
+        }
         eventDao.deleteEvent(id)
     }
 
@@ -96,5 +128,13 @@ class EventRepositoryImpl @Inject constructor(
 
     override suspend fun saveRecurrenceDay(day: RecurrenceDay) {
         eventDao.insertRecurrenceDay(day.toEntity())
+    }
+
+    override suspend fun deleteRecurrenceRule(id: String) {
+        eventDao.deleteRecurrenceRule(id)
+    }
+
+    override suspend fun deleteRecurrenceDaysByRule(ruleId: String) {
+        eventDao.deleteRecurrenceDaysByRule(ruleId)
     }
 }

@@ -3,6 +3,8 @@ package com.unihub.app.core.database
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.unihub.app.features.academic.infrastructure.data.local.dao.AcademicDao
 import com.unihub.app.features.academic.infrastructure.data.local.dao.StudyDao
 import com.unihub.app.features.academic.infrastructure.data.local.entity.AcademicPeriodEntity
@@ -47,7 +49,7 @@ import com.unihub.app.features.tasks.infrastructure.data.local.entity.TaskTagEnt
         TaskTagEntity::class,
         UserPreferencesEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -62,4 +64,13 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun academicDao(): AcademicDao
     abstract fun tagDao(): TagDao
     abstract fun userPreferencesDao(): UserPreferencesDao
+
+    companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE Study ADD COLUMN approved_credits INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE Study ADD COLUMN cumulative_gpa REAL DEFAULT NULL")
+            }
+        }
+    }
 }

@@ -9,9 +9,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.ColorLens
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
@@ -21,14 +18,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.theme.UniHubTheme
-import com.unihub.app.core.util.PreferencesManager
 import com.unihub.app.features.settings.domain.model.ThemeMode
 import com.unihub.app.features.settings.presentation.viewmodel.SettingsViewModel
 
@@ -36,10 +31,9 @@ import com.unihub.app.features.settings.presentation.viewmodel.SettingsViewModel
 fun SettingsScreen(
     onLogout: () -> Unit,
     onNavigateToManageStudies: () -> Unit,
-    onNavigateToPermissionGuide: () -> Unit = {},
+    onNavigateToEditProfile: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val state by viewModel.state.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
 
@@ -83,12 +77,12 @@ fun SettingsScreen(
             
             Column {
                 Text(
-                    text = "Juan Doe",
+                    text = state.user?.name ?: "Usuario",
                     style = UniHubTheme.typography.h3,
                     color = UniHubTheme.colorScheme.textPrimary
                 )
                 Text(
-                    text = "juan.doe@udea.edu.co",
+                    text = state.user?.email ?: "",
                     style = UniHubTheme.typography.bodySmall,
                     color = UniHubTheme.colorScheme.textSecondary
                 )
@@ -100,7 +94,7 @@ fun SettingsScreen(
         UniHubButton(
             text = "Editar Perfil",
             variant = UniHubButtonVariant.Outlined,
-            onClick = { /* Edit */ },
+            onClick = onNavigateToEditProfile,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -136,68 +130,6 @@ fun SettingsScreen(
                 icon = Icons.Default.Palette,
                 title = "Tema de la aplicación",
                 onClick = { showThemeDialog = true },
-                isLast = true
-            )
-        }
-
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
-
-        // Account & Security
-        Text(
-            text = "Seguridad",
-            style = UniHubTheme.typography.label,
-            color = UniHubTheme.colorScheme.textSecondary
-        )
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
-        UniHubCard(padding = 0.dp) {
-            SettingsItem(
-                icon = Icons.Default.Lock,
-                title = "Cambiar contraseña",
-                onClick = {}
-            )
-            SettingsItem(
-                icon = Icons.Default.Notifications,
-                title = "Notificaciones",
-                onClick = {},
-                isLast = true
-            )
-        }
-
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
-
-        // Academic Preferences
-        Text(
-            text = "Preferencias",
-            style = UniHubTheme.typography.label,
-            color = UniHubTheme.colorScheme.textSecondary
-        )
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
-        UniHubCard(padding = 0.dp) {
-            SettingsItem(
-                icon = Icons.Default.ColorLens,
-                title = "Colores de las materias",
-                onClick = {},
-                isLast = true
-            )
-        }
-
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
-
-        // Developer Options
-        Text(
-            text = "Opciones de Desarrollador",
-            style = UniHubTheme.typography.label,
-            color = UniHubTheme.colorScheme.textSecondary
-        )
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
-        UniHubCard(padding = 0.dp) {
-            SettingsItem(
-                icon = Icons.Default.Notifications,
-                title = "Resetear guía de permisos",
-                onClick = {
-                    PreferencesManager.setPermissionGuideShown(context, false)
-                    onNavigateToPermissionGuide()
-                },
                 isLast = true
             )
         }

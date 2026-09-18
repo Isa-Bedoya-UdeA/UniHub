@@ -11,6 +11,7 @@ data class AcademicState(
     val summary: AcademicSummary = AcademicSummary(0.0, 0.0, 0, 0, 0.0),
     val subjects: List<SubjectWithGrade> = emptyList(),
     val periods: List<AcademicPeriod> = emptyList(),
+    val periodSubjectCounts: Map<String, Int> = emptyMap(),
     val isLoading: Boolean = true,
     val errorMessage: String? = null
 )

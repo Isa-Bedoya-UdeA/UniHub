@@ -31,6 +31,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "unihub_database"
         )
+            .addMigrations(AppDatabase.MIGRATION_1_2)
             .fallbackToDestructiveMigration()
             .build()
     }

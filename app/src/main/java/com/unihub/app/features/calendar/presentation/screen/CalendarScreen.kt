@@ -11,8 +11,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -30,8 +33,10 @@ import com.unihub.app.features.calendar.presentation.viewmodel.CalendarViewModel
 import com.unihub.app.features.dashboard.presentation.screen.ActivityCard
 import com.unihub.app.features.events.domain.model.Event
 import com.unihub.app.features.events.domain.model.LocationType
+import com.unihub.app.features.events.domain.model.RecurrenceRule
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -79,23 +84,49 @@ fun CalendarScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                UniHubChip(
-                    label = "Mes",
-                    selected = selectedView == CalendarView.Month,
-                    onClick = { selectedView = CalendarView.Month }
-                )
-                UniHubChip(
-                    label = "Semana",
-                    selected = selectedView == CalendarView.Week,
-                    onClick = { selectedView = CalendarView.Week }
-                )
-                UniHubChip(
-                    label = "Día",
-                    selected = selectedView == CalendarView.Day,
-                    onClick = { selectedView = CalendarView.Day }
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)
+                ) {
+                    UniHubChip(
+                        label = "Mes",
+                        selected = selectedView == CalendarView.Month,
+                        onClick = { selectedView = CalendarView.Month }
+                    )
+                    UniHubChip(
+                        label = "Semana",
+                        selected = selectedView == CalendarView.Week,
+                        onClick = { selectedView = CalendarView.Week }
+                    )
+                    UniHubChip(
+                        label = "Día",
+                        selected = selectedView == CalendarView.Day,
+                        onClick = { selectedView = CalendarView.Day }
+                    )
+                }
+
+                Row {
+                    IconButton(onClick = {
+                        selectedDate = when (selectedView) {
+                            CalendarView.Month -> selectedDate.minusMonths(1)
+                            CalendarView.Week -> selectedDate.minusWeeks(1)
+                            CalendarView.Day -> selectedDate.minusDays(1)
+                        }
+                    }) {
+                        Icon(Icons.Default.ChevronLeft, contentDescription = "Anterior", tint = UniHubTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = {
+                        selectedDate = when (selectedView) {
+                            CalendarView.Month -> selectedDate.plusMonths(1)
+                            CalendarView.Week -> selectedDate.plusWeeks(1)
+                            CalendarView.Day -> selectedDate.plusDays(1)
+                        }
+                    }) {
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Siguiente", tint = UniHubTheme.colorScheme.primary)
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
@@ -140,28 +171,31 @@ fun MonthlyView(currentDate: LocalDate, events: List<Event>, onEventClick: (Stri
         
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
 
-        val rows = (daysInMonth.size + firstDayOfMonth.dayOfWeek.value - 2) / 7 + 1
-        val gridHeight = (rows * 50).dp
+        val firstDayOffset = firstDayOfMonth.dayOfWeek.value - 1
+        val totalCells = firstDayOffset + daysInMonth.size
+        val rows = (totalCells + 6) / 7
+        val cellSize = 36.dp
+        val gridHeight = (rows * 36).dp
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(7),
             modifier = Modifier.height(gridHeight),
             userScrollEnabled = false
         ) {
-            items(firstDayOfMonth.dayOfWeek.value - 1) {
-                Box(modifier = Modifier.aspectRatio(1f))
+            items(firstDayOffset) {
+                Box(modifier = Modifier.size(cellSize))
             }
             
             items(daysInMonth) { day ->
                 val date = firstDayOfMonth.withDayOfMonth(day)
                 val isToday = date == today
                 val isSelected = date == currentDate
-                val hasEvent = events.any { it.startAt.startsWith(date.toString()) }
+                val hasEvent = events.any { isEventOnDate(it, date) }
 
                 Box(
                     modifier = Modifier
-                        .aspectRatio(1f)
-                        .padding(2.dp)
+                        .size(cellSize)
+                        .padding(1.dp)
                         .clip(CircleShape)
                         .background(
                             when {
@@ -184,8 +218,8 @@ fun MonthlyView(currentDate: LocalDate, events: List<Event>, onEventClick: (Stri
                         if (hasEvent) {
                             Box(
                                 modifier = Modifier
-                                    .padding(top = 2.dp)
-                                    .size(4.dp)
+                                    .padding(top = 1.dp)
+                                    .size(3.dp)
                                     .clip(CircleShape)
                                     .background(if (isSelected) UniHubTheme.colorScheme.surface else UniHubTheme.colorScheme.accent)
                             )
@@ -270,7 +304,18 @@ fun DailyView(date: LocalDate, events: List<Event>, onEventClick: (String) -> Un
 
 @Composable
 fun DailyEvents(date: LocalDate, events: List<Event>, onEventClick: (String) -> Unit) {
-    val dayEvents = events.filter { it.startAt.startsWith(date.toString()) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val dayEvents = events.filter { isEventOnDate(it, date) }
+    
+    val openMeetingUrl: (String) -> Unit = { url ->
+        try {
+            val uri = android.net.Uri.parse(url)
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            android.util.Log.e("CalendarScreen", "Error opening meeting URL", e)
+        }
+    }
     
     Column(
         verticalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.md)
@@ -292,11 +337,48 @@ fun DailyEvents(date: LocalDate, events: List<Event>, onEventClick: (String) -> 
                     location = if (event.locationType == LocationType.PHYSICAL) event.notes else null,
                     meetingUrl = if (event.locationType == LocationType.REMOTE) event.meetingUrl else null,
                     color = if (event.subjectId != null) UniHubTheme.colorScheme.primary else UniHubTheme.colorScheme.accent,
-                    onClick = { onEventClick(event.id) }
+                    onClick = { onEventClick(event.id) },
+                    onMeetingUrlClick = openMeetingUrl
                 )
             }
         }
     }
+}
+
+fun isEventOnDate(event: Event, date: LocalDate): Boolean {
+    // Check direct date (supports yyyy-MM-dd format)
+    if (event.startAt.startsWith(date.toString())) return true
+
+    // Check recurrence
+    val rule = event.recurrenceRule ?: return false
+    val days = event.recurrenceDays
+    
+    try {
+        val startDate = if (rule.startDate.contains("-")) {
+            val parts = rule.startDate.split("-")
+            if (parts[0].length == 4) LocalDate.parse(rule.startDate) // yyyy-MM-dd
+            else LocalDate.of(parts[2].toInt(), parts[1].toInt(), parts[0].toInt()) // dd-MM-yyyy
+        } else return false
+        
+        val endDate = if (rule.endDate.contains("-")) {
+            val parts = rule.endDate.split("-")
+            if (parts[0].length == 4) LocalDate.parse(rule.endDate) // yyyy-MM-dd
+            else LocalDate.of(parts[2].toInt(), parts[1].toInt(), parts[0].toInt()) // dd-MM-yyyy
+        } else return false
+
+        if (date.isBefore(startDate) || date.isAfter(endDate)) return false
+
+        // Currently we only support WEEKLY frequency with days
+        if (rule.frequency == "WEEKLY") {
+            val dayOfWeek = date.dayOfWeek.value // 1 (Mon) to 7 (Sun)
+            return dayOfWeek in days
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("CalendarScreen", "Error checking event date", e)
+        return false
+    }
+
+    return false
 }
 
 enum class CalendarView {

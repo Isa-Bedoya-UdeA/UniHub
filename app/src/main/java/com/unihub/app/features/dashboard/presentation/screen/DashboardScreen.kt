@@ -41,11 +41,22 @@ fun DashboardScreen(
     onNavigateToEvent: (String) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     
     // Colombian Time
     val today = remember { LocalDate.now(ZoneId.systemDefault()) }
     val locale = Locale.forLanguageTag("es")
     val dateText = "${today.dayOfWeek.getDisplayName(TextStyle.FULL, locale).replaceFirstChar { it.uppercase() }}, ${today.dayOfMonth} de ${today.month.getDisplayName(TextStyle.FULL, locale)}"
+    
+    val openMeetingUrl: (String) -> Unit = { url ->
+        try {
+            val uri = android.net.Uri.parse(url)
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            android.util.Log.e("DashboardScreen", "Error opening meeting URL", e)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -116,17 +127,70 @@ fun DashboardScreen(
         if (state.upcomingEvents.isEmpty()) {
             Text("No tienes actividades próximas.", style = UniHubTheme.typography.body, color = UniHubTheme.colorScheme.info)
         } else {
-            state.upcomingEvents.take(3).forEach { event ->
-                ActivityCard(
-                    title = event.title,
-                    isClass = event.subjectId != null,
-                    location = if (event.locationType == LocationType.PHYSICAL) event.notes else null,
-                    meetingUrl = if (event.locationType == LocationType.REMOTE) event.meetingUrl else null,
-                    time = if (event.startAt.contains("T")) "${event.startAt.split("T").last()} - ${event.endAt.split("T").last()}" else "Todo el día",
-                    color = if (event.subjectId != null) UniHubTheme.colorScheme.primary else UniHubTheme.colorScheme.accent,
-                    onClick = { onNavigateToEvent(event.id) }
+            val todayEvents = state.upcomingEvents.filter { event ->
+                try {
+                    val eventDateStr = event.startAt.split("T").firstOrNull() ?: ""
+                    val eventDate = java.time.LocalDate.parse(eventDateStr)
+                    eventDate.isEqual(today)
+                } catch (e: Exception) {
+                    false
+                }
+            }
+            val otherEvents = state.upcomingEvents.filterNot { event ->
+                try {
+                    val eventDateStr = event.startAt.split("T").firstOrNull() ?: ""
+                    val eventDate = java.time.LocalDate.parse(eventDateStr)
+                    eventDate.isEqual(today)
+                } catch (e: Exception) {
+                    false
+                }
+            }
+            
+            if (todayEvents.isNotEmpty()) {
+                Text(
+                    text = "Hoy",
+                    style = UniHubTheme.typography.label,
+                    color = UniHubTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = UniHubTheme.spacing.xs)
                 )
-                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+                todayEvents.take(3).forEach { event ->
+                    ActivityCard(
+                        title = event.title,
+                        isClass = event.subjectId != null,
+                        location = if (event.locationType == LocationType.PHYSICAL) event.notes else null,
+                        meetingUrl = if (event.locationType == LocationType.REMOTE) event.meetingUrl else null,
+                        time = if (event.startAt.contains("T")) "${event.startAt.split("T").last()} - ${event.endAt.split("T").last()}" else "Todo el día",
+                        color = if (event.subjectId != null) UniHubTheme.colorScheme.primary else UniHubTheme.colorScheme.accent,
+                        onClick = { onNavigateToEvent(event.id) },
+                        onMeetingUrlClick = openMeetingUrl
+                    )
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+                }
+            }
+            
+            if (otherEvents.isNotEmpty() && todayEvents.size < 3) {
+                if (todayEvents.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+                }
+                Text(
+                    text = "Próximos días",
+                    style = UniHubTheme.typography.label,
+                    color = UniHubTheme.colorScheme.textSecondary,
+                    modifier = Modifier.padding(bottom = UniHubTheme.spacing.xs)
+                )
+                otherEvents.take(3 - todayEvents.size).forEach { event ->
+                    ActivityCard(
+                        title = event.title,
+                        isClass = event.subjectId != null,
+                        location = if (event.locationType == LocationType.PHYSICAL) event.notes else null,
+                        meetingUrl = if (event.locationType == LocationType.REMOTE) event.meetingUrl else null,
+                        time = if (event.startAt.contains("T")) "${event.startAt.split("T").last()} - ${event.endAt.split("T").last()}" else "Todo el día",
+                        color = if (event.subjectId != null) UniHubTheme.colorScheme.primary else UniHubTheme.colorScheme.accent,
+                        onClick = { onNavigateToEvent(event.id) },
+                        onMeetingUrlClick = openMeetingUrl
+                    )
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+                }
             }
         }
 
@@ -183,7 +247,8 @@ fun ActivityCard(
     color: Color,
     onClick: () -> Unit,
     location: String? = null,
-    meetingUrl: String? = null
+    meetingUrl: String? = null,
+    onMeetingUrlClick: ((String) -> Unit)? = null
 ) {
     UniHubCard(padding = 0.dp, onClick = onClick) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
@@ -219,7 +284,7 @@ fun ActivityCard(
                             modifier = Modifier
                                 .clip(UniHubTheme.shape.sm)
                                 .background(UniHubTheme.colorScheme.primary.copy(0.1f))
-                                .clickable { }
+                                .clickable { onMeetingUrlClick?.invoke(meetingUrl) }
                                 .padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {

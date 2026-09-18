@@ -28,6 +28,7 @@ import com.unihub.app.core.designsystem.component.foundation.UniHubDialog
 import com.unihub.app.core.designsystem.component.foundation.UniHubSelect
 import com.unihub.app.core.designsystem.component.foundation.UniHubTextField
 import com.unihub.app.core.designsystem.theme.UniHubTheme
+import com.unihub.app.core.navigation.Screen
 import com.unihub.app.features.events.domain.model.EventReminder
 import com.unihub.app.features.events.domain.model.EventType
 import com.unihub.app.features.events.domain.model.LocationType
@@ -35,7 +36,12 @@ import com.unihub.app.features.events.domain.model.ReminderType
 import com.unihub.app.features.events.presentation.viewmodel.EventFormEvent
 import com.unihub.app.features.events.presentation.viewmodel.EventFormViewModel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import com.unihub.app.features.location.domain.repository.LocationCandidate
+import com.unihub.app.core.designsystem.component.academic.UniHubLocationCard
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -47,12 +53,16 @@ fun CreateEventScreen(
     eventId: String? = null,
     subjectId: String? = null,
     onEventCreated: () -> Unit,
+    onSelectLocation: () -> Unit,
     onBack: () -> Unit,
-    viewModel: EventFormViewModel = hiltViewModel()
+    viewModel: EventFormViewModel = hiltViewModel(),
+    locationResult: String? = null
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val datePickerState = rememberDatePickerState()
+    
     var showDatePicker by remember { mutableStateOf(false) }
 
     var showStartTimePicker by remember { mutableStateOf(false) }
@@ -67,6 +77,17 @@ fun CreateEventScreen(
     LaunchedEffect(key1 = subjectId) {
         if (subjectId != null && state.subjectId == null) {
             viewModel.onEvent(EventFormEvent.SubjectSelected(subjectId))
+        }
+    }
+
+    LaunchedEffect(key1 = locationResult) {
+        if (locationResult != null) {
+            try {
+                val candidate = Json.decodeFromString<LocationCandidate>(locationResult)
+                viewModel.onEvent(EventFormEvent.LocationSelected(candidate))
+            } catch (e: Exception) {
+                // Ignore invalid data
+            }
         }
     }
 
@@ -88,11 +109,21 @@ fun CreateEventScreen(
     }
 
     if (showDatePicker) {
+        val today = LocalDate.now()
+        val initialDateState = rememberDatePickerState(
+            initialSelectedDateMillis = if (state.date.isNotBlank()) {
+                try {
+                    val parts = state.date.split("-")
+                    LocalDate.of(parts[2].toInt(), parts[1].toInt(), parts[0].toInt())
+                        .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                } catch(e: Exception) { today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
+            } else today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let {
+                    initialDateState.selectedDateMillis?.let {
                         val date = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
                         val formatted = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
                         viewModel.onEvent(EventFormEvent.EnteredDate(formatted))
@@ -104,12 +135,14 @@ fun CreateEventScreen(
                 TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") }
             }
         ) {
-            DatePicker(state = datePickerState)
+            DatePicker(state = initialDateState)
         }
     }
 
     if (showStartTimePicker) {
-        val timePickerState = rememberTimePickerState(is24Hour = true)
+        val initialHour = if (state.startTime.contains(":")) state.startTime.split(":").first().toInt() else 12
+        val initialMinute = if (state.startTime.contains(":")) state.startTime.split(":").last().toInt() else 0
+        val timePickerState = rememberTimePickerState(initialHour = initialHour, initialMinute = initialMinute, is24Hour = true)
         TimePickerDialogCustom(
             onDismiss = { showStartTimePicker = false },
             onConfirm = {
@@ -123,7 +156,9 @@ fun CreateEventScreen(
     }
 
     if (showEndTimePicker) {
-        val timePickerState = rememberTimePickerState(is24Hour = true)
+        val initialHour = if (state.endTime.contains(":")) state.endTime.split(":").first().toInt() else 13
+        val initialMinute = if (state.endTime.contains(":")) state.endTime.split(":").last().toInt() else 0
+        val timePickerState = rememberTimePickerState(initialHour = initialHour, initialMinute = initialMinute, is24Hour = true)
         TimePickerDialogCustom(
             onDismiss = { showEndTimePicker = false },
             onConfirm = {
@@ -179,12 +214,11 @@ fun CreateEventScreen(
     Scaffold(
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
+                val isSuccess = state.isSuccess
                 Snackbar(
                     snackbarData = data,
-                    containerColor = when (data.visuals.message) {
-                        is String -> UniHubTheme.colorScheme.surface
-                        else -> UniHubTheme.colorScheme.surface
-                    }
+                    containerColor = if (isSuccess) UniHubTheme.colorScheme.success else UniHubTheme.colorScheme.error,
+                    contentColor = androidx.compose.ui.graphics.Color.White
                 )
             }
         },
@@ -330,6 +364,31 @@ fun CreateEventScreen(
                     label = label,
                     selected = state.locationType == type,
                     onClick = { viewModel.onEvent(EventFormEvent.LocationTypeChanged(type)) }
+                )
+            }
+        }
+
+        if (state.locationType == LocationType.PHYSICAL) {
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+            if (state.selectedLocation != null) {
+                UniHubLocationCard(
+                    place = state.selectedLocation!!.name,
+                    room = "",
+                    building = state.selectedLocation!!.address,
+                    onOpenInMaps = { viewModel.onEvent(EventFormEvent.OpenInMaps(context)) }
+                )
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+                UniHubButton(
+                    text = "Cambiar ubicación",
+                    variant = com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant.Outlined,
+                    onClick = onSelectLocation,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                UniHubButton(
+                    text = "Seleccionar ubicación",
+                    onClick = onSelectLocation,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -480,6 +539,152 @@ fun CreateEventScreen(
             )
         }
 
+        Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+        Text("Repetir evento", style = UniHubTheme.typography.h4, color = UniHubTheme.colorScheme.textPrimary)
+        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Repetir semanalmente",
+                style = UniHubTheme.typography.body,
+                color = UniHubTheme.colorScheme.textPrimary,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = state.isRecurring,
+                onCheckedChange = { enabled ->
+                    viewModel.onEvent(EventFormEvent.RecurrenceToggled(enabled))
+                }
+            )
+        }
+
+        if (state.isRecurring) {
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+            
+            val periodSelectOptions = listOf(SelectOption<String?>("", "Personalizado (Ingresar rango manual)")) +
+                state.academicPeriods.map { SelectOption<String?>(it.id, it.name) }
+            
+            UniHubSelect(
+                options = periodSelectOptions,
+                selectedValue = "",
+                onOptionSelected = { periodId ->
+                    if (!periodId.isNullOrBlank()) {
+                        viewModel.onEvent(EventFormEvent.AcademicPeriodSelected(periodId))
+                    }
+                },
+                label = "Vincular a un Periodo Académico",
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+            
+            Text("Días de la semana", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.textSecondary)
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
+            
+            val daysOfWeek = listOf(
+                1 to "Lun",
+                2 to "Mar",
+                3 to "Mié",
+                4 to "Jue",
+                5 to "Vie",
+                6 to "Sáb",
+                7 to "Dom"
+            )
+            
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs),
+                verticalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)
+            ) {
+                daysOfWeek.forEach { (dayNum, dayLabel) ->
+                    UniHubChip(
+                        label = dayLabel,
+                        selected = dayNum in state.recurrenceDays,
+                        onClick = { viewModel.onEvent(EventFormEvent.RecurrenceDayToggled(dayNum)) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+            var showRecurrenceStartDatePicker by remember { mutableStateOf(false) }
+            var showRecurrenceEndDatePicker by remember { mutableStateOf(false) }
+            val recurrenceStartDatePickerState = rememberDatePickerState()
+            val recurrenceEndDatePickerState = rememberDatePickerState()
+
+            if (showRecurrenceStartDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = { showRecurrenceStartDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            recurrenceStartDatePickerState.selectedDateMillis?.let {
+                                val date = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                                val formatted = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
+                                viewModel.onEvent(EventFormEvent.RecurrenceStartDateChanged(formatted))
+                            }
+                            showRecurrenceStartDatePicker = false
+                        }) { Text("Aceptar") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showRecurrenceStartDatePicker = false }) { Text("Cancelar") }
+                    }
+                ) {
+                    DatePicker(state = recurrenceStartDatePickerState)
+                }
+            }
+
+            if (showRecurrenceEndDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = { showRecurrenceEndDatePicker = false },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            recurrenceEndDatePickerState.selectedDateMillis?.let {
+                                val date = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                                val formatted = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
+                                viewModel.onEvent(EventFormEvent.RecurrenceEndDateChanged(formatted))
+                            }
+                            showRecurrenceEndDatePicker = false
+                        }) { Text("Aceptar") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showRecurrenceEndDatePicker = false }) { Text("Cancelar") }
+                    }
+                ) {
+                    DatePicker(state = recurrenceEndDatePickerState)
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.md)) {
+                Box(modifier = Modifier.weight(1f).clickable { showRecurrenceStartDatePicker = true }) {
+                    UniHubTextField(
+                        value = state.recurrenceStartDate,
+                        onValueChange = {},
+                        label = "Desde",
+                        placeholder = "DD-MM-AAAA",
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = false,
+                        leadingIcon = Icons.Default.CalendarToday
+                    )
+                }
+                Box(modifier = Modifier.weight(1f).clickable { showRecurrenceEndDatePicker = true }) {
+                    UniHubTextField(
+                        value = state.recurrenceEndDate,
+                        onValueChange = {},
+                        label = "Hasta",
+                        placeholder = "DD-MM-AAAA",
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = false,
+                        leadingIcon = Icons.Default.CalendarToday
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
 
         UniHubButton(
@@ -488,6 +693,18 @@ fun CreateEventScreen(
             modifier = Modifier.fillMaxWidth(),
             enabled = !state.isLoading
         )
+
+        if (eventId != null) {
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+            UniHubButton(
+                text = "Eliminar Evento",
+                variant = com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant.Destructive,
+                onClick = { viewModel.onEvent(EventFormEvent.DeleteEvent) },
+                leadingIcon = Icons.Default.Close,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isLoading
+            )
+        }
     }
     }
 }

@@ -100,22 +100,30 @@ The following conventions apply:
 
 Represents an academic program or career.
 
-| Column          | Type    | Constraints  | Description                                 |
-|-----------------|---------|--------------|---------------------------------------------|
-| `study_id`      | TEXT    | PK, NOT NULL | Unique study identifier                     |
-| `user_id`       | TEXT    | FK, NOT NULL | Owner                                       |
-| `name`          | TEXT    | NOT NULL     | Name of the study (e.g., "Ing de Sistemas") |
-| `institution`   | TEXT    | NOT NULL     | Institution (e.g., "UdeA")                  |
-| `total_credits` | INTEGER | NOT NULL     | Total credits required for the program      |
-| `is_active`     | INTEGER | NOT NULL     | Whether this is the currently active study  |
-| `created_at`    | TEXT    | NOT NULL     | Creation timestamp                          |
-| `updated_at`    | TEXT    | NOT NULL     | Last update timestamp                       |
+| Column             | Type    | Constraints  | Description                                                     |
+|--------------------|---------|--------------|-----------------------------------------------------------------|
+| `study_id`         | TEXT    | PK, NOT NULL | Unique study identifier                                         |
+| `user_id`          | TEXT    | FK, NOT NULL | Owner                                                           |
+| `name`             | TEXT    | NOT NULL     | Name of the study (e.g., "Ing de Sistemas")                     |
+| `institution`      | TEXT    | NOT NULL     | Institution (e.g., "UdeA")                                      |
+| `total_credits`    | INTEGER | NOT NULL     | Total credits required for the program                          |
+| `approved_credits` | INTEGER | NULL         | Manually entered credits approved before using the app          |
+| `cumulative_gpa`   | REAL    | NULL         | Manually entered cumulative GPA before using the app            |
+| `is_active`        | INTEGER | NOT NULL     | Whether this is the currently active study                      |
+| `created_at`       | TEXT    | NOT NULL     | Creation timestamp                                              |
+| `updated_at`       | TEXT    | NOT NULL     | Last update timestamp                                           |
 
 **Relationships**
 
 - `User` 1 — 0..N `Study`
 - `Study` 1 — 0..N `AcademicPeriod`
 - `Study` 1 — 0..N `Subject`
+
+**Notes**
+
+- `approved_credits` and `cumulative_gpa` are optional fields for users who already have completed semesters and want to register their previous academic status without having to create all past subjects.
+- When these fields are populated, the system combines them with current period data to calculate the overall academic progress.
+- These fields are particularly useful for users migrating from other systems or starting to use the app mid-career.
 
 ### 4.4 `AcademicPeriod`
 
@@ -386,6 +394,16 @@ Represents one weekday selected by a weekly recurrence rule.
 ## 7. Room Implementation
 
 Feature-specific Room entities and DAOs belong inside the corresponding feature's infrastructure layer.
+
+### 7.1 Database Version
+
+The database is currently at **version 2**.
+
+**Migration History:**
+
+- **Version 1 → 2:** Added `approved_credits` (INTEGER) and `cumulative_gpa` (REAL) columns to the `Study` table to support manual entry of previous academic status.
+
+All entities and relationships documented in this file are part of the current database structure.
 
 ## 8. Firestore Document Model
 

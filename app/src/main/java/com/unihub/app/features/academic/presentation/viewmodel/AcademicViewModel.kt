@@ -15,7 +15,9 @@ import com.unihub.app.features.academic.application.usecase.SetCurrentPeriodUseC
 import com.unihub.app.features.academic.application.usecase.SetActiveStudyUseCase
 import com.unihub.app.features.academic.domain.model.AcademicPeriod
 import com.unihub.app.features.academic.domain.model.AcademicSummary
+import com.unihub.app.features.academic.domain.model.Grade
 import com.unihub.app.features.academic.presentation.state.AcademicState
+import com.unihub.app.features.subjects.application.usecase.GetAllSubjectsUseCase
 import com.unihub.app.features.subjects.application.usecase.GetSubjectsUseCase
 import com.unihub.app.features.subjects.domain.model.Subject
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,6 +34,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 data class SubjectWithGrade(
@@ -45,6 +49,7 @@ class AcademicViewModel @Inject constructor(
     private val getStudiesUseCase: GetStudiesUseCase,
     private val getAcademicSummaryUseCase: GetAcademicSummaryUseCase,
     private val getSubjectsUseCase: GetSubjectsUseCase,
+    private val getAllSubjectsUseCase: GetAllSubjectsUseCase,
     private val getAcademicPeriodsByStudyUseCase: GetAcademicPeriodsByStudyUseCase,
     private val setActiveStudyUseCase: SetActiveStudyUseCase,
     private val setCurrentPeriodUseCase: SetCurrentPeriodUseCase,
@@ -88,17 +93,19 @@ class AcademicViewModel @Inject constructor(
                 _selectedStudyId
                     .flatMapLatest { studyId ->
                         if (studyId == null) return@flatMapLatest flowOf(
-                            Triple(emptyList<AcademicPeriod>(), emptyList<SubjectWithGrade>(), AcademicSummary(0.0, 0.0, 0, 0, 0.0))
+                            Triple(emptyList<AcademicPeriod>(), AcademicSummary(0.0, 0.0, 0, 0, 0.0), emptyMap<String, Int>())
                         )
                         combine(
                             getAcademicPeriodsByStudyUseCase("current_user", studyId),
-                            getAcademicSummaryUseCase("current_user", studyId)
-                        ) { periods, summary ->
-                            Triple(periods, emptyList<SubjectWithGrade>(), summary)
+                            getAcademicSummaryUseCase("current_user", studyId),
+                            getAllSubjectsUseCase("current_user")
+                        ) { periods, summary, allSubjects ->
+                            val counts = allSubjects.groupBy { it.academicPeriodId }.mapValues { it.value.size }
+                            Triple(periods, summary, counts)
                         }
                     }
-                    .onEach { (periods, _, summary) ->
-                        _state.update { it.copy(periods = periods, summary = summary) }
+                    .onEach { (periods, summary, counts) ->
+                        _state.update { it.copy(periods = periods, summary = summary, periodSubjectCounts = counts) }
                     }
                     .launchIn(viewModelScope)
 
@@ -107,7 +114,17 @@ class AcademicViewModel @Inject constructor(
                         if (studyId == null) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
                         getAcademicPeriodsByStudyUseCase("current_user", studyId)
                             .flatMapLatest { periods ->
-                                val currentPeriod = periods.find { it.isCurrent } ?: periods.firstOrNull()
+                                val today = LocalDate.now()
+                                val formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
+                                
+                                val currentPeriod = periods.find { it.isCurrent } ?: periods.find { 
+                                    try {
+                                        val start = LocalDate.parse(it.startDate, formatter)
+                                        val end = LocalDate.parse(it.endDate, formatter)
+                                        !today.isBefore(start) && !today.isAfter(end)
+                                    } catch (e: Exception) { false }
+                                } ?: periods.firstOrNull()
+                                
                                 if (currentPeriod == null) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
                                 getSubjectsUseCase("current_user", currentPeriod.id)
                                     .flatMapLatest { subjects ->
@@ -157,6 +174,29 @@ class AcademicViewModel @Inject constructor(
     }
 
     fun setCurrentPeriod(periodId: String) {
+        val period = _state.value.periods.find { it.id == periodId }
+        if (period == null) return
+
+        try {
+            val formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
+            val endDate = LocalDate.parse(period.endDate, formatter)
+            val today = LocalDate.now()
+
+            if (today.isAfter(endDate)) {
+                viewModelScope.launch {
+                    _uiEvent.emit(
+                        UiEvent.ShowMessage(
+                            message = "No se puede establecer como actual un periodo pasado",
+                            type = MessageType.ERROR
+                        )
+                    )
+                }
+                return
+            }
+        } catch (e: Exception) {
+            // Fallback if parsing fails
+        }
+
         viewModelScope.launch {
             try {
                 setCurrentPeriodUseCase("current_user", periodId)

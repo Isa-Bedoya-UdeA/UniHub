@@ -77,13 +77,15 @@ class AcademicRepositoryImpl @Inject constructor(
             val study = studyEntity?.toDomain()
 
             val totalTargetCredits = study?.totalCredits ?: 0
+            val manualApprovedCredits = study?.approvedCredits ?: 0
+            val manualCumulativeGpa = study?.cumulativeGpa ?: 0.0
 
             val filteredSubjects = allSubjects.filter { it.studyId == studyId }
             val filteredGrades = userGrades.filter { grade ->
                 filteredSubjects.any { it.id == grade.subjectId }
             }
 
-            val earnedCredits = filteredSubjects.filter { subject ->
+            val currentEarnedCredits = filteredSubjects.filter { subject ->
                 val subjectGrades = filteredGrades.filter { it.subjectId == subject.id }
                 if (subjectGrades.isEmpty()) return@filter false
                 val weight = subjectGrades.sumOf { it.weight }
@@ -92,33 +94,46 @@ class AcademicRepositoryImpl @Inject constructor(
                 avg >= 3.0
             }.sumOf { it.credits ?: 0 }
 
-            if (filteredGrades.isEmpty() || totalTargetCredits == 0) {
+            val totalEarnedCredits = manualApprovedCredits + currentEarnedCredits
+
+            if (filteredGrades.isEmpty() && manualApprovedCredits == 0) {
                 AcademicSummary(
                     cumulativeGpa = 0.0,
                     currentSemesterGpa = 0.0,
-                    earnedCredits = earnedCredits,
+                    earnedCredits = totalEarnedCredits,
                     targetCredits = totalTargetCredits,
-                    progressPercentage = 0.0
+                    progressPercentage = if (totalTargetCredits > 0) (totalEarnedCredits.toDouble() / totalTargetCredits.toDouble() * 100.0).coerceIn(0.0, 100.0) else 0.0,
+                    hasManualData = manualApprovedCredits > 0
                 )
             } else {
-                val totalWeight = filteredGrades.sumOf { it.weight }
-                val weightedSum = filteredGrades.sumOf { it.value * it.weight }
-                val currentSemesterAvg = if (totalWeight > 0.0) weightedSum / totalWeight else 0.0
+                val currentTotalWeight = filteredGrades.sumOf { it.weight }
+                val currentWeightedSum = filteredGrades.sumOf { it.value * it.weight }
+                val currentSemesterAvg = if (currentTotalWeight > 0.0) currentWeightedSum / currentTotalWeight else 0.0
 
                 val subjectsSum = filteredGrades.groupBy { it.subjectId }.map { (_, sGrades) ->
                     val sWeight = sGrades.sumOf { it.weight }
-                    val sSum = sGrades.sumOf { it.value * it.weight }
+                    val sSum = sGrades.sumOf { it.value * sWeight }
                     if (sWeight > 0.0) sSum / sWeight else 0.0
                 }
-                val cumulativeGpa = if (subjectsSum.isNotEmpty()) subjectsSum.average() else 0.0
+                
+                val currentGpa = if (subjectsSum.isNotEmpty()) subjectsSum.average() else 0.0
+
+                val cumulativeGpa = if (manualApprovedCredits > 0 && manualCumulativeGpa > 0.0) {
+                    val manualWeightedSum = manualCumulativeGpa * manualApprovedCredits
+                    val currentWeightedSum = currentGpa * currentEarnedCredits
+                    val totalWeight = manualApprovedCredits + currentEarnedCredits
+                    if (totalWeight > 0) (manualWeightedSum + currentWeightedSum) / totalWeight else currentGpa
+                } else {
+                    currentGpa
+                }
 
                 AcademicSummary(
                     cumulativeGpa = cumulativeGpa,
                     currentSemesterGpa = currentSemesterAvg,
-                    earnedCredits = earnedCredits,
+                    earnedCredits = totalEarnedCredits,
                     targetCredits = totalTargetCredits,
-                    progressPercentage = (earnedCredits.toDouble() / totalTargetCredits.toDouble() * 100.0)
-                        .coerceIn(0.0, 100.0)
+                    progressPercentage = if (totalTargetCredits > 0) (totalEarnedCredits.toDouble() / totalTargetCredits.toDouble() * 100.0).coerceIn(0.0, 100.0) else 0.0,
+                    hasManualData = manualApprovedCredits > 0
                 )
             }
         }

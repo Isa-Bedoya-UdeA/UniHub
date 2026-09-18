@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
+import com.unihub.app.features.auth.domain.model.User
+import com.unihub.app.features.auth.domain.repository.UserRepository
 import com.unihub.app.features.settings.application.usecase.GetUserPreferencesUseCase
 import com.unihub.app.features.settings.application.usecase.UpdateThemeModeUseCase
 import com.unihub.app.features.settings.domain.model.ThemeMode
@@ -20,6 +23,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
+    val user: User? = null,
     val userPreferences: UserPreferences? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
@@ -28,7 +32,9 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val getUserPreferencesUseCase: GetUserPreferencesUseCase,
-    private val updateThemeModeUseCase: UpdateThemeModeUseCase
+    private val updateThemeModeUseCase: UpdateThemeModeUseCase,
+    private val getCurrentUidUseCase: GetCurrentUidUseCase,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val userId = "current_user"
@@ -41,6 +47,7 @@ class SettingsViewModel @Inject constructor(
 
     init {
         loadUserPreferences()
+        loadCurrentUser()
     }
 
     private fun loadUserPreferences() {
@@ -69,6 +76,15 @@ class SettingsViewModel @Inject constructor(
                         )
                     }
                 }
+        }
+    }
+
+    private fun loadCurrentUser() {
+        viewModelScope.launch {
+            val uid = getCurrentUidUseCase() ?: return@launch
+            userRepository.getUser(uid).collect { user ->
+                _state.update { it.copy(user = user) }
+            }
         }
     }
 

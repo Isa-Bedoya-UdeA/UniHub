@@ -3,6 +3,7 @@ package com.unihub.app.features.events.presentation.state
 import com.unihub.app.features.events.domain.model.EventReminder
 import com.unihub.app.features.events.domain.model.EventType
 import com.unihub.app.features.events.domain.model.LocationType
+import com.unihub.app.features.location.domain.repository.LocationCandidate
 import com.unihub.app.features.subjects.domain.model.Subject
 
 data class EventFormState(
@@ -15,6 +16,7 @@ data class EventFormState(
     val endTime: String = "",
     val endTimeError: String? = null,
     val locationType: LocationType = LocationType.NONE,
+    val selectedLocation: LocationCandidate? = null,
     val eventType: EventType = EventType.PERSONAL,
     val meetingUrl: String = "",
     val meetingUrlError: String? = null,
@@ -22,6 +24,11 @@ data class EventFormState(
     val reminders: List<EventReminder> = emptyList(),
     val subjectId: String? = null,
     val subjects: List<Subject> = emptyList(),
+    val isRecurring: Boolean = false,
+    val recurrenceDays: Set<Int> = emptySet(),
+    val recurrenceStartDate: String = "",
+    val recurrenceEndDate: String = "",
+    val academicPeriods: List<com.unihub.app.features.academic.domain.model.AcademicPeriod> = emptyList(),
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
     val errorMessage: String? = null

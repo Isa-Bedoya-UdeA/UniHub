@@ -29,7 +29,16 @@ interface AcademicDao {
     }
 
     @Query("DELETE FROM AcademicPeriod WHERE academic_period_id = :id")
-    suspend fun deletePeriod(id: String)
+    suspend fun deletePeriodOnly(id: String)
+
+    @Query("DELETE FROM Subject WHERE academic_period_id = :id")
+    suspend fun deleteSubjectsByPeriod(id: String)
+
+    @Transaction
+    suspend fun deletePeriod(id: String) {
+        deleteSubjectsByPeriod(id)
+        deletePeriodOnly(id)
+    }
 
     @Query("SELECT * FROM Grade WHERE subject_id = :subjectId")
     fun getGradesBySubject(subjectId: String): Flow<List<GradeEntity>>

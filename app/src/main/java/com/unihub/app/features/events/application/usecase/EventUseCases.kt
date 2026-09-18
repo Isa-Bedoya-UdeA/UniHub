@@ -1,6 +1,8 @@
 package com.unihub.app.features.events.application.usecase
 
 import com.unihub.app.features.events.domain.model.Event
+import com.unihub.app.features.events.domain.model.RecurrenceDay
+import com.unihub.app.features.events.domain.model.RecurrenceRule
 import com.unihub.app.features.events.domain.repository.EventRepository
 import com.unihub.app.features.notifications.application.usecase.CancelReminderUseCase
 import com.unihub.app.features.notifications.application.usecase.ScheduleEventReminderUseCase
@@ -43,5 +45,20 @@ class DeleteEventUseCase @Inject constructor(
     suspend operator fun invoke(id: String) {
         repository.deleteEvent(id)
         cancelReminderUseCase(id)
+    }
+}
+
+class SaveRecurrenceRuleUseCase @Inject constructor(private val repository: EventRepository) {
+    suspend operator fun invoke(rule: RecurrenceRule) = repository.saveRecurrenceRule(rule)
+}
+
+class SaveRecurrenceDayUseCase @Inject constructor(private val repository: EventRepository) {
+    suspend operator fun invoke(day: RecurrenceDay) = repository.saveRecurrenceDay(day)
+}
+
+class DeleteRecurrenceRuleUseCase @Inject constructor(private val repository: EventRepository) {
+    suspend operator fun invoke(ruleId: String) {
+        repository.deleteRecurrenceDaysByRule(ruleId)
+        repository.deleteRecurrenceRule(ruleId)
     }
 }
