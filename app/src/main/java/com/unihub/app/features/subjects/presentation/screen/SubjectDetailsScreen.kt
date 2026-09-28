@@ -198,7 +198,7 @@ fun SubjectDetailsScreen(
                 Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
                 
                 val nextClass = state.nextClass!!
-                    ActivityCard(
+                ActivityCard(
                     title = nextClass.title,
                     isClass = true,
                     time = if (nextClass.startAt.contains("T")) "${nextClass.startAt.split("T").last()} - ${nextClass.endAt.split("T").last()}" else "Todo el día",

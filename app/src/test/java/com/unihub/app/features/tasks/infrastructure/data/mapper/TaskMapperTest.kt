@@ -23,8 +23,8 @@ class TaskMapperTest {
             dueAt = "2025-06-01",
             priority = TaskPriority.HIGH,
             status = TaskStatus.PENDING,
-            notes = "Notes",
-            reminderAt = null,
+            reminderType = null,
+            reminderValue = null,
             isDeadlineReminderEnabled = false,
             createdAt = "2025-01-01",
             updatedAt = "2025-01-01"
@@ -48,8 +48,8 @@ class TaskMapperTest {
             dueAt = null,
             priority = TaskPriority.LOW,
             status = TaskStatus.COMPLETED,
-            notes = null,
-            reminderAt = null,
+            reminderType = null,
+            reminderValue = null,
             isDeadlineReminderEnabled = false,
             createdAt = "2025-01-01",
             updatedAt = "2025-01-01"
@@ -73,9 +73,11 @@ class TaskMapperTest {
             dueAt = null,
             priority = "HIGH",
             status = "IN_PROGRESS",
-            notes = null,
-            createdAt = 0L,
-            updatedAt = 0L
+            reminderType = null,
+            reminderValue = null,
+            isDeadlineReminderEnabled = false,
+            createdAt = "2025-01-01",
+            updatedAt = "2025-01-01"
         )
 
         val task = dto.toDomain("u1")
@@ -92,8 +94,8 @@ class TaskMapperTest {
             priority = "INVALID",
             status = "INVALID",
             title = "Test",
-            createdAt = 0L,
-            updatedAt = 0L
+            createdAt = "2025-01-01",
+            updatedAt = "2025-01-01"
         )
 
         val task = dto.toDomain("u1")

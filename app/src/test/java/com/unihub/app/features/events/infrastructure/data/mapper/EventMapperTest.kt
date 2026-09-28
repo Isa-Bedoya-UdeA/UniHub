@@ -49,13 +49,13 @@ class EventMapperTest {
             academicPeriodId = "p1",
             subjectId = "s1",
             title = "Test Event",
-            startAt = 1717200000000L,
-            endAt = 1717207200000L,
+            startAt = "2025-06-01T08:00:00",
+            endAt = "2025-06-01T10:00:00",
             locationType = "REMOTE",
             meetingUrl = "https://meet.google.com/test",
             notes = null,
-            createdAt = 1717200000000L,
-            updatedAt = 1717200000000L
+            createdAt = "2025-01-01",
+            updatedAt = "2025-01-01"
         )
 
         val event = dto.toDomain("u1")
@@ -73,10 +73,10 @@ class EventMapperTest {
             id = "e1",
             locationType = "INVALID_TYPE",
             title = "Test",
-            startAt = 0L,
-            endAt = 0L,
-            createdAt = 0L,
-            updatedAt = 0L
+            startAt = "2025-06-01T08:00:00",
+            endAt = "2025-06-01T10:00:00",
+            createdAt = "2025-01-01",
+            updatedAt = "2025-01-01"
         )
 
         val event = dto.toDomain("u1")
@@ -85,7 +85,7 @@ class EventMapperTest {
     }
 
     @Test
-    fun `Event toDto converts timestamps`() {
+    fun `Event toDto converts location and event types`() {
         val event = Event(
             id = "e1",
             userId = "u1",
@@ -94,20 +94,21 @@ class EventMapperTest {
             locationId = null,
             recurrenceRuleId = null,
             title = "Test",
-            startAt = "1717200000000",
-            endAt = "1717207200000",
+            startAt = "2025-06-01T08:00:00",
+            endAt = "2025-06-01T10:00:00",
             locationType = LocationType.NONE,
             eventType = EventType.PERSONAL,
             meetingUrl = null,
             notes = null,
-            createdAt = "1717200000000",
-            updatedAt = "1717200000000"
+            createdAt = "2025-01-01",
+            updatedAt = "2025-01-01"
         )
 
         val dto = event.toDto()
 
-        assertEquals(1717200000000L, dto.startAt)
-        assertEquals(1717207200000L, dto.endAt)
+        assertEquals("2025-06-01T08:00:00", dto.startAt)
+        assertEquals("2025-06-01T10:00:00", dto.endAt)
         assertEquals("NONE", dto.locationType)
+        assertEquals("PERSONAL", dto.eventType)
     }
 }
