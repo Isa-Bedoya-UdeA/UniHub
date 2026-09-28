@@ -86,18 +86,12 @@ fun AcademicPeriodsScreen(
                         periods.isEmpty()
                     }
 
-                    viewModel.addPeriod(
-                        AcademicPeriod(
-                            id = UUID.randomUUID().toString(),
-                            userId = "current_user",
-                            studyId = selectedStudyId,
-                            name = name,
-                            startDate = start,
-                            endDate = end,
-                            isCurrent = isCurrentCandidate,
-                            createdAt = Instant.now().toString(),
-                            updatedAt = Instant.now().toString()
-                        )
+                    viewModel.createPeriod(
+                        studyId = selectedStudyId,
+                        name = name,
+                        startDate = start,
+                        endDate = end,
+                        isCurrent = isCurrentCandidate
                     )
                 }
                 showAddDialog = false

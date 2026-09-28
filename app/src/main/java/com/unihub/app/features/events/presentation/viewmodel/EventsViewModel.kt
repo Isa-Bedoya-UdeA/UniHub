@@ -2,6 +2,7 @@ package com.unihub.app.features.events.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.events.application.usecase.DeleteEventUseCase
 import com.unihub.app.features.events.application.usecase.GetEventsUseCase
 import com.unihub.app.features.events.application.usecase.SaveEventUseCase
@@ -21,10 +22,11 @@ class EventsViewModel @Inject constructor(
     getEventsUseCase: GetEventsUseCase,
     private val saveEventUseCase: SaveEventUseCase,
     private val updateEventUseCase: UpdateEventUseCase,
-    private val deleteEventUseCase: DeleteEventUseCase
+    private val deleteEventUseCase: DeleteEventUseCase,
+    private val getCurrentUidUseCase: GetCurrentUidUseCase
 ) : ViewModel() {
 
-    private val userId = "current_user"
+    private val userId = getCurrentUidUseCase() ?: "current_user"
     // Fetch a wider range for the calendar to be useful
     private val today = LocalDate.now(ZoneId.systemDefault())
     private val rangeStart = today.minusMonths(6).toString()

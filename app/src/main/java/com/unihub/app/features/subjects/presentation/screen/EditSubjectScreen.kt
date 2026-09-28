@@ -15,7 +15,9 @@ import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.core.designsystem.component.foundation.SelectOption
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
+import com.unihub.app.core.designsystem.component.foundation.UniHubColorPicker
 import com.unihub.app.core.designsystem.component.foundation.UniHubSelect
+import com.unihub.app.core.designsystem.component.foundation.UniHubTextArea
 import com.unihub.app.core.designsystem.component.foundation.UniHubTextField
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.subjects.presentation.viewmodel.SubjectFormEvent
@@ -151,6 +153,24 @@ fun EditSubjectScreen(
             state.creditsError?.let {
                 Text(text = it, color = UniHubTheme.colorScheme.error, style = UniHubTheme.typography.bodySmall)
             }
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+            UniHubColorPicker(
+                selectedColor = state.color,
+                onColorSelected = { viewModel.onEvent(SubjectFormEvent.ColorChanged(it)) },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+            UniHubTextArea(
+                value = state.notes,
+                onValueChange = { viewModel.onEvent(SubjectFormEvent.EnteredNotes(it)) },
+                label = "Notas (Opcional)",
+                placeholder = "Información adicional...",
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
 

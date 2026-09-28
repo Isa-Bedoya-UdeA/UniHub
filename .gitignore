@@ -16,3 +16,6 @@ local.properties
 .kotlin/errors
 .idea/
 secrets.properties
+server/secrets.properties
+server/.env
+.env

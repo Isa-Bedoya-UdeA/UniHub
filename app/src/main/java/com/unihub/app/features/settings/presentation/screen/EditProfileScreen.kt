@@ -1,5 +1,7 @@
 package com.unihub.app.features.settings.presentation.screen
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,8 +15,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
@@ -32,6 +36,12 @@ fun EditProfileScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { viewModel.uploadImage(it) }
+    }
 
     LaunchedEffect(key1 = true) {
         viewModel.uiEvent.collectLatest { event ->
@@ -86,14 +96,23 @@ fun EditProfileScreen(
                             .background(UniHubTheme.colorScheme.secondary),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AccountCircle,
-                            contentDescription = null,
-                            tint = UniHubTheme.colorScheme.surface,
-                            modifier = Modifier
-                                .size(120.dp)
-                                .padding(UniHubTheme.spacing.md)
-                        )
+                        if (!state.profileImageUrl.isNull_blank()) {
+                            AsyncImage(
+                                model = state.profileImageUrl,
+                                contentDescription = "Foto de perfil",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.AccountCircle,
+                                contentDescription = null,
+                                tint = UniHubTheme.colorScheme.surface,
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .padding(UniHubTheme.spacing.md)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
@@ -107,10 +126,10 @@ fun EditProfileScreen(
                     Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
 
                     UniHubButton(
-                        text = "Cambiar foto",
+                        text = if (state.isUploadingImage) "Subiendo..." else "Cambiar foto",
                         variant = UniHubButtonVariant.Outlined,
-                        onClick = { /* TODO: Implementar selección de imagen */ },
-                        enabled = false // Deshabilitado por ahora
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        enabled = !state.isUploadingImage && !state.isSaving
                     )
                 }
             }
@@ -143,7 +162,7 @@ fun EditProfileScreen(
             UniHubButton(
                 text = "Guardar cambios",
                 onClick = { viewModel.saveProfile() },
-                enabled = !state.isSaving && state.name.isNotBlank(),
+                enabled = !state.isSaving && !state.isUploadingImage && state.name.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -154,9 +173,13 @@ fun EditProfileScreen(
                 text = "Cancelar",
                 variant = UniHubButtonVariant.Text,
                 onClick = onBack,
-                enabled = !state.isSaving,
+                enabled = !state.isSaving && !state.isUploadingImage,
                 modifier = Modifier.fillMaxWidth()
             )
         }
     }
+}
+
+private fun String?.isNull_blank(): Boolean {
+    return this.isNullOrBlank()
 }

@@ -914,7 +914,11 @@ Cloud synchronization must handle:
 - Conflicting updates where relevant.
 - Synchronization state.
 
-The exact synchronization rules will be documented in `DATABASE.md` as the persistence model is finalized.
+Synchronization rules are documented in `FIRESTORE.md`.
+
+### Login Synchronization
+
+After successful authentication, `AuthRepositoryImpl` orchestrates a full pull of all user data from Firestore into Room. This ensures data recovery after app reinstallation. Each entity sync is wrapped in try/catch so that a failure in one collection does not prevent other collections from syncing.
 
 ## 21. Testing Architecture
 

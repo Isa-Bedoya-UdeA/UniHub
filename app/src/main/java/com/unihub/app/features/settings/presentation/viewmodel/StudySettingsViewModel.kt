@@ -9,8 +9,10 @@ import com.unihub.app.features.academic.application.usecase.GetStudiesUseCase
 import com.unihub.app.features.academic.application.usecase.SaveStudyUseCase
 import com.unihub.app.features.academic.application.usecase.SetActiveStudyUseCase
 import com.unihub.app.features.academic.domain.model.Study
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -25,10 +27,13 @@ class StudySettingsViewModel @Inject constructor(
     private val getStudiesUseCase: GetStudiesUseCase,
     private val saveStudyUseCase: SaveStudyUseCase,
     private val deleteStudyUseCase: DeleteStudyUseCase,
-    private val setActiveStudyUseCase: SetActiveStudyUseCase
+    private val setActiveStudyUseCase: SetActiveStudyUseCase,
+    private val getCurrentUidUseCase: GetCurrentUidUseCase
 ) : ViewModel() {
 
-    val state: StateFlow<List<Study>> = getStudiesUseCase("current_user")
+    private val userId = getCurrentUidUseCase() ?: "current_user"
+
+    val state: StateFlow<List<Study>> = getStudiesUseCase(userId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _uiEvent = MutableSharedFlow<UiEvent>()
@@ -41,7 +46,7 @@ class StudySettingsViewModel @Inject constructor(
                 val now = Instant.now().toString()
                 val study = Study(
                     id = UUID.randomUUID().toString(),
-                    userId = "current_user",
+                    userId = userId,
                     name = name.trim(),
                     institution = institution.trim(),
                     totalCredits = credits,
@@ -123,7 +128,7 @@ class StudySettingsViewModel @Inject constructor(
     fun setActive(id: String) {
         viewModelScope.launch {
             try {
-                setActiveStudyUseCase("current_user", id)
+                setActiveStudyUseCase(userId, id)
                 _uiEvent.emit(
                     UiEvent.ShowMessage(
                         message = "Programa activo actualizado",

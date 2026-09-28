@@ -53,4 +53,7 @@ interface EventDao {
 
     @Query("DELETE FROM EventTag WHERE event_id = :eventId AND tag_id = :tagId")
     suspend fun deleteEventTag(eventId: String, tagId: String)
+
+    @Query("DELETE FROM EventTag WHERE event_id = :eventId")
+    suspend fun deleteEventTagsForEvent(eventId: String)
 }

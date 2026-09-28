@@ -18,8 +18,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
@@ -63,14 +65,23 @@ fun SettingsScreen(
                     .background(UniHubTheme.colorScheme.secondary),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = UniHubTheme.colorScheme.surface,
-                    modifier = Modifier
-                        .size(80.dp)
-                        .padding(UniHubTheme.spacing.md)
-                )
+                if (!state.user?.profileImageUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = state.user?.profileImageUrl,
+                        contentDescription = "Foto de perfil",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = UniHubTheme.colorScheme.surface,
+                        modifier = Modifier
+                            .size(80.dp)
+                            .padding(UniHubTheme.spacing.md)
+                    )
+                }
             }
             
             Spacer(modifier = Modifier.width(UniHubTheme.spacing.md))

@@ -22,11 +22,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.unihub.app.core.designsystem.component.feedback.UniHubLoadingState
+import com.unihub.app.core.designsystem.component.foundation.UniHubButton
+import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.dashboard.presentation.viewmodel.DashboardViewModel
 import com.unihub.app.features.events.domain.model.LocationType
-import com.unihub.app.features.tasks.domain.model.TaskStatus
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.TextStyle
@@ -36,14 +38,15 @@ import java.util.Locale
 fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
     onNavigateToTasks: () -> Unit,
+    onNavigateToCalendar: () -> Unit,
     onNavigateToSubjects: () -> Unit,
     onNavigateToSubjectDetail: (String) -> Unit,
-    onNavigateToEvent: (String) -> Unit
+    onNavigateToEvent: (String) -> Unit,
+    onNavigateToTaskDetail: (String) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     
-    // Colombian Time
     val today = remember { LocalDate.now(ZoneId.systemDefault()) }
     val locale = Locale.forLanguageTag("es")
     val dateText = "${today.dayOfWeek.getDisplayName(TextStyle.FULL, locale).replaceFirstChar { it.uppercase() }}, ${today.dayOfMonth} de ${today.month.getDisplayName(TextStyle.FULL, locale)}"
@@ -58,13 +61,75 @@ fun DashboardScreen(
         }
     }
 
+    when {
+        state.isLoading -> {
+            UniHubLoadingState()
+        }
+        state.errorMessage != null -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(UniHubTheme.spacing.xl)
+                ) {
+                    Text(
+                        text = "Error al cargar datos",
+                        style = UniHubTheme.typography.h3,
+                        color = UniHubTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+                    Text(
+                        text = state.errorMessage ?: "Error desconocido",
+                        style = UniHubTheme.typography.body,
+                        color = UniHubTheme.colorScheme.textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.lg))
+                    UniHubButton(
+                        onClick = { viewModel.refresh() },
+                        text = "Reintentar",
+                        variant = UniHubButtonVariant.Primary
+                    )
+                }
+            }
+        }
+        else -> {
+            DashboardContent(
+                state = state,
+                today = today,
+                locale = locale,
+                dateText = dateText,
+                viewModel = viewModel,
+                openMeetingUrl = openMeetingUrl,
+                onNavigateToTasks = onNavigateToTasks,
+                onNavigateToCalendar = onNavigateToCalendar,
+                onNavigateToEvent = onNavigateToEvent,
+                onNavigateToTaskDetail = onNavigateToTaskDetail
+            )
+        }
+    }
+}
+
+@Composable
+private fun DashboardContent(
+    state: com.unihub.app.features.dashboard.presentation.state.DashboardState,
+    today: LocalDate,
+    locale: Locale,
+    dateText: String,
+    viewModel: DashboardViewModel,
+    openMeetingUrl: (String) -> Unit,
+    onNavigateToTasks: () -> Unit,
+    onNavigateToCalendar: () -> Unit,
+    onNavigateToEvent: (String) -> Unit,
+    onNavigateToTaskDetail: (String) -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(UniHubTheme.spacing.md)
     ) {
-        // Date Header
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(bottom = UniHubTheme.spacing.xl)
@@ -92,14 +157,13 @@ fun DashboardScreen(
         
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
 
-        // Summary Cards
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.md)
         ) {
             UniHubCard(
                 modifier = Modifier.weight(1f),
-                onClick = { /* Navigate to Academic */ }
+                onClick = { }
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text("Promedio", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.textSecondary)
@@ -108,7 +172,7 @@ fun DashboardScreen(
             }
             UniHubCard(
                 modifier = Modifier.weight(1f),
-                onClick = { /* Navigate to Academic */ }
+                onClick = { }
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text("Créditos", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.textSecondary)
@@ -119,33 +183,49 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.twoXl))
 
-        // Upcoming Activities
-        SectionHeader(title = "Próximas Actividades", onSeeAll = onNavigateToSubjects)
+        SectionHeader(title = "¿Qué tengo que hacer hoy?", onSeeAll = onNavigateToCalendar)
         
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-        
-        if (state.upcomingEvents.isEmpty()) {
-            Text("No tienes actividades próximas.", style = UniHubTheme.typography.body, color = UniHubTheme.colorScheme.info)
+
+        val todayEvents = state.upcomingEvents.filter { event ->
+            try {
+                val eventDateStr = event.startAt.split("T").firstOrNull() ?: ""
+                val eventDate = java.time.LocalDate.parse(eventDateStr)
+                eventDate.isEqual(today)
+            } catch (e: Exception) {
+                false
+            }
+        }
+        val otherEvents = state.upcomingEvents.filterNot { event ->
+            try {
+                val eventDateStr = event.startAt.split("T").firstOrNull() ?: ""
+                val eventDate = java.time.LocalDate.parse(eventDateStr)
+                eventDate.isEqual(today)
+            } catch (e: Exception) {
+                false
+            }
+        }
+
+        if (todayEvents.isEmpty() && otherEvents.isEmpty() && state.pendingTasks.isEmpty()) {
+            UniHubCard {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth().padding(UniHubTheme.spacing.lg)
+                ) {
+                    Text(
+                        text = "¡No tienes pendientes para hoy!",
+                        style = UniHubTheme.typography.h4,
+                        color = UniHubTheme.colorScheme.success
+                    )
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
+                    Text(
+                        text = "Disfruta tu día libre.",
+                        style = UniHubTheme.typography.body,
+                        color = UniHubTheme.colorScheme.textSecondary
+                    )
+                }
+            }
         } else {
-            val todayEvents = state.upcomingEvents.filter { event ->
-                try {
-                    val eventDateStr = event.startAt.split("T").firstOrNull() ?: ""
-                    val eventDate = java.time.LocalDate.parse(eventDateStr)
-                    eventDate.isEqual(today)
-                } catch (e: Exception) {
-                    false
-                }
-            }
-            val otherEvents = state.upcomingEvents.filterNot { event ->
-                try {
-                    val eventDateStr = event.startAt.split("T").firstOrNull() ?: ""
-                    val eventDate = java.time.LocalDate.parse(eventDateStr)
-                    eventDate.isEqual(today)
-                } catch (e: Exception) {
-                    false
-                }
-            }
-            
             if (todayEvents.isNotEmpty()) {
                 Text(
                     text = "Hoy",
@@ -192,31 +272,23 @@ fun DashboardScreen(
                     Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
-
-        // Pending Tasks
-        SectionHeader(title = "Tareas Pendientes", onSeeAll = onNavigateToTasks)
-        
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-        
-        if (state.pendingTasks.isEmpty()) {
-            Text(
-                text = "No tienes tareas pendientes.",
-                style = UniHubTheme.typography.body,
-                color = UniHubTheme.colorScheme.success
-            )
-        } else {
-            state.pendingTasks.take(3).forEach { task ->
-                TaskCard(
-                    title = task.title, 
-                    date = task.dueAt ?: "Sin fecha", 
-                    color = UniHubTheme.colorScheme.warning,
-                    isCompleted = false,
-                    onToggle = { viewModel.toggleTaskCompletion(task) }
-                )
-                Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+            if (state.pendingTasks.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+                SectionHeader(title = "Tareas Pendientes", onSeeAll = onNavigateToTasks)
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+                state.pendingTasks.take(3).forEach { task ->
+                    TaskCard(
+                        title = task.title,
+                        subject = viewModel.getSubjectName(task.subjectId),
+                        date = task.dueAt ?: "Sin fecha", 
+                        color = UniHubTheme.colorScheme.warning,
+                        isCompleted = false,
+                        onToggle = { viewModel.toggleTaskCompletion(task) },
+                        onClick = { onNavigateToTaskDetail(task.id) }
+                    )
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+                }
             }
         }
     }
@@ -302,34 +374,57 @@ fun ActivityCard(
 @Composable
 fun TaskCard(
     title: String, 
+    subject: String,
     date: String, 
     color: Color, 
     isCompleted: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    onClick: () -> Unit = {}
 ) {
-    UniHubCard(padding = 0.dp, onClick = onToggle) {
-        Row(
-            modifier = Modifier.padding(UniHubTheme.spacing.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                contentDescription = null,
-                tint = if (isCompleted) UniHubTheme.colorScheme.success else UniHubTheme.colorScheme.textDisabled,
-                modifier = Modifier.size(24.dp)
+    UniHubCard(padding = 0.dp, onClick = onClick) {
+        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+            Box(
+                modifier = Modifier
+                    .width(6.dp)
+                    .fillMaxHeight()
+                    .background(if (isCompleted) UniHubTheme.colorScheme.textDisabled else color)
             )
-            Spacer(modifier = Modifier.width(UniHubTheme.spacing.md))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title, 
-                    style = UniHubTheme.typography.h4,
-                    color = if (isCompleted) UniHubTheme.colorScheme.textDisabled else UniHubTheme.colorScheme.textPrimary
+            
+            Row(
+                modifier = Modifier
+                    .padding(UniHubTheme.spacing.md)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                    contentDescription = null,
+                    tint = if (isCompleted) UniHubTheme.colorScheme.success else UniHubTheme.colorScheme.textDisabled,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable { onToggle() }
                 )
-                Text(
-                    text = "Vence: $date",
-                    style = UniHubTheme.typography.bodySmall, 
-                    color = if (isCompleted) UniHubTheme.colorScheme.textDisabled else color
-                )
+                
+                Spacer(modifier = Modifier.width(UniHubTheme.spacing.md))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title, 
+                        style = UniHubTheme.typography.h4,
+                        color = if (isCompleted) UniHubTheme.colorScheme.textDisabled else UniHubTheme.colorScheme.textPrimary
+                    )
+                    Text(
+                        text = subject,
+                        style = UniHubTheme.typography.label,
+                        color = if (isCompleted) UniHubTheme.colorScheme.textDisabled else UniHubTheme.colorScheme.secondary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Vence: $date",
+                        style = UniHubTheme.typography.bodySmall, 
+                        color = if (isCompleted) UniHubTheme.colorScheme.textDisabled else color
+                    )
+                }
             }
         }
     }

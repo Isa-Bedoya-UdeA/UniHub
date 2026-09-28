@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.events.application.usecase.GetEventByIdUseCase
 import com.unihub.app.features.events.application.usecase.SaveEventUseCase
 import com.unihub.app.features.events.application.usecase.SaveRecurrenceDayUseCase
@@ -51,8 +52,11 @@ class EventFormViewModel @Inject constructor(
     private val saveRecurrenceDayUseCase: SaveRecurrenceDayUseCase,
     private val deleteRecurrenceRuleUseCase: com.unihub.app.features.events.application.usecase.DeleteRecurrenceRuleUseCase,
     private val getAcademicPeriodsUseCase: com.unihub.app.features.academic.application.usecase.GetAcademicPeriodsUseCase,
+    private val getCurrentUidUseCase: GetCurrentUidUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val userId = getCurrentUidUseCase() ?: "current_user"
 
     private val _state = MutableStateFlow(EventFormState())
     val state: StateFlow<EventFormState> = _state.asStateFlow()
@@ -71,7 +75,7 @@ class EventFormViewModel @Inject constructor(
     private fun loadSubjects() {
         viewModelScope.launch {
             try {
-                getAllSubjectsUseCase("current_user").collect { subjects ->
+                getAllSubjectsUseCase(userId).collect { subjects ->
                     _state.update { it.copy(subjects = subjects) }
                 }
             } catch (e: Exception) {
@@ -85,7 +89,7 @@ class EventFormViewModel @Inject constructor(
         }
         viewModelScope.launch {
             try {
-                getAcademicPeriodsUseCase("current_user").collect { periods ->
+                getAcademicPeriodsUseCase(userId).collect { periods ->
                     _state.update { it.copy(academicPeriods = periods) }
                 }
             } catch (e: Exception) {
@@ -290,7 +294,7 @@ class EventFormViewModel @Inject constructor(
                     val locId = UUID.randomUUID().toString()
                     val location = Location(
                         id = locId,
-                        userId = "current_user",
+                        userId = userId,
                         name = candidate.name,
                         address = candidate.address,
                         latitude = candidate.latitude,
@@ -321,7 +325,7 @@ class EventFormViewModel @Inject constructor(
                     
                     val recurrenceRule = RecurrenceRule(
                         id = ruleId,
-                        userId = "current_user",
+                        userId = userId,
                         frequency = "WEEKLY",
                         interval = 1,
                         startDate = startDate,
@@ -341,10 +345,14 @@ class EventFormViewModel @Inject constructor(
                     recurrenceRuleId = ruleId
                 }
                 
+                // Obtener academicPeriodId de la materia seleccionada
+                val selectedSubject = _state.value.subjects.find { it.id == _state.value.subjectId }
+                val academicPeriodId = selectedSubject?.academicPeriodId
+                
                 val event = Event(
                     id = eventId,
-                    userId = "current_user",
-                    academicPeriodId = null,
+                    userId = userId,
+                    academicPeriodId = academicPeriodId,
                     subjectId = _state.value.subjectId,
                     locationId = locationId,
                     recurrenceRuleId = recurrenceRuleId,
@@ -360,7 +368,7 @@ class EventFormViewModel @Inject constructor(
                     updatedAt = now
                 )
                 
-                android.util.Log.d("EventFormVM", "Saving event: ${event.title}, locationType: ${event.locationType}, meetingUrl: ${event.meetingUrl}")
+                android.util.Log.d("EventFormVM", "Saving event: ${event.title}, academicPeriodId: $academicPeriodId, startAt: ${event.startAt}, endAt: ${event.endAt}")
 
                 if (currentEventId == null) {
                     saveEventUseCase(event)

@@ -2,6 +2,7 @@ package com.unihub.app.features.calendar.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.calendar.application.usecase.GetCalendarEventsUseCase
 import com.unihub.app.features.calendar.presentation.state.CalendarUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,10 +17,11 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
-    private val getCalendarEventsUseCase: GetCalendarEventsUseCase
+    private val getCalendarEventsUseCase: GetCalendarEventsUseCase,
+    private val getCurrentUidUseCase: GetCurrentUidUseCase
 ) : ViewModel() {
 
-    private val userId = "current_user"
+    private val userId = getCurrentUidUseCase() ?: "current_user"
     private val systemZone = ZoneId.systemDefault()
 
     private val _state = MutableStateFlow(CalendarUiState())

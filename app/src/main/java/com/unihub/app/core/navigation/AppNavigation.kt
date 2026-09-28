@@ -22,6 +22,7 @@ import com.unihub.app.features.academic.presentation.screen.AcademicPeriodsScree
 import com.unihub.app.features.academic.presentation.screen.AcademicScreen
 import com.unihub.app.features.academic.presentation.screen.CreateGradeScreen
 import com.unihub.app.features.academic.presentation.screen.GradeSimulatorScreen
+import com.unihub.app.features.ai.presentation.screen.AiChatScreen
 import com.unihub.app.features.auth.presentation.screen.LoginScreen
 import com.unihub.app.features.auth.presentation.screen.OnboardingScreen
 import com.unihub.app.features.auth.presentation.screen.SplashScreen
@@ -39,6 +40,7 @@ import com.unihub.app.features.subjects.presentation.screen.EditSubjectScreen
 import com.unihub.app.features.subjects.presentation.screen.SubjectDetailsScreen
 import com.unihub.app.features.subjects.presentation.screen.SubjectsScreen
 import com.unihub.app.features.tasks.presentation.screen.CreateTaskScreen
+import com.unihub.app.features.tasks.presentation.screen.TaskDetailScreen
 import com.unihub.app.features.tasks.presentation.screen.TasksScreen
 
 @Composable
@@ -166,12 +168,16 @@ fun AppNavigation(
             composable(Screen.Dashboard.route) {
                 DashboardScreen(
                     onNavigateToTasks = { navController.navigate(Screen.Tasks.route) },
+                    onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
                     onNavigateToSubjects = { navController.navigate(Screen.Subjects.route) },
                     onNavigateToEvent = { id ->
                         navController.navigate(Screen.EventDetail.createRoute(id))
                     },
                     onNavigateToSubjectDetail = { id ->
                         navController.navigate(Screen.SubjectDetail.createRoute(id))
+                    },
+                    onNavigateToTaskDetail = { id ->
+                        navController.navigate(Screen.TaskDetail.createRoute(id))
                     }
                 )
             }
@@ -221,6 +227,9 @@ fun AppNavigation(
                     onNavigateToEditTask = { taskId ->
                         navController.navigate(Screen.CreateTask.createRoute(subjectId = subjectId, taskId = taskId))
                     },
+                    onNavigateToTaskDetail = { taskId ->
+                        navController.navigate(Screen.TaskDetail.createRoute(taskId))
+                    },
                     onNavigateToSimulator = {
                         navController.navigate(Screen.GradeSimulator.createRoute(subjectId))
                     },
@@ -233,6 +242,9 @@ fun AppNavigation(
                 TasksScreen(
                     onNavigateToCreate = {
                         navController.navigate(Screen.CreateTask.route)
+                    },
+                    onNavigateToTaskDetail = { taskId ->
+                        navController.navigate(Screen.TaskDetail.createRoute(taskId))
                     }
                 )
             }
@@ -403,6 +415,25 @@ fun AppNavigation(
                         navController.navigate(Screen.EditEvent.createRoute(id))
                     }
                 )
+            }
+
+            // Task Details
+            composable(
+                route = Screen.TaskDetail.route,
+                arguments = listOf(navArgument("taskId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+                TaskDetailScreen(
+                    taskId = taskId,
+                    onBack = { navController.popBackStack() },
+                    onEdit = { id ->
+                        navController.navigate(Screen.CreateTask.createRoute(taskId = id))
+                    }
+                )
+            }
+
+            composable(Screen.AiChat.route) {
+                AiChatScreen()
             }
         }
     }

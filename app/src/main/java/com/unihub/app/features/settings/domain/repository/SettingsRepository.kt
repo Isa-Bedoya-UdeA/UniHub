@@ -7,4 +7,5 @@ import kotlinx.coroutines.flow.Flow
 interface SettingsRepository {
     fun getUserPreferences(userId: String): Flow<UserPreferences?>
     suspend fun updateThemeMode(userId: String, themeMode: ThemeMode)
+    suspend fun syncPreferences(userId: String)
 }

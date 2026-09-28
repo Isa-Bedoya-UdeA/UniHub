@@ -37,7 +37,7 @@ class SettingsViewModel @Inject constructor(
     private val userRepository: UserRepository
 ) : ViewModel() {
 
-    private val userId = "current_user"
+    private val userId = getCurrentUidUseCase() ?: "current_user"
 
     private val _state = MutableStateFlow(SettingsUiState())
     val state: StateFlow<SettingsUiState> = _state.asStateFlow()
@@ -82,7 +82,13 @@ class SettingsViewModel @Inject constructor(
     private fun loadCurrentUser() {
         viewModelScope.launch {
             val uid = getCurrentUidUseCase() ?: return@launch
+            android.util.Log.d("SettingsViewModel", "=== LOAD CURRENT USER ===")
+            android.util.Log.d("SettingsViewModel", "UID: $uid")
             userRepository.getUser(uid).collect { user ->
+                android.util.Log.d("SettingsViewModel", "User received from repository:")
+                android.util.Log.d("SettingsViewModel", "  User ID: ${user?.userId}")
+                android.util.Log.d("SettingsViewModel", "  Name: ${user?.name}")
+                android.util.Log.d("SettingsViewModel", "  Profile Image URL: ${user?.profileImageUrl}")
                 _state.update { it.copy(user = user) }
             }
         }

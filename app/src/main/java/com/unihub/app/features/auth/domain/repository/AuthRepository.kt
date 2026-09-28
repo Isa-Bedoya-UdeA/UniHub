@@ -8,4 +8,5 @@ interface AuthRepository {
     fun getCurrentUid(): String?
     suspend fun signInWithGoogle(idToken: String): Result<String>
     suspend fun signOut()
+    suspend fun syncExistingUser(userId: String)
 }

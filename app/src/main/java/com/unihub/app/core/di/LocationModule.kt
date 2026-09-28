@@ -3,7 +3,9 @@ package com.unihub.app.core.di
 import android.content.Context
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.net.PlacesClient
+import com.unihub.app.BuildConfig
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -24,6 +26,9 @@ object LocationModule {
     @Provides
     @Singleton
     fun providePlacesClient(@ApplicationContext context: Context): PlacesClient {
-        return com.google.android.libraries.places.api.Places.createClient(context)
+        if (!Places.isInitialized()) {
+            Places.initialize(context, BuildConfig.MAPS_API_KEY)
+        }
+        return Places.createClient(context)
     }
 }

@@ -67,6 +67,7 @@ core/designsystem/
 │   ├── UniHubEmptyState.kt
 │   ├── UniHubLoadingState.kt
 │   ├── UniHubErrorState.kt
+│   ├── UniHubColorPicker.kt
 │   ├── UniHubSubjectCard.kt
 │   ├── UniHubEventCard.kt
 │   ├── UniHubTaskItem.kt
@@ -258,6 +259,7 @@ UniHubCircularProgress
 UniHubTopBar
 UniHubBottomNavigation
 UniHubFloatingActionButton
+UniHubColorPicker
 ```
 
 ### 9.2 Feedback and state components
@@ -701,6 +703,36 @@ Short loading states
 Compact progress indicators
 Percentage-based academic indicators
 ```
+
+## 19.5 Color Picker
+
+### `UniHubColorPicker`
+
+Purpose:
+
+Allow the user to select a hex color for subjects and other entities.
+
+Structure:
+
+``` text
+Label
+Selected color preview (circle) + hex value
+Scrollable grid of 20 preset color swatches (10 columns x 2 rows)
+```
+
+Behavior:
+
+``` text
+Tapping a swatch selects it
+Selected swatch shows a check icon and border
+Default color: Primary (#4F46E5)
+```
+
+Rules:
+
+- Use preset colors that align with the design system palette.
+- The selected color is stored as a hex string (e.g., "#4F46E5").
+- The color must be applied consistently across all cards and views of the entity.
 
 ## 20. Loading, Empty and Error States
 

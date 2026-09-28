@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,15 +36,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.component.foundation.UniHubChip
 import com.unihub.app.core.designsystem.theme.UniHubTheme
+import com.unihub.app.features.tasks.domain.model.Task
+import com.unihub.app.features.tasks.domain.model.TaskPriority
+import com.unihub.app.features.tasks.domain.model.TaskStatus
+import com.unihub.app.features.tasks.presentation.viewmodel.TasksViewModel
 
 @Composable
 fun TasksScreen(
-    onNavigateToCreate: () -> Unit = {}
+    onNavigateToCreate: () -> Unit = {},
+    onNavigateToTaskDetail: (String) -> Unit = {},
+    viewModel: TasksViewModel = hiltViewModel()
 ) {
+    val tasks by viewModel.tasks.collectAsState()
     var selectedFilter by remember { mutableStateOf("Todas") }
+
+    val filteredTasks = when (selectedFilter) {
+        "Pendientes" -> tasks.filter { it.status == TaskStatus.PENDING }
+        "En progreso" -> tasks.filter { it.status == TaskStatus.IN_PROGRESS }
+        "Completadas" -> tasks.filter { it.status == TaskStatus.COMPLETED }
+        else -> tasks
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -72,7 +88,6 @@ fun TasksScreen(
             
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
 
-            // Filter Chips
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)
@@ -95,39 +110,31 @@ fun TasksScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.md)
             ) {
-                var task1Comp by remember { mutableStateOf(false) }
-                var task2Comp by remember { mutableStateOf(false) }
-                var task3Comp by remember { mutableStateOf(true) }
-
-                // High Priority
-                DetailedTaskCard(
-                    title = "Informe Final de Investigación",
-                    subject = "Investigación",
-                    date = "Hoy, 23:59",
-                    priorityColor = UniHubTheme.colorScheme.error,
-                    isCompleted = task1Comp,
-                    onToggle = { task1Comp = !task1Comp }
-                )
-
-                // Medium Priority
-                DetailedTaskCard(
-                    title = "Diseño de Interfaces Móviles",
-                    subject = "Computación Móvil",
-                    date = "Mañana, 18:00",
-                    priorityColor = UniHubTheme.colorScheme.warning,
-                    isCompleted = task2Comp,
-                    onToggle = { task2Comp = !task2Comp }
-                )
-
-                // Success / Completed
-                DetailedTaskCard(
-                    title = "Quiz de Normalización",
-                    subject = "Bases de Datos",
-                    date = "Finalizado ayer",
-                    priorityColor = UniHubTheme.colorScheme.success,
-                    isCompleted = task3Comp,
-                    onToggle = { task3Comp = !task3Comp }
-                )
+                if (filteredTasks.isEmpty()) {
+                    Text(
+                        text = "No tienes tareas registradas.",
+                        style = UniHubTheme.typography.body,
+                        color = UniHubTheme.colorScheme.info,
+                        modifier = Modifier.padding(vertical = 32.dp)
+                    )
+                } else {
+                    filteredTasks.forEach { task ->
+                        val priorityColor = when (task.priority) {
+                            TaskPriority.HIGH -> UniHubTheme.colorScheme.error
+                            TaskPriority.MEDIUM -> UniHubTheme.colorScheme.warning
+                            TaskPriority.LOW -> UniHubTheme.colorScheme.success
+                        }
+                        DetailedTaskCard(
+                            title = task.title,
+                            subject = viewModel.getSubjectName(task.subjectId),
+                            date = task.dueAt ?: "Sin fecha",
+                            priorityColor = priorityColor,
+                            isCompleted = task.status == TaskStatus.COMPLETED,
+                            onToggle = { viewModel.toggleTaskCompletion(task) },
+                            onClick = { onNavigateToTaskDetail(task.id) }
+                        )
+                    }
+                }
             }
         }
     }
@@ -140,12 +147,13 @@ fun DetailedTaskCard(
     date: String,
     priorityColor: Color,
     isCompleted: Boolean,
-    onToggle: () -> Unit = {}
+    onToggle: () -> Unit = {},
+    onClick: () -> Unit = {}
 ) {
     UniHubCard(
         padding = 0.dp,
         modifier = Modifier.fillMaxWidth(),
-        onClick = onToggle
+        onClick = onClick
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
             // Priority Indicator
@@ -162,12 +170,14 @@ fun DetailedTaskCard(
                     .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Radio Button Mock
+                // Radio Button - clickable separately to toggle status
                 Icon(
                     imageVector = if (isCompleted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                     contentDescription = null,
                     tint = if (isCompleted) UniHubTheme.colorScheme.success else UniHubTheme.colorScheme.textDisabled,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable { onToggle() }
                 )
                 
                 Spacer(modifier = Modifier.width(UniHubTheme.spacing.md))

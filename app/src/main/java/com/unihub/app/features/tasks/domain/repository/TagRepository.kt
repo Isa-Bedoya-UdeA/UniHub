@@ -20,4 +20,5 @@ interface TagRepository {
     fun getTagsByEvent(eventId: String): Flow<List<EventTag>>
     suspend fun addEventTag(eventTag: EventTag)
     suspend fun removeEventTag(eventId: String, tagId: String)
+    suspend fun syncTags(userId: String)
 }

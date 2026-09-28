@@ -38,7 +38,7 @@ fun SubjectEntity.toDomain(): Subject {
     )
 }
 
-fun SubjectDto.toDomain(userId: String, studyId: String): Subject {
+fun SubjectDto.toDomain(): Subject {
     return Subject(
         id = id,
         userId = userId,
@@ -50,14 +50,16 @@ fun SubjectDto.toDomain(userId: String, studyId: String): Subject {
         professor = professor,
         color = color,
         notes = notes,
-        createdAt = createdAt.toString(),
-        updatedAt = updatedAt.toString()
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }
 
 fun Subject.toDto(): SubjectDto {
     return SubjectDto(
         id = id,
+        userId = userId,
+        studyId = studyId,
         academicPeriodId = academicPeriodId,
         name = name,
         code = code,
@@ -65,7 +67,7 @@ fun Subject.toDto(): SubjectDto {
         professor = professor,
         color = color,
         notes = notes,
-        createdAt = createdAt.toLongOrNull() ?: 0L,
-        updatedAt = updatedAt.toLongOrNull() ?: 0L
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }

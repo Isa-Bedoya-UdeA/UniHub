@@ -32,8 +32,8 @@ fun UserDto.toDomain(): User {
         name = name,
         email = email,
         profileImageUrl = profileImageUrl,
-        createdAt = createdAt.toString(),
-        updatedAt = updatedAt.toString()
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }
 
@@ -43,8 +43,7 @@ fun User.toDto(): UserDto {
         name = name,
         email = email,
         profileImageUrl = profileImageUrl,
-        createdAt = createdAt.toLongOrNull() ?: 0L,
-        updatedAt = updatedAt.toLongOrNull() ?: 0L
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }
-

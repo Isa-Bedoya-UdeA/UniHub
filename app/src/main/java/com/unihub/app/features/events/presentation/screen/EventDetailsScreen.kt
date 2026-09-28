@@ -109,6 +109,16 @@ fun EventDetailsScreen(
                     },
                     color = UniHubTheme.colorScheme.secondary
                 )
+                TypeBadge(
+                    text = when(event.eventType) {
+                        com.unihub.app.features.events.domain.model.EventType.CLASS -> "Clase"
+                        com.unihub.app.features.events.domain.model.EventType.EXAM -> "Examen"
+                        com.unihub.app.features.events.domain.model.EventType.MEETING -> "Reunión"
+                        com.unihub.app.features.events.domain.model.EventType.PERSONAL -> "Personal"
+                        com.unihub.app.features.events.domain.model.EventType.OTHER -> "Otro"
+                    },
+                    color = UniHubTheme.colorScheme.accent
+                )
             }
             
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))

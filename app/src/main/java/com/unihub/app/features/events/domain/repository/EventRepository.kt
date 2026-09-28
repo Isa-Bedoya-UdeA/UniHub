@@ -2,6 +2,7 @@ package com.unihub.app.features.events.domain.repository
 
 import com.unihub.app.features.events.domain.model.Event
 import com.unihub.app.features.events.domain.model.EventReminder
+import com.unihub.app.features.events.domain.model.EventTag
 import com.unihub.app.features.events.domain.model.RecurrenceDay
 import com.unihub.app.features.events.domain.model.RecurrenceRule
 import kotlinx.coroutines.flow.Flow
@@ -26,4 +27,9 @@ interface EventRepository {
     suspend fun saveRecurrenceDay(day: RecurrenceDay)
     suspend fun deleteRecurrenceRule(id: String)
     suspend fun deleteRecurrenceDaysByRule(ruleId: String)
+
+    fun getEventTags(eventId: String): Flow<List<EventTag>>
+    suspend fun saveEventTag(eventTag: EventTag)
+    suspend fun deleteEventTag(eventId: String, tagId: String)
+    suspend fun deleteEventTagsForEvent(eventId: String)
 }

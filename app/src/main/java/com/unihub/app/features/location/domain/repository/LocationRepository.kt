@@ -14,6 +14,7 @@ interface LocationRepository {
     suspend fun searchPlaces(query: String, locationBias: Coordinates? = null): List<LocationCandidate>
     suspend fun getCurrentLocation(): Coordinates?
     suspend fun getPlaceDetails(placeId: String): LocationCandidate?
+    suspend fun syncLocations(userId: String)
 }
 
 @Serializable

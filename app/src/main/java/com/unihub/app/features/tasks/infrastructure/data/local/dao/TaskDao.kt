@@ -35,4 +35,7 @@ interface TaskDao {
 
     @Query("DELETE FROM TaskTag WHERE task_id = :taskId AND tag_id = :tagId")
     suspend fun deleteTaskTag(taskId: String, tagId: String)
+
+    @Query("DELETE FROM TaskTag WHERE task_id = :taskId")
+    suspend fun deleteTaskTagsForTask(taskId: String)
 }

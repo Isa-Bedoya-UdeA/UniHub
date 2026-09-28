@@ -6,6 +6,7 @@ import com.unihub.app.features.auth.application.usecase.GetCurrentUserUseCase
 import com.unihub.app.features.auth.application.usecase.ObserveAuthStateUseCase
 import com.unihub.app.features.auth.application.usecase.SignInWithGoogleUseCase
 import com.unihub.app.features.auth.application.usecase.SignOutUseCase
+import com.unihub.app.features.auth.application.usecase.SyncExistingUserUseCase
 import com.unihub.app.features.auth.application.usecase.UpdateUserUseCase
 import com.unihub.app.features.auth.domain.model.AuthState
 import com.unihub.app.features.auth.domain.model.User
@@ -25,7 +26,8 @@ class AuthViewModel @Inject constructor(
     private val updateUserUseCase: UpdateUserUseCase,
     private val observeAuthStateUseCase: ObserveAuthStateUseCase,
     private val signInWithGoogleUseCase: SignInWithGoogleUseCase,
-    private val signOutUseCase: SignOutUseCase
+    private val signOutUseCase: SignOutUseCase,
+    private val syncExistingUserUseCase: SyncExistingUserUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AuthUiState())
@@ -40,9 +42,16 @@ class AuthViewModel @Inject constructor(
             observeAuthStateUseCase().collectLatest { authState ->
                 _state.update { it.copy(authState = authState) }
                 if (authState is AuthState.Authenticated) {
+                    syncExistingUser(authState.uid)
                     loadUser(authState.uid)
                 }
             }
+        }
+    }
+
+    private fun syncExistingUser(userId: String) {
+        viewModelScope.launch {
+            syncExistingUserUseCase(userId)
         }
     }
 

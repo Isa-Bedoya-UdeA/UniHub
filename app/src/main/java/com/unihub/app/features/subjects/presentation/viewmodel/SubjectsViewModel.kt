@@ -7,6 +7,7 @@ import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.core.designsystem.component.academic.StudyOption
 import com.unihub.app.features.academic.application.usecase.GetAcademicPeriodsUseCase
 import com.unihub.app.features.academic.application.usecase.GetStudiesUseCase
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.academic.domain.model.AcademicPeriod
 import com.unihub.app.features.subjects.application.usecase.DeleteSubjectUseCase
 import com.unihub.app.features.subjects.application.usecase.GetSubjectsUseCase
@@ -32,8 +33,11 @@ class SubjectsViewModel @Inject constructor(
     private val getSubjectsUseCase: GetSubjectsUseCase,
     private val getAcademicPeriodsUseCase: GetAcademicPeriodsUseCase,
     private val getStudiesUseCase: GetStudiesUseCase,
-    private val deleteSubjectUseCase: DeleteSubjectUseCase
+    private val deleteSubjectUseCase: DeleteSubjectUseCase,
+    private val getCurrentUidUseCase: GetCurrentUidUseCase
 ) : ViewModel() {
+
+    private val userId = getCurrentUidUseCase() ?: "current_user"
 
     private val _selectedStudyId = MutableStateFlow<String?>(null)
     private val _selectedPeriodId = MutableStateFlow<String?>(null)
@@ -52,7 +56,7 @@ class SubjectsViewModel @Inject constructor(
     private fun loadData() {
         viewModelScope.launch {
             try {
-                getStudiesUseCase("current_user").onEach { studies ->
+                getStudiesUseCase(userId).onEach { studies ->
                     if (_selectedStudyId.value == null) {
                         val active = studies.find { it.isActive } ?: studies.firstOrNull()
                         _selectedStudyId.value = active?.id
@@ -63,7 +67,7 @@ class SubjectsViewModel @Inject constructor(
 
                 _selectedStudyId.flatMapLatest { studyId ->
                     if (studyId == null) return@flatMapLatest emptyFlow<List<AcademicPeriod>>()
-                    getAcademicPeriodsUseCase("current_user").onEach { periods ->
+                    getAcademicPeriodsUseCase(userId).onEach { periods ->
                         val filteredPeriods = periods.filter { it.studyId == studyId }
                         if (_selectedPeriodId.value == null && filteredPeriods.isNotEmpty()) {
                             _selectedPeriodId.value = filteredPeriods.find { it.isCurrent }?.id ?: filteredPeriods.first().id
@@ -76,7 +80,7 @@ class SubjectsViewModel @Inject constructor(
                     Pair(studyId, periodId)
                 }.flatMapLatest { (studyId, periodId) ->
                     if (studyId != null && periodId != null) {
-                        getSubjectsUseCase("current_user", periodId)
+                        getSubjectsUseCase(userId, periodId)
                     } else {
                         emptyFlow()
                     }

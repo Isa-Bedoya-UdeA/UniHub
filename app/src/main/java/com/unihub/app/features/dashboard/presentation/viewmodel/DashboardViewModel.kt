@@ -5,9 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.features.academic.domain.model.AcademicSummary
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.dashboard.application.usecase.GetDashboardDataUseCase
 import com.unihub.app.features.dashboard.presentation.state.DashboardState
 import com.unihub.app.features.events.domain.model.Event
+import com.unihub.app.features.subjects.application.usecase.GetAllSubjectsUseCase
 import com.unihub.app.features.tasks.application.usecase.UpdateTaskStatusUseCase
 import com.unihub.app.features.tasks.domain.model.Task
 import com.unihub.app.features.tasks.domain.model.TaskStatus
@@ -25,23 +27,43 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
-    getDashboardDataUseCase: GetDashboardDataUseCase,
-    private val updateTaskStatusUseCase: UpdateTaskStatusUseCase
+    private val getDashboardDataUseCase: GetDashboardDataUseCase,
+    private val updateTaskStatusUseCase: UpdateTaskStatusUseCase,
+    private val getCurrentUidUseCase: GetCurrentUidUseCase,
+    private val getAllSubjectsUseCase: GetAllSubjectsUseCase
 ) : ViewModel() {
 
-    private val userId = "current_user"
+    private val userId = getCurrentUidUseCase() ?: "current_user"
 
     private val _state = MutableStateFlow(DashboardState())
     val state: StateFlow<DashboardState> = _state.asStateFlow()
+
+    private val _subjectNames = MutableStateFlow<Map<String, String>>(emptyMap())
+    val subjectNames: StateFlow<Map<String, String>> = _subjectNames.asStateFlow()
 
     private val _uiEvent = MutableSharedFlow<UiEvent>()
     val uiEvent = _uiEvent.asSharedFlow()
 
     init {
-        loadDashboardData(getDashboardDataUseCase)
+        loadDashboardData()
+        loadSubjectNames()
     }
 
-    private fun loadDashboardData(getDashboardDataUseCase: GetDashboardDataUseCase) {
+    private fun loadSubjectNames() {
+        viewModelScope.launch {
+            try {
+                getAllSubjectsUseCase(userId).collect { subjects ->
+                    _subjectNames.value = subjects.associate { it.id to it.name }
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
+    fun getSubjectName(subjectId: String?): String {
+        return subjectId?.let { _subjectNames.value[it] } ?: "Sin materia"
+    }
+
+    private fun loadDashboardData() {
         viewModelScope.launch {
             getDashboardDataUseCase(userId)
                 .map { data ->
@@ -96,5 +118,10 @@ class DashboardViewModel @Inject constructor(
 
     fun clearError() {
         _state.update { it.copy(errorMessage = null) }
+    }
+
+    fun refresh() {
+        _state.update { it.copy(isLoading = true, errorMessage = null) }
+        loadDashboardData()
     }
 }

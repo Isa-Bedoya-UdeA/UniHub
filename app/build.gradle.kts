@@ -38,6 +38,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     kotlinOptions {
         jvmTarget = "17"
@@ -77,6 +78,9 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.analytics)
 
+    // Image Loading
+    implementation(libs.coil.compose)
+
     // Ktor
     implementation(libs.ktorClientCore)
     implementation(libs.ktorClientOkhttp)
@@ -99,7 +103,13 @@ dependencies {
     implementation(libs.credentials.play.services.auth)
     implementation(libs.identity)
 
+    // WorkManager
+    implementation(libs.workmanager)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
+
     testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

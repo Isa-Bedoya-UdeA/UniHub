@@ -24,4 +24,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "UniHub"
 include(":app")
+// include(":server") // Uncomment to run Ktor backend separately
  

@@ -7,6 +7,7 @@ import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.features.academic.application.usecase.GetAcademicPeriodsUseCase
 import com.unihub.app.features.academic.application.usecase.GetStudiesUseCase
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.subjects.application.usecase.DeleteSubjectUseCase
 import com.unihub.app.features.subjects.application.usecase.GetSubjectByIdUseCase
 import com.unihub.app.features.subjects.application.usecase.SaveSubjectUseCase
@@ -34,8 +35,11 @@ class SubjectFormViewModel @Inject constructor(
     private val getSubjectByIdUseCase: GetSubjectByIdUseCase,
     private val getAcademicPeriodsUseCase: GetAcademicPeriodsUseCase,
     private val getStudiesUseCase: GetStudiesUseCase,
+    private val getCurrentUidUseCase: GetCurrentUidUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val userId = getCurrentUidUseCase() ?: "current_user"
 
     private val _state = MutableStateFlow(SubjectFormState())
     val state: StateFlow<SubjectFormState> = _state.asStateFlow()
@@ -55,7 +59,7 @@ class SubjectFormViewModel @Inject constructor(
     private fun loadStudies() {
         viewModelScope.launch {
             try {
-                getStudiesUseCase("current_user").collect { studies ->
+                getStudiesUseCase(userId).collect { studies ->
                     _state.update { it.copy(studies = studies) }
                     
                     if (_state.value.studyId == null && studies.isNotEmpty()) {
@@ -81,7 +85,7 @@ class SubjectFormViewModel @Inject constructor(
         periodsJob?.cancel()
         periodsJob = viewModelScope.launch {
             try {
-                getAcademicPeriodsUseCase("current_user").collect { periods ->
+                getAcademicPeriodsUseCase(userId).collect { periods ->
                     val filtered = periods.filter { it.studyId == studyId }
                     _state.update { it.copy(periods = filtered) }
                     
@@ -107,6 +111,8 @@ class SubjectFormViewModel @Inject constructor(
             is SubjectFormEvent.EnteredCode -> _state.update { it.copy(code = event.value, codeError = null) }
             is SubjectFormEvent.EnteredProfessor -> _state.update { it.copy(professor = event.value, professorError = null) }
             is SubjectFormEvent.EnteredCredits -> _state.update { it.copy(credits = event.value, creditsError = null) }
+            is SubjectFormEvent.ColorChanged -> _state.update { it.copy(color = event.value) }
+            is SubjectFormEvent.EnteredNotes -> _state.update { it.copy(notes = event.value) }
             is SubjectFormEvent.StudySelected -> {
                 _state.update { it.copy(studyId = event.value, studyError = null, academicPeriodId = null) }
                 loadPeriodsForStudy(event.value)
@@ -131,6 +137,8 @@ class SubjectFormViewModel @Inject constructor(
                                 code = it.code ?: "",
                                 professor = it.professor ?: "",
                                 credits = it.credits?.toString() ?: "",
+                                color = it.color ?: "#4F46E5",
+                                notes = it.notes ?: "",
                                 studyId = it.studyId,
                                 academicPeriodId = it.academicPeriodId,
                                 isLoading = false
@@ -161,15 +169,15 @@ class SubjectFormViewModel @Inject constructor(
                 val now = Instant.now().toString()
                 val subject = Subject(
                     id = currentSubjectId ?: UUID.randomUUID().toString(),
-                    userId = "current_user",
+                    userId = userId,
                     studyId = _state.value.studyId!!,
                     academicPeriodId = _state.value.academicPeriodId!!,
                     name = _state.value.name,
                     code = _state.value.code,
                     credits = _state.value.credits.toInt(),
                     professor = _state.value.professor.ifBlank { null },
-                    color = "#4F46E5",
-                    notes = null,
+                    color = _state.value.color,
+                    notes = _state.value.notes.ifBlank { null },
                     createdAt = now,
                     updatedAt = now
                 )
@@ -255,6 +263,8 @@ sealed class SubjectFormEvent {
     data class EnteredCode(val value: String) : SubjectFormEvent()
     data class EnteredProfessor(val value: String) : SubjectFormEvent()
     data class EnteredCredits(val value: String) : SubjectFormEvent()
+    data class ColorChanged(val value: String) : SubjectFormEvent()
+    data class EnteredNotes(val value: String) : SubjectFormEvent()
     data class StudySelected(val value: String) : SubjectFormEvent()
     data class PeriodSelected(val value: String) : SubjectFormEvent()
     object SaveSubject : SubjectFormEvent()

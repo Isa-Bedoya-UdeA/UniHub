@@ -5,6 +5,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class SubjectDto(
     val id: String = "",
+    val userId: String = "",
+    val studyId: String = "",
     val academicPeriodId: String = "",
     val name: String = "",
     val code: String? = null,
@@ -12,6 +14,6 @@ data class SubjectDto(
     val professor: String? = null,
     val color: String? = null,
     val notes: String? = null,
-    val createdAt: Long = 0L, // Using Long for timestamp in Firestore DTO is common
-    val updatedAt: Long = 0L
+    val createdAt: String = "",
+    val updatedAt: String = ""
 )

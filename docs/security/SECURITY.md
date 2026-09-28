@@ -378,6 +378,37 @@ firebase deploy --only firestore:rules
 
 Rules must be reviewed and updated whenever the data model changes.
 
+### 11.6 Cloudinary Media Storage
+
+Profile images are stored in Cloudinary using unsigned upload presets.
+
+#### Upload Authorization
+
+Unsigned uploads use a restricted upload preset (`unihub_profile_images`) configured in the Cloudinary console with:
+
+- Image-only resource type
+- Allowed formats: JPEG, PNG, WebP
+- Fixed folder: `unihub/profile-images`
+- Maximum file size: 5 MB (validated client-side)
+
+The upload preset is not a secret and is intentionally exposed in client code for the current MVP. Stronger signed upload authorization can be introduced through the Ktor backend later.
+
+#### Security Constraints
+
+- No Cloudinary API Secret is stored in the Android client.
+- Profile image URLs use HTTPS (`secure_url`).
+- The Android client validates MIME type and file size before upload.
+
+#### Profile Image Source Priority
+
+The application resolves the profile image using:
+
+1. Firestore `profileImageUrl` (Cloudinary) — highest priority
+2. Firebase Authentication `photoUrl` (Google account photo) — fallback
+3. Default placeholder — last resort
+
+The Firestore Cloudinary URL is never overwritten by the Firebase Auth photo URL during sign-in.
+
 ## 12. Google Maps and Third-Party Services
 
 Google Maps Platform credentials must be restricted according to Google's Android security recommendations and limited to the required application and APIs.

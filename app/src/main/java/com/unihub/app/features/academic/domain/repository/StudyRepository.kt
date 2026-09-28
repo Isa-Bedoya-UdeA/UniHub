@@ -9,4 +9,5 @@ interface StudyRepository {
     suspend fun saveStudy(study: Study)
     suspend fun deleteStudy(id: String)
     suspend fun setActiveStudy(userId: String, studyId: String)
+    suspend fun syncStudies(userId: String)
 }

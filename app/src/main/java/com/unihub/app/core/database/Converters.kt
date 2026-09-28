@@ -5,6 +5,7 @@ import com.unihub.app.features.events.domain.model.EventType
 import com.unihub.app.features.events.domain.model.LocationType
 import com.unihub.app.features.events.domain.model.ReminderType
 import com.unihub.app.features.tasks.domain.model.TaskPriority
+import com.unihub.app.features.tasks.domain.model.TaskReminderType
 import com.unihub.app.features.tasks.domain.model.TaskStatus
 
 class Converters {
@@ -32,4 +33,9 @@ class Converters {
     fun fromTaskStatus(value: TaskStatus): String = value.name
     @TypeConverter
     fun toTaskStatus(value: String): TaskStatus = enumValueOf(value)
+
+    @TypeConverter
+    fun fromTaskReminderType(value: TaskReminderType?): String? = value?.name
+    @TypeConverter
+    fun toTaskReminderType(value: String?): TaskReminderType? = value?.let { enumValueOf<TaskReminderType>(it) }
 }

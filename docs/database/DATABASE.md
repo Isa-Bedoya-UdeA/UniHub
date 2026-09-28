@@ -6,7 +6,7 @@
 |----------------|---------------------------|
 | Project        | UniHub                    |
 | Document       | Database                  |
-| Version        | 1.0                       |
+| Version        | 3.0                       |
 | Status         | Initial version           |
 | Persistence    | Room + Firebase Firestore |
 | Local database | SQLite through Room       |
@@ -151,20 +151,20 @@ Represents an academic period, normally a university semester.
 
 ### 4.5 `Subject`
 
-| Column               | Type    | Constraints  | Description                    |
-|----------------------|---------|--------------|--------------------------------|
-| `subject_id`         | TEXT    | PK, NOT NULL | Unique subject identifier      |
-| `user_id`            | TEXT    | FK, NOT NULL | Owner                          |
-| `study_id`           | TEXT    | FK, NOT NULL | Associated study/program       |
-| `academic_period_id` | TEXT    | FK, NOT NULL | Academic period                |
-| `name`               | TEXT    | NOT NULL     | Subject name                   |
-| `code`               | TEXT    | NULL         | University subject code        |
-| `credits`            | INTEGER | NULL         | Academic credits               |
-| `professor`          | TEXT    | NULL         | Professor name                 |
-| `color`              | TEXT    | NULL         | User/interface color reference |
-| `notes`              | TEXT    | NULL         | Additional notes               |
-| `created_at`         | TEXT    | NOT NULL     | Creation timestamp             |
-| `updated_at`         | TEXT    | NOT NULL     | Last update timestamp          |
+| Column               | Type    | Constraints  | Description                                                 |
+|----------------------|---------|--------------|-------------------------------------------------------------|
+| `subject_id`         | TEXT    | PK, NOT NULL | Unique subject identifier                                   |
+| `user_id`            | TEXT    | FK, NOT NULL | Owner                                                       |
+| `study_id`           | TEXT    | FK, NOT NULL | Associated study/program                                    |
+| `academic_period_id` | TEXT    | FK, NOT NULL | Academic period                                             |
+| `name`               | TEXT    | NOT NULL     | Subject name                                                |
+| `code`               | TEXT    | NULL         | University subject code                                     |
+| `credits`            | INTEGER | NULL         | Academic credits                                            |
+| `professor`          | TEXT    | NULL         | Professor name                                              |
+| `color`              | TEXT    | NULL         | Hex color code for subject identification (e.g., "#4F46E5") |
+| `notes`              | TEXT    | NULL         | Additional notes                                            |
+| `created_at`         | TEXT    | NOT NULL     | Creation timestamp                                          |
+| `updated_at`         | TEXT    | NOT NULL     | Last update timestamp                                       |
 
 **Relationships**
 
@@ -210,6 +210,7 @@ Represents an individual calendar event or the event definition from which recur
 | `start_at`           | TEXT | NOT NULL         | Start date and time of the first or only occurrence |
 | `end_at`             | TEXT | NOT NULL         | End date and time of the first or only occurrence   |
 | `location_type`      | TEXT | NOT NULL         | `PHYSICAL`, `REMOTE`, or `NONE`                     |
+| `event_type`         | TEXT | NOT NULL         | `CLASS`, `EXAM`, `MEETING`, `PERSONAL`, or `OTHER`  |
 | `meeting_url`        | TEXT | NULL             | Remote meeting URL                                  |
 | `notes`              | TEXT | NULL             | Additional notes                                    |
 | `created_at`         | TEXT | NOT NULL         | Creation timestamp                                  |
@@ -223,6 +224,11 @@ Represents an individual calendar event or the event definition from which recur
 - `Location` 0..1 — 0..N `Event`
 - `RecurrenceRule` 0..1 — 0..1 `Event`
 - `Event` 1 — 0..N `EventReminder`
+- `Event` 1 — 0..N `EventTag`
+
+**Notes**
+
+- `event_type` categorizes events as CLASS, EXAM, MEETING, PERSONAL, or OTHER for better organization and filtering.
 
 ### 4.8 `EventReminder`
 
@@ -273,40 +279,53 @@ Represents one weekday selected by a weekly recurrence rule.
 
 ### 4.11 `Task`
 
-| Column               | Type | Constraints  | Description                              |
-|----------------------|------|--------------|------------------------------------------|
-| `task_id`            | TEXT | PK, NOT NULL | Unique task identifier                   |
-| `user_id`            | TEXT | FK, NOT NULL | Owner                                    |
-| `academic_period_id` | TEXT | FK, NULL     | Optional academic period                 |
-| `subject_id`         | TEXT | FK, NULL     | Optional subject                         |
-| `title`              | TEXT | NOT NULL     | Task title                               |
-| `description`        | TEXT | NULL         | Task description                         |
-| `due_at`             | TEXT | NULL         | Deadline                                 |
-| `priority`           | TEXT | NOT NULL     | `LOW`, `MEDIUM`, or `HIGH`               |
-| `status`             | TEXT | NOT NULL     | `PENDING`, `IN_PROGRESS`, or `COMPLETED` |
-| `notes`              | TEXT | NULL         | Additional notes                         |
-| `created_at`         | TEXT | NOT NULL     | Creation timestamp                       |
-| `updated_at`         | TEXT | NOT NULL     | Last update timestamp                    |
+| Column                         | Type    | Constraints  | Description                                        |
+|--------------------------------|---------|--------------|----------------------------------------------------|
+| `task_id`                      | TEXT    | PK, NOT NULL | Unique task identifier                             |
+| `user_id`                      | TEXT    | FK, NOT NULL | Owner                                              |
+| `academic_period_id`           | TEXT    | FK, NULL     | Optional academic period                           |
+| `subject_id`                   | TEXT    | FK, NULL     | Optional subject                                   |
+| `title`                        | TEXT    | NOT NULL     | Task title                                         |
+| `description`                  | TEXT    | NULL         | Task description                                   |
+| `due_at`                       | TEXT    | NULL         | Deadline                                           |
+| `priority`                     | TEXT    | NOT NULL     | `LOW`, `MEDIUM`, or `HIGH`                         |
+| `status`                       | TEXT    | NOT NULL     | `PENDING`, `IN_PROGRESS`, or `COMPLETED`           |
+| `reminder_type`                | TEXT    | NULL         | `MINUTES_BEFORE`, `HOURS_BEFORE`, or `DAYS_BEFORE` |
+| `reminder_value`               | INTEGER | NULL         | Number of time units before deadline for reminder  |
+| `is_deadline_reminder_enabled` | INTEGER | NOT NULL     | Whether deadline notification is active            |
+| `created_at`                   | TEXT    | NOT NULL     | Creation timestamp                                 |
+| `updated_at`                   | TEXT    | NOT NULL     | Last update timestamp                              |
 
 **Relationships**
 
 - `User` 1 — 0..N `Task`
 - `AcademicPeriod` 0..1 — 0..N `Task`
 - `Subject` 0..1 — 0..N `Task`
+- `Task` 1 — 0..N `TaskTag`
+
+**Notes**
+
+- The `notes` field was removed in v2.0. Task descriptions serve as the primary text content field.
+- `reminder_type` and `reminder_value` replace the previous `reminder_at` field. Reminders are now relative to the deadline (e.g., 30 minutes before, 2 hours before, 1 day before).
 
 ### 4.12 `Grade`
 
-| Column       | Type | Constraints  | Description                 |
-|--------------|------|--------------|-----------------------------|
-| `grade_id`   | TEXT | PK, NOT NULL | Unique grade identifier     |
-| `user_id`    | TEXT | FK, NOT NULL | Owner                       |
-| `subject_id` | TEXT | FK, NOT NULL | Subject receiving the grade |
-| `name`       | TEXT | NOT NULL     | Evaluation name             |
-| `value`      | REAL | NOT NULL     | Grade value                 |
-| `weight`     | REAL | NOT NULL     | Evaluation weight           |
-| `notes`      | TEXT | NULL         | Additional notes            |
-| `created_at` | TEXT | NOT NULL     | Creation timestamp          |
-| `updated_at` | TEXT | NOT NULL     | Last update timestamp       |
+| Column               | Type | Constraints  | Description                              |
+|----------------------|------|--------------|------------------------------------------|
+| `grade_id`           | TEXT | PK, NOT NULL | Unique grade identifier                  |
+| `user_id`            | TEXT | FK, NOT NULL | Owner                                    |
+| `subject_id`         | TEXT | FK, NOT NULL | Subject receiving the grade              |
+| `academic_period_id` | TEXT | NOT NULL     | Academic period (inherited from subject) |
+| `name`               | TEXT | NOT NULL     | Evaluation name                          |
+| `value`              | REAL | NOT NULL     | Grade value                              |
+| `weight`             | REAL | NOT NULL     | Evaluation weight                        |
+| `notes`              | TEXT | NULL         | Additional notes                         |
+| `created_at`         | TEXT | NOT NULL     | Creation timestamp                       |
+| `updated_at`         | TEXT | NOT NULL     | Last update timestamp                    |
+
+**Notes**
+
+- `academic_period_id` is automatically populated from the associated subject's academic period when the grade is created.
 
 ### 4.13 `Tag`
 
@@ -397,11 +416,13 @@ Feature-specific Room entities and DAOs belong inside the corresponding feature'
 
 ### 7.1 Database Version
 
-The database is currently at **version 2**.
+The database is currently at **version 4**.
 
 **Migration History:**
 
 - **Version 1 → 2:** Added `approved_credits` (INTEGER) and `cumulative_gpa` (REAL) columns to the `Study` table to support manual entry of previous academic status.
+- **Version 2 → 3:** Replaced `notes` (TEXT), `reminder_at` (TEXT) columns in `Task` with `reminder_type` (TEXT) and `reminder_value` (INTEGER) to support relative deadline reminders (minutes/hours/days before).
+- **Version 3 → 4:** Added `event_type` (TEXT) column to `Event` table to categorize events as CLASS, EXAM, MEETING, PERSONAL, or OTHER.
 
 All entities and relationships documented in this file are part of the current database structure.
 
@@ -432,6 +453,9 @@ users/
                 reminders/
                     {reminderId}/
                         ...
+                eventTags/
+                    {tagId}/
+                        ...
 
         recurrenceRules/
             {recurrenceRuleId}/
@@ -445,7 +469,9 @@ users/
 
         tasks/
             {taskId}/
-                ...
+                taskTags/
+                    {tagId}/
+                        ...
 
         grades/
             {gradeId}/

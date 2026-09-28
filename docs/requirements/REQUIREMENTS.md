@@ -80,7 +80,7 @@ A subject may contain:
 - Code.
 - Credits.
 - Professor.
-- Color.
+- Color (selected from a color picker using hex values).
 - Notes.
 
 #### FR-004 — Edit Subject
@@ -183,7 +183,8 @@ A task may contain:
 - Priority.
 - Status.
 - Tags.
-- Notes.
+- Reminder (minutes, hours, or days before deadline).
+- Deadline notification toggle.
 
 #### FR-015 — Task Status
 

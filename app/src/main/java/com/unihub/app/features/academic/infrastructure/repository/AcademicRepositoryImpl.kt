@@ -1,76 +1,133 @@
 package com.unihub.app.features.academic.infrastructure.repository
 
+import android.util.Log
 import com.unihub.app.features.academic.domain.model.AcademicPeriod
 import com.unihub.app.features.academic.domain.model.AcademicSummary
 import com.unihub.app.features.academic.domain.model.Grade
 import com.unihub.app.features.academic.domain.repository.AcademicRepository
-import com.unihub.app.features.academic.infrastructure.data.local.dao.AcademicDao
-import com.unihub.app.features.academic.infrastructure.data.local.dao.StudyDao
+import com.unihub.app.features.academic.infrastructure.data.local.datasource.AcademicLocalDataSource
+import com.unihub.app.features.academic.infrastructure.data.local.datasource.StudyLocalDataSource
 import com.unihub.app.features.academic.infrastructure.data.mapper.toDomain
+import com.unihub.app.features.academic.infrastructure.data.mapper.toDto
 import com.unihub.app.features.academic.infrastructure.data.mapper.toEntity
+import com.unihub.app.features.academic.infrastructure.data.remote.datasource.AcademicRemoteDataSource
 import com.unihub.app.features.subjects.infrastructure.data.local.dao.SubjectDao
 import com.unihub.app.features.subjects.infrastructure.data.mapper.toDomain as toSubjectDomain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AcademicRepositoryImpl @Inject constructor(
-    private val academicDao: AcademicDao,
+    private val localDataSource: AcademicLocalDataSource,
+    private val remoteDataSource: AcademicRemoteDataSource,
     private val subjectDao: SubjectDao,
-    private val studyDao: StudyDao
+    private val studyLocalDataSource: StudyLocalDataSource
 ) : AcademicRepository {
 
     override fun getAcademicPeriods(userId: String): Flow<List<AcademicPeriod>> =
-        academicDao.getAcademicPeriods(userId).map { entities ->
+        localDataSource.getAcademicPeriods(userId).map { entities ->
             entities.map { it.toDomain() }
         }
 
     override fun getAcademicPeriodsByStudy(userId: String, studyId: String): Flow<List<AcademicPeriod>> =
-        academicDao.getAcademicPeriodsByStudy(userId, studyId).map { entities ->
+        localDataSource.getAcademicPeriodsByStudy(userId, studyId).map { entities ->
             entities.map { it.toDomain() }
         }
 
     override suspend fun saveAcademicPeriod(period: AcademicPeriod) {
-        academicDao.insertPeriod(period.toEntity())
+        Log.d("FIRESTORE_DEBUG", "=== SAVE ACADEMIC PERIOD CALLED ===")
+        Log.d("FIRESTORE_DEBUG", "Period ID: ${period.id}")
+        Log.d("FIRESTORE_DEBUG", "Period Name: ${period.name}")
+        Log.d("FIRESTORE_DEBUG", "User ID: ${period.userId}")
+        
+        localDataSource.insertPeriod(period.toEntity())
+        Log.d("FIRESTORE_DEBUG", "Period saved to Room successfully")
+        
+        try {
+            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveAcademicPeriod()")
+            val dto = period.toDto()
+            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
+            remoteDataSource.saveAcademicPeriod(dto)
+            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveAcademicPeriod() completed successfully")
+        } catch (e: Exception) {
+            Log.e("FIRESTORE_DEBUG", "ERROR saving academic period to Firestore: ${e.message}", e)
+            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
+            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+        }
     }
 
     override suspend fun updateAcademicPeriod(period: AcademicPeriod) {
-        academicDao.insertPeriod(period.toEntity())
+        saveAcademicPeriod(period)
     }
 
     override suspend fun deleteAcademicPeriod(id: String) {
-        academicDao.deletePeriod(id)
+        val period = localDataSource.getPeriodById(id).firstOrNull()
+        localDataSource.deletePeriod(id)
+        if (period != null) {
+            try {
+                remoteDataSource.deleteAcademicPeriod(period.userId, id)
+            } catch (e: Exception) {
+                Log.e("AcademicRepositoryImpl", "Error deleting academic period from Firestore: ${e.message}")
+            }
+        }
     }
 
     override suspend fun setCurrentPeriod(userId: String, id: String) {
-        academicDao.setCurrentPeriod(userId, id)
+        localDataSource.setCurrentPeriod(userId, id)
     }
 
     override fun getGradesBySubject(subjectId: String): Flow<List<Grade>> =
-        academicDao.getGradesBySubject(subjectId).map { entities ->
+        localDataSource.getGradesBySubject(subjectId).map { entities ->
             entities.map { it.toDomain() }
         }
 
     override suspend fun saveGrade(grade: Grade) {
-        academicDao.insertGrade(grade.toEntity())
+        Log.d("FIRESTORE_DEBUG", "=== SAVE GRADE CALLED ===")
+        Log.d("FIRESTORE_DEBUG", "Grade ID: ${grade.id}")
+        Log.d("FIRESTORE_DEBUG", "Grade Name: ${grade.name}")
+        Log.d("FIRESTORE_DEBUG", "User ID: ${grade.userId}")
+        
+        localDataSource.insertGrade(grade.toEntity())
+        Log.d("FIRESTORE_DEBUG", "Grade saved to Room successfully")
+        
+        try {
+            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveGrade()")
+            val dto = grade.toDto()
+            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
+            remoteDataSource.saveGrade(dto)
+            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveGrade() completed successfully")
+        } catch (e: Exception) {
+            Log.e("FIRESTORE_DEBUG", "ERROR saving grade to Firestore: ${e.message}", e)
+            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
+            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+        }
     }
 
     override suspend fun updateGrade(grade: Grade) {
-        academicDao.insertGrade(grade.toEntity())
+        saveGrade(grade)
     }
 
     override suspend fun deleteGrade(id: String) {
-        academicDao.deleteGrade(id)
+        val grade = localDataSource.getGradeById(id).firstOrNull()
+        localDataSource.deleteGrade(id)
+        if (grade != null) {
+            try {
+                remoteDataSource.deleteGrade(grade.userId, id)
+            } catch (e: Exception) {
+                Log.e("AcademicRepositoryImpl", "Error deleting grade from Firestore: ${e.message}")
+            }
+        }
     }
 
     override fun getAcademicSummary(userId: String, studyId: String): Flow<AcademicSummary> {
         return combine(
-            academicDao.getAllGrades(userId),
+            localDataSource.getAllGrades(userId),
             subjectDao.getAllSubjects(userId),
-            studyDao.getStudyById(studyId)
+            studyLocalDataSource.getStudyById(studyId)
         ) { gradeEntities, subjectEntities, studyEntity ->
             val userGrades = gradeEntities.map { it.toDomain() }
             val allSubjects = subjectEntities.map { it.toSubjectDomain() }
@@ -88,10 +145,8 @@ class AcademicRepositoryImpl @Inject constructor(
             val currentEarnedCredits = filteredSubjects.filter { subject ->
                 val subjectGrades = filteredGrades.filter { it.subjectId == subject.id }
                 if (subjectGrades.isEmpty()) return@filter false
-                val weight = subjectGrades.sumOf { it.weight }
                 val value = subjectGrades.sumOf { it.value * it.weight }
-                val avg = if (weight > 0.0) value / weight else 0.0
-                avg >= 3.0
+                value >= 3.0
             }.sumOf { it.credits ?: 0 }
 
             val totalEarnedCredits = manualApprovedCredits + currentEarnedCredits
@@ -106,14 +161,11 @@ class AcademicRepositoryImpl @Inject constructor(
                     hasManualData = manualApprovedCredits > 0
                 )
             } else {
-                val currentTotalWeight = filteredGrades.sumOf { it.weight }
                 val currentWeightedSum = filteredGrades.sumOf { it.value * it.weight }
-                val currentSemesterAvg = if (currentTotalWeight > 0.0) currentWeightedSum / currentTotalWeight else 0.0
+                val currentSemesterAvg = currentWeightedSum
 
                 val subjectsSum = filteredGrades.groupBy { it.subjectId }.map { (_, sGrades) ->
-                    val sWeight = sGrades.sumOf { it.weight }
-                    val sSum = sGrades.sumOf { it.value * sWeight }
-                    if (sWeight > 0.0) sSum / sWeight else 0.0
+                    sGrades.sumOf { it.value * it.weight }
                 }
                 
                 val currentGpa = if (subjectsSum.isNotEmpty()) subjectsSum.average() else 0.0
@@ -139,5 +191,18 @@ class AcademicRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun syncAcademicData(userId: String) {}
+    override suspend fun syncAcademicData(userId: String) {
+        try {
+            val remotePeriods = remoteDataSource.getAcademicPeriods(userId)
+            remotePeriods.forEach { periodDto ->
+                localDataSource.insertPeriod(periodDto.toDomain().toEntity())
+            }
+            val remoteGrades = remoteDataSource.getGrades(userId)
+            remoteGrades.forEach { gradeDto ->
+                localDataSource.insertGrade(gradeDto.toDomain().toEntity())
+            }
+        } catch (e: Exception) {
+            Log.e("AcademicRepositoryImpl", "Error syncing academic data: ${e.message}")
+        }
+    }
 }

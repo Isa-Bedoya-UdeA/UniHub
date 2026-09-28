@@ -86,7 +86,7 @@ AI-generated modifications are validated before being executed.
 
 Core information is persisted locally and synchronized with Firebase where applicable.
 
-Firebase Authentication provides user authentication, Firebase Firestore provides cloud persistence, and Firebase Storage provides cloud file storage for user assets such as profile images.
+Firebase Authentication provides user authentication, Firebase Firestore provides cloud persistence, and Cloudinary provides cloud file storage for user assets such as profile images.
 
 ### Backend
 

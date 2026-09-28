@@ -49,7 +49,7 @@ import com.unihub.app.features.tasks.infrastructure.data.local.entity.TaskTagEnt
         TaskTagEntity::class,
         UserPreferencesEntity::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false,
 )
 @TypeConverters(Converters::class)
@@ -68,8 +68,37 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE Study ADD COLUMN approved_credits INTEGER DEFAULT NULL")
-                db.execSQL("ALTER TABLE Study ADD COLUMN cumulative_gpa REAL DEFAULT NULL")
+                try {
+                    db.execSQL("ALTER TABLE Study ADD COLUMN approved_credits INTEGER DEFAULT NULL")
+                } catch (e: Exception) { }
+                try {
+                    db.execSQL("ALTER TABLE Study ADD COLUMN cumulative_gpa REAL DEFAULT NULL")
+                } catch (e: Exception) { }
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("ALTER TABLE Task ADD COLUMN reminder_type TEXT DEFAULT NULL")
+                } catch (e: Exception) { }
+                try {
+                    db.execSQL("ALTER TABLE Task ADD COLUMN reminder_value INTEGER DEFAULT NULL")
+                } catch (e: Exception) { }
+                db.execSQL("CREATE TABLE IF NOT EXISTS `Task_new` (`task_id` TEXT NOT NULL, `user_id` TEXT NOT NULL, `academic_period_id` TEXT DEFAULT NULL, `subject_id` TEXT DEFAULT NULL, `title` TEXT NOT NULL, `description` TEXT DEFAULT NULL, `due_at` TEXT DEFAULT NULL, `priority` TEXT NOT NULL, `status` TEXT NOT NULL, `reminder_type` TEXT DEFAULT NULL, `reminder_value` INTEGER DEFAULT NULL, `is_deadline_reminder_enabled` INTEGER NOT NULL DEFAULT 0, `created_at` TEXT NOT NULL, `updated_at` TEXT NOT NULL, PRIMARY KEY(`task_id`))")
+                db.execSQL("INSERT INTO Task_new (task_id, user_id, academic_period_id, subject_id, title, description, due_at, priority, status, reminder_type, reminder_value, is_deadline_reminder_enabled, created_at, updated_at) SELECT task_id, user_id, academic_period_id, subject_id, title, description, due_at, priority, status, reminder_type, reminder_value, is_deadline_reminder_enabled, created_at, updated_at FROM Task")
+                db.execSQL("DROP TABLE Task")
+                db.execSQL("ALTER TABLE Task_new RENAME TO Task")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("ALTER TABLE Event ADD COLUMN event_type TEXT NOT NULL DEFAULT 'OTHER'")
+                } catch (e: Exception) {
+                    // Column already exists, ignore
+                }
             }
         }
     }

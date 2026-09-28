@@ -7,6 +7,7 @@ data class GradeFormState(
     val valueError: String? = null,
     val weight: String = "",
     val weightError: String? = null,
+    val notes: String = "",
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
     val errorMessage: String? = null

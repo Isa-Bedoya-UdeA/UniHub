@@ -6,6 +6,7 @@ import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.features.academic.application.usecase.DeleteGradeUseCase
 import com.unihub.app.features.academic.application.usecase.GetGradesBySubjectUseCase
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.events.application.usecase.GetEventsUseCase
 import com.unihub.app.features.events.domain.model.EventType
 import com.unihub.app.features.subjects.application.usecase.GetSubjectByIdUseCase
@@ -38,8 +39,11 @@ class SubjectDetailsViewModel @Inject constructor(
     private val getTasksUseCase: GetTasksUseCase,
     private val updateTaskStatusUseCase: UpdateTaskStatusUseCase,
     private val deleteTaskUseCase: DeleteTaskUseCase,
-    private val getEventsUseCase: GetEventsUseCase
+    private val getEventsUseCase: GetEventsUseCase,
+    private val getCurrentUidUseCase: GetCurrentUidUseCase
 ) : ViewModel() {
+
+    private val userId = getCurrentUidUseCase() ?: "current_user"
 
     private val _state = MutableStateFlow(SubjectDetailsState())
     val state: StateFlow<SubjectDetailsState> = _state.asStateFlow()
@@ -58,8 +62,8 @@ class SubjectDetailsViewModel @Inject constructor(
                 combine(
                     getSubjectByIdUseCase(id),
                     getGradesBySubjectUseCase(id),
-                    getTasksUseCase("current_user"),
-                    getEventsUseCase("current_user", now, end)
+                    getTasksUseCase(userId),
+                    getEventsUseCase(userId, now, end)
                 ) { subject, grades, tasks, events ->
                     val subjectTasks = tasks.filter { it.subjectId == id }
                     val subjectEvents = events.filter { it.subjectId == id }

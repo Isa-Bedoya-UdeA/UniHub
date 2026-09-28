@@ -41,6 +41,7 @@ fun SubjectDetailsScreen(
     onNavigateToCreateGrade: () -> Unit,
     onNavigateToEditGrade: (String) -> Unit,
     onNavigateToEditTask: (String) -> Unit,
+    onNavigateToTaskDetail: (String) -> Unit,
     onNavigateToSimulator: () -> Unit,
     onNavigateToCreateEvent: () -> Unit,
     viewModel: SubjectDetailsViewModel = hiltViewModel()
@@ -136,10 +137,10 @@ fun SubjectDetailsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             val subject = state.subject ?: return@Column
+            val subjectColor = try { Color(android.graphics.Color.parseColor(subject.color ?: "#4F46E5")) } catch (_: Exception) { UniHubTheme.colorScheme.primary }
 
-            // Badges
             Row(horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)) {
-                SubjectBadge(text = subject.code ?: "SIN CÓDIGO", color = UniHubTheme.colorScheme.primary)
+                SubjectBadge(text = subject.code ?: "SIN CÓDIGO", color = subjectColor)
                 SubjectBadge(text = "Actual", color = UniHubTheme.colorScheme.success)
             }
             
@@ -152,12 +153,12 @@ fun SubjectDetailsScreen(
             
             val totalWeight = state.grades.sumOf { it.weight }
             val weightedSum = state.grades.sumOf { it.value * it.weight }
-            val avg = if (totalWeight > 0.0) weightedSum / totalWeight else 0.0
+            val avg = weightedSum
 
             // Average Card
             MetricCard(
                 title = "Promedio Actual",
-                subtitle = "Basado en ${state.grades.size} notas (${(totalWeight * 100).toInt()}% evaluado)",
+                subtitle = "Basado en ${state.grades.size} notas (${(totalWeight * 100).toInt()}% evaluado, restante cuenta como 0)",
                 value = if (state.grades.isEmpty()) "---" else String.format(Locale.getDefault(), "%.1f / 5.0", avg),
                 borderColor = UniHubTheme.colorScheme.accent
             )
@@ -197,19 +198,39 @@ fun SubjectDetailsScreen(
                 Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
                 
                 val nextClass = state.nextClass!!
-                ActivityCard(
+                    ActivityCard(
                     title = nextClass.title,
                     isClass = true,
                     time = if (nextClass.startAt.contains("T")) "${nextClass.startAt.split("T").last()} - ${nextClass.endAt.split("T").last()}" else "Todo el día",
                     location = if (nextClass.locationType == com.unihub.app.features.events.domain.model.LocationType.PHYSICAL) nextClass.notes else null,
                     meetingUrl = if (nextClass.locationType == com.unihub.app.features.events.domain.model.LocationType.REMOTE) nextClass.meetingUrl else null,
-                    color = UniHubTheme.colorScheme.primary,
+                    color = subjectColor,
                     onClick = { onNavigateToEvent(nextClass.id) }
                 )
-                
+
                 Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
             }
-            
+
+            val upcomingEvents = state.events.filter { it.id != state.nextClass?.id }
+            if (upcomingEvents.isNotEmpty()) {
+                Text(text = "Eventos", style = UniHubTheme.typography.h3)
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+                upcomingEvents.forEach { event ->
+                    ActivityCard(
+                        title = event.title,
+                        isClass = event.eventType == com.unihub.app.features.events.domain.model.EventType.CLASS,
+                        time = if (event.startAt.contains("T")) "${event.startAt.split("T").first()} ${event.startAt.split("T").last()}" else event.startAt,
+                        location = if (event.locationType == com.unihub.app.features.events.domain.model.LocationType.PHYSICAL) event.notes else null,
+                        meetingUrl = if (event.locationType == com.unihub.app.features.events.domain.model.LocationType.REMOTE) event.meetingUrl else null,
+                        color = subjectColor,
+                        onClick = { onNavigateToEvent(event.id) }
+                    )
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+                }
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+            }
+
             if (state.tasks.isNotEmpty()) {
                 Text(text = "Tareas", style = UniHubTheme.typography.h3)
                 Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
@@ -217,10 +238,12 @@ fun SubjectDetailsScreen(
                 state.tasks.forEach { task ->
                     TaskCard(
                         title = task.title,
+                        subject = state.subject?.name ?: "Sin materia",
                         date = task.dueAt ?: "Sin fecha",
                         color = UniHubTheme.colorScheme.warning,
                         isCompleted = task.status == TaskStatus.COMPLETED,
-                        onToggle = { viewModel.toggleTask(task) }
+                        onToggle = { viewModel.toggleTask(task) },
+                        onClick = { onNavigateToTaskDetail(task.id) }
                     )
                     Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
                 }

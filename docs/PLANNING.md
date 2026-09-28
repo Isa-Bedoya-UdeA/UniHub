@@ -1604,7 +1604,7 @@ Cloud synchronization
 Security Rules
 User ownership
 
-Firebase Storage
+Cloudinary (profile image storage)
 Profile image upload
 Image selection from device
 

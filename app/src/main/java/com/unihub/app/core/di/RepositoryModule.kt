@@ -4,6 +4,8 @@ import com.unihub.app.features.academic.domain.repository.AcademicRepository
 import com.unihub.app.features.academic.domain.repository.StudyRepository
 import com.unihub.app.features.academic.infrastructure.repository.AcademicRepositoryImpl
 import com.unihub.app.features.academic.infrastructure.repository.StudyRepositoryImpl
+import com.unihub.app.features.ai.domain.repository.AiRepository
+import com.unihub.app.features.ai.infrastructure.repository.AiRepositoryImpl
 import com.unihub.app.features.events.domain.repository.EventRepository
 import com.unihub.app.features.events.infrastructure.repository.EventRepositoryImpl
 import com.unihub.app.features.location.domain.repository.LocationRepository
@@ -69,4 +71,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindAuthRepository(impl: AuthRepositoryImpl): AuthRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAiRepository(impl: AiRepositoryImpl): AiRepository
 }

@@ -1,6 +1,7 @@
 package com.unihub.app.features.location.infrastructure.repository
 
 import android.annotation.SuppressLint
+import android.util.Log
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.Priority
@@ -15,10 +16,13 @@ import com.unihub.app.features.location.domain.model.Location
 import com.unihub.app.features.location.domain.repository.Coordinates
 import com.unihub.app.features.location.domain.repository.LocationCandidate
 import com.unihub.app.features.location.domain.repository.LocationRepository
-import com.unihub.app.features.location.infrastructure.data.local.dao.LocationDao
+import com.unihub.app.features.location.infrastructure.data.local.datasource.LocationLocalDataSource
 import com.unihub.app.features.location.infrastructure.data.mapper.toDomain
+import com.unihub.app.features.location.infrastructure.data.mapper.toDto
 import com.unihub.app.features.location.infrastructure.data.mapper.toEntity
+import com.unihub.app.features.location.infrastructure.data.remote.datasource.LocationRemoteDataSource
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -26,7 +30,8 @@ import javax.inject.Singleton
 
 @Singleton
 class LocationRepositoryImpl @Inject constructor(
-    private val locationDao: LocationDao,
+    private val localDataSource: LocationLocalDataSource,
+    private val remoteDataSource: LocationRemoteDataSource,
     private val fusedLocationClient: FusedLocationProviderClient,
     private val placesClient: PlacesClient
 ) : LocationRepository {
@@ -41,21 +46,47 @@ class LocationRepositoryImpl @Inject constructor(
     )
 
     override fun getLocations(userId: String): Flow<List<Location>> {
-        return locationDao.getLocations(userId).map { entities ->
+        return localDataSource.getLocations(userId).map { entities ->
             entities.map { it.toDomain() }
         }
     }
 
     override fun getLocationById(id: String): Flow<Location?> {
-        return locationDao.getLocationById(id).map { it?.toDomain() }
+        return localDataSource.getLocationById(id).map { it?.toDomain() }
     }
 
     override suspend fun saveLocation(location: Location) {
-        locationDao.insertLocation(location.toEntity())
+        Log.d("FIRESTORE_DEBUG", "=== SAVE LOCATION CALLED ===")
+        Log.d("FIRESTORE_DEBUG", "Location ID: ${location.id}")
+        Log.d("FIRESTORE_DEBUG", "Location Name: ${location.name}")
+        Log.d("FIRESTORE_DEBUG", "User ID: ${location.userId}")
+        
+        localDataSource.insertLocation(location.toEntity())
+        Log.d("FIRESTORE_DEBUG", "Location saved to Room successfully")
+        
+        try {
+            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveLocation()")
+            val dto = location.toDto()
+            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
+            remoteDataSource.saveLocation(location.userId, dto)
+            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveLocation() completed successfully")
+        } catch (e: Exception) {
+            Log.e("FIRESTORE_DEBUG", "ERROR saving location to Firestore: ${e.message}", e)
+            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
+            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+        }
     }
 
     override suspend fun deleteLocation(id: String) {
-        locationDao.deleteLocation(id)
+        val location = localDataSource.getLocationById(id).firstOrNull()
+        localDataSource.deleteLocation(id)
+        location?.let {
+            try {
+                remoteDataSource.deleteLocation(it.userId, id)
+            } catch (e: Exception) {
+                Log.e("LocationRepositoryImpl", "Error deleting location from Firestore: ${e.message}")
+            }
+        }
     }
 
     override suspend fun searchPlaces(query: String, locationBias: Coordinates?): List<LocationCandidate> {
@@ -84,10 +115,10 @@ class LocationRepositoryImpl @Inject constructor(
                 )
             }
         } catch (e: ApiException) {
-            android.util.Log.e("LocationRepo", "Places API error: ${e.statusCode} - ${e.message}")
+            Log.e("LocationRepo", "Places API error: ${e.statusCode} - ${e.message}")
             throw RuntimeException("Error en Places API: ${e.message}", e)
         } catch (e: Exception) {
-            android.util.Log.e("LocationRepo", "Error searching places", e)
+            Log.e("LocationRepo", "Error searching places", e)
             throw e
         }
     }
@@ -129,11 +160,22 @@ class LocationRepositoryImpl @Inject constructor(
                 placeId = place.id
             )
         } catch (e: ApiException) {
-            android.util.Log.e("LocationRepo", "Error getting place details: ${e.statusCode} - ${e.message}")
+            Log.e("LocationRepo", "Error getting place details: ${e.statusCode} - ${e.message}")
             null
         } catch (e: Exception) {
-            android.util.Log.e("LocationRepo", "Error getting place details", e)
+            Log.e("LocationRepo", "Error getting place details", e)
             null
+        }
+    }
+
+    override suspend fun syncLocations(userId: String) {
+        try {
+            val remoteLocations = remoteDataSource.getLocations(userId)
+            remoteLocations.forEach { dto ->
+                localDataSource.insertLocation(dto.toDomain().toEntity())
+            }
+        } catch (e: Exception) {
+            Log.e("LocationRepositoryImpl", "Error syncing locations from Firestore: ${e.message}")
         }
     }
 }

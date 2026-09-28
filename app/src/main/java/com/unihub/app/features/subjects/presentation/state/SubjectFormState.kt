@@ -12,6 +12,8 @@ data class SubjectFormState(
     val professorError: String? = null,
     val credits: String = "",
     val creditsError: String? = null,
+    val color: String = "#4F46E5",
+    val notes: String = "",
     val academicPeriodId: String? = null,
     val academicPeriodError: String? = null,
     val studyId: String? = null,

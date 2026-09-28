@@ -28,3 +28,9 @@ class GetCurrentUidUseCase @Inject constructor(
 ) {
     operator fun invoke(): String? = repository.getCurrentUid()
 }
+
+class SyncExistingUserUseCase @Inject constructor(
+    private val repository: AuthRepository
+) {
+    suspend operator fun invoke(userId: String) = repository.syncExistingUser(userId)
+}

@@ -5,12 +5,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
+import com.unihub.app.features.subjects.application.usecase.GetSubjectByIdUseCase
 import com.unihub.app.features.tasks.application.usecase.GetTaskByIdUseCase
 import com.unihub.app.features.tasks.application.usecase.SaveTaskUseCase
 import com.unihub.app.features.tasks.application.usecase.UpdateTaskUseCase
+import com.unihub.app.features.tasks.domain.model.Tag
 import com.unihub.app.features.tasks.domain.model.Task
 import com.unihub.app.features.tasks.domain.model.TaskPriority
+import com.unihub.app.features.tasks.domain.model.TaskReminderType
 import com.unihub.app.features.tasks.domain.model.TaskStatus
+import com.unihub.app.features.tasks.domain.model.TaskTag
+import com.unihub.app.features.tasks.domain.repository.TagRepository
+import com.unihub.app.features.tasks.domain.repository.TaskRepository
 import com.unihub.app.features.tasks.presentation.state.TaskFormState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -18,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -29,8 +37,14 @@ class TaskFormViewModel @Inject constructor(
     private val saveTaskUseCase: SaveTaskUseCase,
     private val updateTaskUseCase: UpdateTaskUseCase,
     private val getTaskByIdUseCase: GetTaskByIdUseCase,
+    private val getSubjectByIdUseCase: GetSubjectByIdUseCase,
+    private val tagRepository: TagRepository,
+    private val taskRepository: TaskRepository,
+    private val getCurrentUidUseCase: GetCurrentUidUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val userId = getCurrentUidUseCase() ?: "current_user"
 
     private val _state = MutableStateFlow(TaskFormState())
     val state: StateFlow<TaskFormState> = _state.asStateFlow()
@@ -44,7 +58,18 @@ class TaskFormViewModel @Inject constructor(
     init {
         currentTaskId = savedStateHandle.get<String>("taskId")
         subjectId = savedStateHandle.get<String>("subjectId")
+        loadTags()
         currentTaskId?.let { loadTask(it) }
+    }
+
+    private fun loadTags() {
+        viewModelScope.launch {
+            try {
+                tagRepository.getTagsByUser(userId).collect { tags ->
+                    _state.update { it.copy(availableTags = tags) }
+                }
+            } catch (_: Exception) { }
+        }
     }
 
     fun onEvent(event: TaskFormEvent) {
@@ -61,11 +86,28 @@ class TaskFormViewModel @Inject constructor(
             is TaskFormEvent.PriorityChanged -> {
                 _state.update { it.copy(priority = event.value) }
             }
-            is TaskFormEvent.ReminderAtChanged -> {
-                _state.update { it.copy(reminderAt = event.value) }
+            is TaskFormEvent.StatusChanged -> {
+                _state.update { it.copy(status = event.value) }
+            }
+            is TaskFormEvent.ReminderChanged -> {
+                _state.update { it.copy(reminderType = event.type, reminderValue = event.value) }
+            }
+            is TaskFormEvent.ClearReminder -> {
+                _state.update { it.copy(reminderType = null, reminderValue = null) }
             }
             is TaskFormEvent.DeadlineReminderToggled -> {
                 _state.update { it.copy(isDeadlineReminderEnabled = event.isEnabled) }
+            }
+            is TaskFormEvent.TagInputChanged -> {
+                _state.update { it.copy(tagInput = event.value) }
+            }
+            is TaskFormEvent.AddTag -> {
+                addTag(event.name)
+            }
+            is TaskFormEvent.RemoveTag -> {
+                _state.update { state ->
+                    state.copy(selectedTags = state.selectedTags.filter { it.id != event.tagId })
+                }
             }
             is TaskFormEvent.SaveTask -> {
                 saveTask()
@@ -76,24 +118,85 @@ class TaskFormViewModel @Inject constructor(
         }
     }
 
-    private fun loadTask(id: String) {
+    private fun addTag(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val existingTag = _state.value.availableTags.find { it.name.equals(trimmed, ignoreCase = true) }
+                val tag = existingTag ?: Tag(
+                    id = UUID.randomUUID().toString(),
+                    userId = userId,
+                    name = trimmed,
+                    createdAt = Instant.now().toString()
+                )
+                val currentTags = _state.value.selectedTags
+                if (currentTags.any { it.id == tag.id }) {
+                    _uiEvent.emit(UiEvent.ShowMessage("Error 409: La etiqueta '${trimmed}' ya está seleccionada", MessageType.ERROR))
+                    _state.update { it.copy(tagInput = "") }
+                    return@launch
+                }
+                _state.update { 
+                    it.copy(
+                        selectedTags = currentTags + tag, 
+                        tagInput = "",
+                        availableTags = if (existingTag == null) it.availableTags + tag else it.availableTags
+                    ) 
+                }
+            } catch (e: Exception) {
+                _uiEvent.emit(UiEvent.ShowMessage("Error al agregar tag: ${e.message}", MessageType.ERROR))
+            }
+        }
+    }
+
+    fun selectExistingTag(tag: Tag) {
+        val currentTags = _state.value.selectedTags
+        if (currentTags.any { it.id == tag.id }) {
+            viewModelScope.launch {
+                _uiEvent.emit(UiEvent.ShowMessage("Error 409: La etiqueta '${tag.name}' ya está seleccionada", MessageType.ERROR))
+            }
+            return
+        }
+        _state.update { it.copy(selectedTags = currentTags + tag, tagInput = "") }
+    }
+
+    fun getFilteredTags(query: String): List<Tag> {
+        if (query.isBlank()) return emptyList()
+        val selectedIds = _state.value.selectedTags.map { it.id }
+        return _state.value.availableTags.filter { 
+            it.name.contains(query, ignoreCase = true) && it.id !in selectedIds
+        }
+    }
+
+    private     fun loadTask(id: String) {
         viewModelScope.launch {
             try {
                 _state.update { it.copy(isLoading = true) }
-                getTaskByIdUseCase(id).collect { task ->
-                    task?.let {
-                        _state.update { state ->
-                            state.copy(
-                                title = it.title,
-                                description = it.description ?: "",
-                                dueDate = it.dueAt ?: "",
-                                priority = it.priority,
-                                reminderAt = it.reminderAt,
-                                isDeadlineReminderEnabled = it.isDeadlineReminderEnabled,
-                                isLoading = false
-                            )
-                        }
+                
+                // Get task data
+                val task = getTaskByIdUseCase(id).first()
+                task?.let {
+                    _state.update { state ->
+                        state.copy(
+                            title = it.title,
+                            description = it.description ?: "",
+                            dueDate = it.dueAt ?: "",
+                            priority = it.priority,
+                            status = it.status,
+                            reminderType = it.reminderType,
+                            reminderValue = it.reminderValue,
+                            isDeadlineReminderEnabled = it.isDeadlineReminderEnabled,
+                            isLoading = false
+                        )
                     }
+                    subjectId = it.subjectId
+                    
+                    // Load task tags immediately
+                    val taskTags = tagRepository.getTagsByTask(id).first()
+                    val tags = taskTags.mapNotNull { taskTag ->
+                        tagRepository.getTagById(taskTag.tagId).first()
+                    }
+                    _state.update { it.copy(selectedTags = tags) }
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false) }
@@ -113,30 +216,59 @@ class TaskFormViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _state.update { it.copy(isLoading = true, errorMessage = null) }
-                
+
+                // Save all selected tags to database (Room + Firestore)
+                // This ensures tags exist before the task references them
+                for (tag in _state.value.selectedTags) {
+                    tagRepository.saveTag(tag)
+                }
+
                 val now = Instant.now().toString()
+                var academicPeriodId: String? = null
+                subjectId?.let { sid ->
+                    try {
+                        val subject = getSubjectByIdUseCase(sid).first()
+                        academicPeriodId = subject?.academicPeriodId
+                    } catch (_: Exception) { }
+                }
+
                 val task = Task(
                     id = currentTaskId ?: UUID.randomUUID().toString(),
-                    userId = "current_user",
-                    academicPeriodId = "2026-2",
+                    userId = userId,
+                    academicPeriodId = academicPeriodId,
                     subjectId = subjectId,
                     title = _state.value.title,
                     description = _state.value.description.ifBlank { null },
                     dueAt = _state.value.dueDate.ifBlank { null },
                     priority = _state.value.priority,
-                    status = TaskStatus.PENDING,
-                    notes = null,
-                    reminderAt = _state.value.reminderAt,
+                    status = _state.value.status,
+                    reminderType = _state.value.reminderType,
+                    reminderValue = _state.value.reminderValue,
                     isDeadlineReminderEnabled = _state.value.isDeadlineReminderEnabled,
-                    createdAt = now,
+                    createdAt = if (currentTaskId == null) now else (loadOriginalCreatedAt() ?: now),
                     updatedAt = now
                 )
+
+                val tagIds = _state.value.selectedTags.map { it.id }
 
                 if (currentTaskId == null) {
                     saveTaskUseCase(task)
                 } else {
+                    // Remove old tags
+                    val oldTaskTags = tagRepository.getTagsByTask(task.id).first()
+                    oldTaskTags.forEach { taskTag ->
+                        tagRepository.removeTaskTag(task.id, taskTag.tagId)
+                    }
                     updateTaskUseCase(task)
                 }
+
+                // Add tags to task
+                _state.value.selectedTags.forEach { tag ->
+                    tagRepository.addTaskTag(TaskTag(taskId = task.id, tagId = tag.id))
+                }
+
+                // Save task tags to Firestore
+                taskRepository.saveTaskTags(userId, task.id, tagIds)
 
                 _state.update { it.copy(isLoading = false, isSuccess = true) }
                 _uiEvent.emit(
@@ -157,10 +289,18 @@ class TaskFormViewModel @Inject constructor(
         }
     }
 
+    private suspend fun loadOriginalCreatedAt(): String? {
+        return try {
+            getTaskByIdUseCase(currentTaskId!!).first()?.createdAt
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun validateInputs(): Boolean {
         var isValid = true
         if (_state.value.title.isBlank()) {
-            _state.update { it.copy(titleError = "El título es obligatorio") }
+            _state.update { it.copy(titleError = "El titulo es obligatorio") }
             isValid = false
         }
         return isValid
@@ -172,8 +312,13 @@ sealed class TaskFormEvent {
     data class EnteredDescription(val value: String) : TaskFormEvent()
     data class EnteredDueDate(val value: String) : TaskFormEvent()
     data class PriorityChanged(val value: TaskPriority) : TaskFormEvent()
-    data class ReminderAtChanged(val value: String?) : TaskFormEvent()
+    data class StatusChanged(val value: TaskStatus) : TaskFormEvent()
+    data class ReminderChanged(val type: TaskReminderType?, val value: Int?) : TaskFormEvent()
+    object ClearReminder : TaskFormEvent()
     data class DeadlineReminderToggled(val isEnabled: Boolean) : TaskFormEvent()
+    data class TagInputChanged(val value: String) : TaskFormEvent()
+    data class AddTag(val name: String) : TaskFormEvent()
+    data class RemoveTag(val tagId: String) : TaskFormEvent()
     object SaveTask : TaskFormEvent()
     object ClearError : TaskFormEvent()
 }

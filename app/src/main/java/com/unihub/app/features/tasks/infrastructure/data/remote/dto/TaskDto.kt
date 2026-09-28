@@ -9,12 +9,12 @@ data class TaskDto(
     val subjectId: String? = null,
     val title: String = "",
     val description: String? = null,
-    val dueAt: Long? = null,
+    val dueAt: String? = null,
     val priority: String = "MEDIUM",
     val status: String = "PENDING",
-    val notes: String? = null,
-    val reminderAt: Long? = null,
+    val reminderType: String? = null,
+    val reminderValue: Int? = null,
     val isDeadlineReminderEnabled: Boolean = false,
-    val createdAt: Long = 0L,
-    val updatedAt: Long = 0L
+    val createdAt: String = "",
+    val updatedAt: String = ""
 )

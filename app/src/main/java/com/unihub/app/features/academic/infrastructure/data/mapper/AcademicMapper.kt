@@ -8,6 +8,7 @@ import com.unihub.app.features.academic.infrastructure.data.local.entity.GradeEn
 import com.unihub.app.features.academic.infrastructure.data.local.entity.StudyEntity
 import com.unihub.app.features.academic.infrastructure.data.remote.dto.AcademicPeriodDto
 import com.unihub.app.features.academic.infrastructure.data.remote.dto.GradeDto
+import com.unihub.app.features.academic.infrastructure.data.remote.dto.StudyDto
 
 fun Study.toEntity(): StudyEntity = StudyEntity(
     id = id,
@@ -94,21 +95,72 @@ fun GradeEntity.toDomain(): Grade {
 }
 
 // DTO Mappers
-fun AcademicPeriodDto.toDomain(userId: String, studyId: String): AcademicPeriod {
+fun Study.toDto(): StudyDto = StudyDto(
+    id = id,
+    userId = userId,
+    name = name,
+    institution = institution,
+    totalCredits = totalCredits,
+    approvedCredits = approvedCredits,
+    cumulativeGpa = cumulativeGpa,
+    isActive = isActive,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
+
+fun StudyDto.toDomain(): Study = Study(
+    id = id,
+    userId = userId,
+    name = name,
+    institution = institution,
+    totalCredits = totalCredits,
+    approvedCredits = approvedCredits,
+    cumulativeGpa = cumulativeGpa,
+    isActive = isActive,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
+
+fun AcademicPeriod.toDto(): AcademicPeriodDto = AcademicPeriodDto(
+    id = id,
+    userId = userId,
+    studyId = studyId,
+    name = name,
+    startDate = startDate,
+    endDate = endDate,
+    isCurrent = isCurrent,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
+
+fun AcademicPeriodDto.toDomain(): AcademicPeriod {
     return AcademicPeriod(
         id = id,
         userId = userId,
         studyId = studyId,
         name = name,
-        startDate = startDate.toString(),
-        endDate = endDate.toString(),
+        startDate = startDate,
+        endDate = endDate,
         isCurrent = isCurrent,
-        createdAt = createdAt.toString(),
-        updatedAt = updatedAt.toString()
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }
 
-fun GradeDto.toDomain(userId: String): Grade {
+fun Grade.toDto(): GradeDto = GradeDto(
+    id = id,
+    userId = userId,
+    subjectId = subjectId,
+    academicPeriodId = academicPeriodId,
+    name = name,
+    value = value,
+    weight = weight,
+    notes = notes,
+    createdAt = createdAt,
+    updatedAt = updatedAt
+)
+
+fun GradeDto.toDomain(): Grade {
     return Grade(
         id = id,
         userId = userId,
@@ -118,7 +170,7 @@ fun GradeDto.toDomain(userId: String): Grade {
         value = value,
         weight = weight,
         notes = notes,
-        createdAt = createdAt.toString(),
-        updatedAt = updatedAt.toString()
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }

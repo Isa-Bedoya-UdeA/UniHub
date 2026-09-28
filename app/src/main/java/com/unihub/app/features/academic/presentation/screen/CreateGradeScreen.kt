@@ -24,6 +24,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
+import com.unihub.app.core.designsystem.component.foundation.UniHubTextArea
 import com.unihub.app.core.designsystem.component.foundation.UniHubTextField
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.academic.presentation.viewmodel.GradeFormEvent
@@ -118,7 +119,17 @@ fun CreateGradeScreen(
             state.weightError?.let {
                 Text(text = it, color = UniHubTheme.colorScheme.error, style = UniHubTheme.typography.bodySmall)
             }
-            
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+            UniHubTextArea(
+                value = state.notes,
+                onValueChange = { viewModel.onEvent(GradeFormEvent.EnteredNotes(it)) },
+                label = "Notas (Opcional)",
+                placeholder = "Información adicional...",
+                modifier = Modifier.fillMaxWidth()
+            )
+
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
 
             UniHubButton(

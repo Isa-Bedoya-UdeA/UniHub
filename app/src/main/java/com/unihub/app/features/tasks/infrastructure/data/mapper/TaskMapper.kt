@@ -15,8 +15,8 @@ fun Task.toEntity(): TaskEntity {
         dueAt = dueAt,
         priority = priority,
         status = status,
-        notes = notes,
-        reminderAt = reminderAt,
+        reminderType = reminderType,
+        reminderValue = reminderValue,
         isDeadlineReminderEnabled = isDeadlineReminderEnabled,
         createdAt = createdAt,
         updatedAt = updatedAt
@@ -34,8 +34,8 @@ fun TaskEntity.toDomain(): Task {
         dueAt = dueAt,
         priority = priority,
         status = status,
-        notes = notes,
-        reminderAt = reminderAt,
+        reminderType = reminderType,
+        reminderValue = reminderValue,
         isDeadlineReminderEnabled = isDeadlineReminderEnabled,
         createdAt = createdAt,
         updatedAt = updatedAt
@@ -74,7 +74,6 @@ fun TaskTagEntity.toDomain(): TaskTag {
     )
 }
 
-
 fun TaskDto.toDomain(userId: String): Task {
     return Task(
         id = id,
@@ -83,14 +82,14 @@ fun TaskDto.toDomain(userId: String): Task {
         subjectId = subjectId,
         title = title,
         description = description,
-        dueAt = dueAt?.toString(),
+        dueAt = dueAt,
         priority = try { TaskPriority.valueOf(priority) } catch (e: Exception) { TaskPriority.MEDIUM },
         status = try { TaskStatus.valueOf(status) } catch (e: Exception) { TaskStatus.PENDING },
-        notes = notes,
-        reminderAt = null,
-        isDeadlineReminderEnabled = false,
-        createdAt = createdAt.toString(),
-        updatedAt = updatedAt.toString()
+        reminderType = reminderType?.let { try { TaskReminderType.valueOf(it) } catch (e: Exception) { null } },
+        reminderValue = reminderValue,
+        isDeadlineReminderEnabled = isDeadlineReminderEnabled,
+        createdAt = createdAt,
+        updatedAt = updatedAt
     )
 }
 
@@ -101,11 +100,31 @@ fun Task.toDto(): TaskDto {
         subjectId = subjectId,
         title = title,
         description = description,
-        dueAt = dueAt?.toLongOrNull(),
+        dueAt = dueAt,
         priority = priority.name,
         status = status.name,
-        notes = notes,
-        createdAt = createdAt.toLongOrNull() ?: 0L,
-        updatedAt = updatedAt.toLongOrNull() ?: 0L
+        reminderType = reminderType?.name,
+        reminderValue = reminderValue,
+        isDeadlineReminderEnabled = isDeadlineReminderEnabled,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
+}
+
+fun Tag.toDto(): com.unihub.app.features.tasks.infrastructure.data.remote.dto.TagDto {
+    return com.unihub.app.features.tasks.infrastructure.data.remote.dto.TagDto(
+        id = id,
+        userId = userId,
+        name = name,
+        createdAt = createdAt
+    )
+}
+
+fun com.unihub.app.features.tasks.infrastructure.data.remote.dto.TagDto.toDomain(): Tag {
+    return Tag(
+        id = id,
+        userId = userId,
+        name = name,
+        createdAt = createdAt
     )
 }

@@ -3,6 +3,12 @@ package com.unihub.app.features.tasks.domain.model
 enum class TaskPriority { LOW, MEDIUM, HIGH }
 enum class TaskStatus { PENDING, IN_PROGRESS, COMPLETED }
 
+enum class TaskReminderType {
+    MINUTES_BEFORE,
+    HOURS_BEFORE,
+    DAYS_BEFORE
+}
+
 data class Task(
     val id: String,
     val userId: String,
@@ -13,8 +19,8 @@ data class Task(
     val dueAt: String?,
     val priority: TaskPriority,
     val status: TaskStatus,
-    val notes: String?,
-    val reminderAt: String?,
+    val reminderType: TaskReminderType?,
+    val reminderValue: Int?,
     val isDeadlineReminderEnabled: Boolean,
     val createdAt: String,
     val updatedAt: String

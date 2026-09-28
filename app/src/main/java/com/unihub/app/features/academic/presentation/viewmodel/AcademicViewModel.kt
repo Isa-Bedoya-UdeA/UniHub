@@ -6,6 +6,7 @@ import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.core.designsystem.component.academic.StudyOption
 import com.unihub.app.features.academic.application.usecase.DeleteAcademicPeriodUseCase
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.academic.application.usecase.GetAcademicPeriodsByStudyUseCase
 import com.unihub.app.features.academic.application.usecase.GetAcademicSummaryUseCase
 import com.unihub.app.features.academic.application.usecase.GetGradesBySubjectUseCase
@@ -55,8 +56,11 @@ class AcademicViewModel @Inject constructor(
     private val setCurrentPeriodUseCase: SetCurrentPeriodUseCase,
     private val saveAcademicPeriodUseCase: SaveAcademicPeriodUseCase,
     private val deleteAcademicPeriodUseCase: DeleteAcademicPeriodUseCase,
-    private val getGradesBySubjectUseCase: GetGradesBySubjectUseCase
+    private val getGradesBySubjectUseCase: GetGradesBySubjectUseCase,
+    private val getCurrentUidUseCase: GetCurrentUidUseCase
 ) : ViewModel() {
+
+    private val userId = getCurrentUidUseCase() ?: "current_user"
 
     private val _state = MutableStateFlow(AcademicState())
     val state: StateFlow<AcademicState> = _state.asStateFlow()
@@ -74,7 +78,7 @@ class AcademicViewModel @Inject constructor(
     private fun loadStudies() {
         viewModelScope.launch {
             try {
-                getStudiesUseCase("current_user").onEach { studies ->
+                getStudiesUseCase(userId).onEach { studies ->
                     val currentSelection = _selectedStudyId.value
                     val activeStudy = studies.find { it.isActive } ?: studies.firstOrNull()
                     if (currentSelection == null && activeStudy != null) {
@@ -96,9 +100,9 @@ class AcademicViewModel @Inject constructor(
                             Triple(emptyList<AcademicPeriod>(), AcademicSummary(0.0, 0.0, 0, 0, 0.0), emptyMap<String, Int>())
                         )
                         combine(
-                            getAcademicPeriodsByStudyUseCase("current_user", studyId),
-                            getAcademicSummaryUseCase("current_user", studyId),
-                            getAllSubjectsUseCase("current_user")
+                            getAcademicPeriodsByStudyUseCase(userId, studyId),
+                            getAcademicSummaryUseCase(userId, studyId),
+                            getAllSubjectsUseCase(userId)
                         ) { periods, summary, allSubjects ->
                             val counts = allSubjects.groupBy { it.academicPeriodId }.mapValues { it.value.size }
                             Triple(periods, summary, counts)
@@ -112,7 +116,7 @@ class AcademicViewModel @Inject constructor(
                 _selectedStudyId
                     .flatMapLatest { studyId ->
                         if (studyId == null) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
-                        getAcademicPeriodsByStudyUseCase("current_user", studyId)
+                        getAcademicPeriodsByStudyUseCase(userId, studyId)
                             .flatMapLatest { periods ->
                                 val today = LocalDate.now()
                                 val formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
@@ -126,14 +130,14 @@ class AcademicViewModel @Inject constructor(
                                 } ?: periods.firstOrNull()
                                 
                                 if (currentPeriod == null) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
-                                getSubjectsUseCase("current_user", currentPeriod.id)
+                                getSubjectsUseCase(userId, currentPeriod.id)
                                     .flatMapLatest { subjects ->
                                         if (subjects.isEmpty()) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
                                         val subjectFlows = subjects.map { subject ->
                                             getGradesBySubjectUseCase(subject.id).combine(flowOf(subject)) { grades, subj ->
                                                 val totalWeight = grades.sumOf { it.weight }
                                                 val weightedSum = grades.sumOf { it.value * it.weight }
-                                                val avg = if (totalWeight > 0) weightedSum / totalWeight else 0.0
+                                                val avg = weightedSum
                                                 SubjectWithGrade(subj, avg, (totalWeight * 100).toInt())
                                             }
                                         }
@@ -161,7 +165,7 @@ class AcademicViewModel @Inject constructor(
         _selectedStudyId.value = studyId
         viewModelScope.launch {
             try {
-                setActiveStudyUseCase("current_user", studyId)
+                setActiveStudyUseCase(userId, studyId)
             } catch (e: Exception) {
                 _uiEvent.emit(
                     UiEvent.ShowMessage(
@@ -199,7 +203,7 @@ class AcademicViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                setCurrentPeriodUseCase("current_user", periodId)
+                setCurrentPeriodUseCase(userId, periodId)
                 _uiEvent.emit(
                     UiEvent.ShowMessage(
                         message = "Periodo actualizado exitosamente",
@@ -210,6 +214,44 @@ class AcademicViewModel @Inject constructor(
                 _uiEvent.emit(
                     UiEvent.ShowMessage(
                         message = "Error al actualizar el periodo: ${e.message ?: "Error desconocido"}",
+                        type = MessageType.ERROR
+                    )
+                )
+            }
+        }
+    }
+
+    fun createPeriod(
+        studyId: String,
+        name: String,
+        startDate: String,
+        endDate: String,
+        isCurrent: Boolean
+    ) {
+        viewModelScope.launch {
+            try {
+                val period = AcademicPeriod(
+                    id = java.util.UUID.randomUUID().toString(),
+                    userId = userId,
+                    studyId = studyId,
+                    name = name,
+                    startDate = startDate,
+                    endDate = endDate,
+                    isCurrent = isCurrent,
+                    createdAt = java.time.Instant.now().toString(),
+                    updatedAt = java.time.Instant.now().toString()
+                )
+                saveAcademicPeriodUseCase(period)
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Periodo creado exitosamente",
+                        type = MessageType.SUCCESS
+                    )
+                )
+            } catch (e: Exception) {
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Error al crear el periodo: ${e.message ?: "Error desconocido"}",
                         type = MessageType.ERROR
                     )
                 )

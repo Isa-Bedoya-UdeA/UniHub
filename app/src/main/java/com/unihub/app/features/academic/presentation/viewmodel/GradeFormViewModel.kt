@@ -6,10 +6,12 @@ import androidx.lifecycle.viewModelScope
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.features.academic.application.usecase.GetGradesBySubjectUseCase
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.academic.application.usecase.SaveGradeUseCase
 import com.unihub.app.features.academic.application.usecase.UpdateGradeUseCase
 import com.unihub.app.features.academic.domain.model.Grade
 import com.unihub.app.features.academic.presentation.state.GradeFormState
+import com.unihub.app.features.subjects.application.usecase.GetSubjectByIdUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,8 +30,12 @@ class GradeFormViewModel @Inject constructor(
     private val saveGradeUseCase: SaveGradeUseCase,
     private val updateGradeUseCase: UpdateGradeUseCase,
     private val getGradesBySubjectUseCase: GetGradesBySubjectUseCase,
+    private val getSubjectByIdUseCase: GetSubjectByIdUseCase,
+    private val getCurrentUidUseCase: GetCurrentUidUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val userId = getCurrentUidUseCase() ?: "current_user"
 
     private val _state = MutableStateFlow(GradeFormState())
     val state: StateFlow<GradeFormState> = _state.asStateFlow()
@@ -51,6 +57,7 @@ class GradeFormViewModel @Inject constructor(
             is GradeFormEvent.EnteredName -> _state.update { it.copy(name = event.value, nameError = null) }
             is GradeFormEvent.EnteredValue -> _state.update { it.copy(value = event.value, valueError = null) }
             is GradeFormEvent.EnteredWeight -> _state.update { it.copy(weight = event.value, weightError = null) }
+            is GradeFormEvent.EnteredNotes -> _state.update { it.copy(notes = event.value) }
             is GradeFormEvent.SaveGrade -> saveGrade()
             is GradeFormEvent.ClearError -> _state.update { it.copy(errorMessage = null) }
         }
@@ -68,6 +75,7 @@ class GradeFormViewModel @Inject constructor(
                             name = it.name,
                             value = it.value.toString(),
                             weight = (it.weight * 100).toInt().toString(),
+                            notes = it.notes ?: "",
                             isLoading = false
                         )
                     }
@@ -91,15 +99,17 @@ class GradeFormViewModel @Inject constructor(
             try {
                 _state.update { it.copy(isLoading = true, errorMessage = null) }
                 val now = Instant.now().toString()
+                val subject = getSubjectByIdUseCase(subjectId).first()
+                val academicPeriodId = subject?.academicPeriodId ?: ""
                 val grade = Grade(
                     id = currentGradeId ?: UUID.randomUUID().toString(),
-                    userId = "current_user",
+                    userId = userId,
                     subjectId = subjectId,
-                    academicPeriodId = "",
+                    academicPeriodId = academicPeriodId,
                     name = _state.value.name,
                     value = _state.value.value.toDoubleOrNull() ?: 0.0,
                     weight = (_state.value.weight.toDoubleOrNull() ?: 0.0) / 100.0,
-                    notes = null,
+                    notes = _state.value.notes.ifBlank { null },
                     createdAt = now,
                     updatedAt = now
                 )
@@ -149,6 +159,7 @@ sealed class GradeFormEvent {
     data class EnteredName(val value: String) : GradeFormEvent()
     data class EnteredValue(val value: String) : GradeFormEvent()
     data class EnteredWeight(val value: String) : GradeFormEvent()
+    data class EnteredNotes(val value: String) : GradeFormEvent()
     object SaveGrade : GradeFormEvent()
     object ClearError : GradeFormEvent()
 }

@@ -11,6 +11,6 @@ data class LocationDto(
     val latitude: Double?,
     val longitude: Double?,
     val placeId: String?,
-    val createdAt: Long,
-    val updatedAt: Long
+    val createdAt: String,
+    val updatedAt: String
 )

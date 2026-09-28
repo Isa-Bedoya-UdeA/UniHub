@@ -1,12 +1,13 @@
 package com.unihub.app.features.settings.presentation.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.auth.application.usecase.ObserveAuthStateUseCase
-import com.unihub.app.features.auth.domain.model.AuthState
+import com.unihub.app.features.auth.application.usecase.UploadProfileImageUseCase
 import com.unihub.app.features.auth.domain.model.User
 import com.unihub.app.features.auth.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +27,7 @@ data class EditProfileUiState(
     val profileImageUrl: String? = null,
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
+    val isUploadingImage: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -33,7 +35,8 @@ data class EditProfileUiState(
 class EditProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val getCurrentUidUseCase: GetCurrentUidUseCase,
-    private val observeAuthStateUseCase: ObserveAuthStateUseCase
+    private val observeAuthStateUseCase: ObserveAuthStateUseCase,
+    private val uploadProfileImageUseCase: UploadProfileImageUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EditProfileUiState())
@@ -56,7 +59,15 @@ class EditProfileViewModel @Inject constructor(
                 return@launch
             }
 
+            android.util.Log.d("EditProfileViewModel", "=== LOAD USER PROFILE ===")
+            android.util.Log.d("EditProfileViewModel", "User ID: $userId")
+
             userRepository.getUser(userId).collect { user ->
+                android.util.Log.d("EditProfileViewModel", "User received from repository:")
+                android.util.Log.d("EditProfileViewModel", "  User ID: ${user?.userId}")
+                android.util.Log.d("EditProfileViewModel", "  Name: ${user?.name}")
+                android.util.Log.d("EditProfileViewModel", "  Profile Image URL: ${user?.profileImageUrl}")
+                
                 if (user != null) {
                     _state.update {
                         it.copy(
@@ -77,8 +88,29 @@ class EditProfileViewModel @Inject constructor(
         _state.update { it.copy(name = name, errorMessage = null) }
     }
 
-    fun updateProfileImageUrl(imageUrl: String?) {
-        _state.update { it.copy(profileImageUrl = imageUrl, errorMessage = null) }
+    fun uploadImage(imageUri: Uri) {
+        val userId = getCurrentUidUseCase() ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(isUploadingImage = true) }
+            val result = uploadProfileImageUseCase(userId, imageUri)
+            result.onSuccess { url ->
+                _state.update { it.copy(profileImageUrl = url, isUploadingImage = false) }
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Imagen subida exitosamente",
+                        type = MessageType.SUCCESS
+                    )
+                )
+            }.onFailure { error ->
+                _state.update { it.copy(isUploadingImage = false) }
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Error al subir imagen: ${error.message ?: "Error desconocido"}",
+                        type = MessageType.ERROR
+                    )
+                )
+            }
+        }
     }
 
     fun saveProfile() {
