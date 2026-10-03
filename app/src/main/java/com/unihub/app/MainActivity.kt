@@ -33,11 +33,20 @@ class MainActivity : ComponentActivity() {
             val navController = rememberNavController()
             val settingsViewModel: SettingsViewModel = hiltViewModel()
             val settingsState by settingsViewModel.state.collectAsState()
+            val context = androidx.compose.ui.platform.LocalContext.current
             
-            val isDarkTheme = when (settingsState.userPreferences?.themeMode) {
+            val cachedTheme = androidx.compose.runtime.remember {
+                com.unihub.app.core.util.PreferencesManager.getThemeMode(context)?.let {
+                    runCatching { ThemeMode.valueOf(it) }.getOrNull()
+                }
+            }
+            
+            val effectiveTheme = settingsState.userPreferences?.themeMode ?: cachedTheme ?: ThemeMode.SYSTEM
+            
+            val isDarkTheme = when (effectiveTheme) {
                 ThemeMode.DARK -> true
                 ThemeMode.LIGHT -> false
-                ThemeMode.SYSTEM, null -> isSystemInDarkTheme()
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
             }
             
             UniHubTheme(darkTheme = isDarkTheme) {

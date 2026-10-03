@@ -35,11 +35,13 @@ fun UniHubTextField(
     readOnly: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Default,
-    onImeAction: () -> Unit = {},
+    capitalization: androidx.compose.ui.text.input.KeyboardCapitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences,
+    onImeAction: (() -> Unit)? = null,
     forceDarkText: Boolean = false,
     singleLine: Boolean = true
 ) {
     val textColor = if (forceDarkText) Color.Black else UniHubTheme.colorScheme.textPrimary
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     
     OutlinedTextField(
         value = value,
@@ -68,7 +70,7 @@ fun UniHubTextField(
                 LaunchedEffect(interactionSource) {
                     interactionSource.interactions.collect { interaction ->
                         if (interaction is androidx.compose.foundation.interaction.PressInteraction.Release) {
-                            if (readOnly && enabled) onImeAction()
+                            if (readOnly && enabled) onImeAction?.invoke()
                         }
                     }
                 }
@@ -107,11 +109,25 @@ fun UniHubTextField(
             errorTrailingIconColor = UniHubTheme.colorScheme.textSecondary,
         ),
         textStyle = UniHubTheme.typography.body,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = keyboardType,
+            imeAction = imeAction,
+            capitalization = capitalization
+        ),
         keyboardActions = KeyboardActions(
-            onSearch = { onImeAction() },
-            onDone = { onImeAction() },
-            onGo = { onImeAction() }
+            onSearch = { onImeAction?.invoke() },
+            onDone = {
+                if (onImeAction != null) onImeAction() else focusManager.clearFocus()
+            },
+            onGo = { onImeAction?.invoke() },
+            onSend = { onImeAction?.invoke() },
+            onNext = {
+                if (onImeAction != null) {
+                    onImeAction()
+                } else {
+                    focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down)
+                }
+            }
         )
     )
 }

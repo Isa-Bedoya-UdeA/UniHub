@@ -213,14 +213,9 @@ fun CreateEventScreen(
 
     Scaffold(
         snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState) { data ->
-                val isSuccess = state.isSuccess
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = if (isSuccess) UniHubTheme.colorScheme.success else UniHubTheme.colorScheme.error,
-                    contentColor = androidx.compose.ui.graphics.Color.White
-                )
-            }
+            com.unihub.app.core.designsystem.component.foundation.UniHubSnackbarHost(
+                hostState = snackbarHostState
+            )
         },
         containerColor = UniHubTheme.colorScheme.background
     ) { paddingValues ->

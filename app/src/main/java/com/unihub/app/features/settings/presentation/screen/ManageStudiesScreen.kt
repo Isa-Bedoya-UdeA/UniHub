@@ -37,10 +37,13 @@ fun ManageStudiesScreen(
     var studyToEdit by remember { mutableStateOf<Study?>(null) }
     var studyToDelete by remember { mutableStateOf<String?>(null) }
 
+    var currentMessageType by remember { mutableStateOf(MessageType.INFO) }
+
     LaunchedEffect(key1 = true) {
         viewModel.uiEvent.collectLatest { event ->
             when (event) {
                 is UiEvent.ShowMessage -> {
+                    currentMessageType = event.type
                     snackbarHostState.showSnackbar(
                         message = event.message,
                         duration = SnackbarDuration.Short
@@ -95,7 +98,10 @@ fun ManageStudiesScreen(
 
     Scaffold(
         snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
+            com.unihub.app.core.designsystem.component.foundation.UniHubSnackbarHost(
+                hostState = snackbarHostState,
+                currentType = currentMessageType
+            )
         },
         topBar = {
             TopAppBar(
@@ -246,6 +252,7 @@ fun StudyFormDialog(
                 label = "Nombre",
                 placeholder = "Ej: Ing de Sistemas",
                 isError = nameError != null,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                 modifier = Modifier.fillMaxWidth()
             )
             if (nameError != null) {
@@ -265,6 +272,7 @@ fun StudyFormDialog(
                 label = "Institución",
                 placeholder = "Ej: UdeA",
                 isError = institutionError != null,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                 modifier = Modifier.fillMaxWidth()
             )
             if (institutionError != null) {
@@ -283,6 +291,8 @@ fun StudyFormDialog(
                 onValueChange = { credits = it; creditsError = null },
                 label = "Créditos totales",
                 placeholder = "Ej: 168",
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                 isError = creditsError != null,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -310,6 +320,8 @@ fun StudyFormDialog(
                 onValueChange = { approvedCredits = it; approvedCreditsError = null },
                 label = "Créditos aprobados",
                 placeholder = "Ej: 45",
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                 isError = approvedCreditsError != null,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -329,6 +341,8 @@ fun StudyFormDialog(
                 onValueChange = { cumulativeGpa = it; cumulativeGpaError = null },
                 label = "Promedio acumulado",
                 placeholder = "Ej: 4.2",
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done,
                 isError = cumulativeGpaError != null,
                 modifier = Modifier.fillMaxWidth()
             )

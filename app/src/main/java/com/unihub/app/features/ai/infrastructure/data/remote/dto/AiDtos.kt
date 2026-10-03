@@ -9,7 +9,9 @@ data class AiChatRequestDto(
 
 @Serializable
 data class AiChatResponseDto(
-    val response: String
+    val response: String,
+    val provider: String? = null,
+    val model: String? = null
 )
 
 @Serializable

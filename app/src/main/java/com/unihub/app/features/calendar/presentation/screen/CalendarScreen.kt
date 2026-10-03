@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.FloatingActionButton
@@ -107,7 +108,27 @@ fun CalendarScreen(
                     )
                 }
 
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { selectedDate = LocalDate.now(ZoneId.systemDefault()) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.height(34.dp),
+                        shape = UniHubTheme.shape.button
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = "Hoy",
+                            tint = UniHubTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Hoy",
+                            style = UniHubTheme.typography.label,
+                            color = UniHubTheme.colorScheme.primary
+                        )
+                    }
+
                     IconButton(onClick = {
                         selectedDate = when (selectedView) {
                             CalendarView.Month -> selectedDate.minusMonths(1)

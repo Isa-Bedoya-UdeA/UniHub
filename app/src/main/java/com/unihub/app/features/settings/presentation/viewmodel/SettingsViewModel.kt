@@ -22,6 +22,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.unihub.app.features.auth.application.usecase.ObserveAuthStateUseCase
+import com.unihub.app.features.auth.domain.model.AuthState
+import com.unihub.app.features.settings.domain.repository.SettingsRepository
+
 data class SettingsUiState(
     val user: User? = null,
     val userPreferences: UserPreferences? = null,
@@ -34,10 +38,12 @@ class SettingsViewModel @Inject constructor(
     private val getUserPreferencesUseCase: GetUserPreferencesUseCase,
     private val updateThemeModeUseCase: UpdateThemeModeUseCase,
     private val getCurrentUidUseCase: GetCurrentUidUseCase,
-    private val userRepository: UserRepository
+    private val observeAuthStateUseCase: ObserveAuthStateUseCase,
+    private val userRepository: UserRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
-    private val userId = getCurrentUidUseCase() ?: "current_user"
+    private var currentUserId = getCurrentUidUseCase() ?: "current_user"
 
     private val _state = MutableStateFlow(SettingsUiState())
     val state: StateFlow<SettingsUiState> = _state.asStateFlow()
@@ -46,14 +52,33 @@ class SettingsViewModel @Inject constructor(
     val uiEvent = _uiEvent.asSharedFlow()
 
     init {
-        loadUserPreferences()
+        loadUserPreferences(currentUserId)
         loadCurrentUser()
+        observeAuthState()
     }
 
-    private fun loadUserPreferences() {
+    private fun observeAuthState() {
+        viewModelScope.launch {
+            observeAuthStateUseCase().collect { authState ->
+                if (authState is AuthState.Authenticated) {
+                    val uid = authState.uid
+                    if (uid != currentUserId) {
+                        currentUserId = uid
+                        loadUserPreferences(uid)
+                        loadCurrentUser()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadUserPreferences(uid: String) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            getUserPreferencesUseCase(userId)
+            if (uid != "current_user") {
+                settingsRepository.syncPreferences(uid)
+            }
+            getUserPreferencesUseCase(uid)
                 .catch { e ->
                     _state.update {
                         it.copy(
@@ -71,7 +96,7 @@ class SettingsViewModel @Inject constructor(
                 .collect { preferences ->
                     _state.update {
                         it.copy(
-                            userPreferences = preferences ?: UserPreferences(userId = userId),
+                            userPreferences = preferences ?: UserPreferences(userId = uid),
                             isLoading = false
                         )
                     }
@@ -97,11 +122,11 @@ class SettingsViewModel @Inject constructor(
     fun updateThemeMode(themeMode: ThemeMode) {
         viewModelScope.launch {
             try {
-                updateThemeModeUseCase(userId, themeMode)
+                updateThemeModeUseCase(currentUserId, themeMode)
                 _state.update {
                     it.copy(
                         userPreferences = it.userPreferences?.copy(themeMode = themeMode)
-                            ?: UserPreferences(userId = userId, themeMode = themeMode)
+                            ?: UserPreferences(userId = currentUserId, themeMode = themeMode)
                     )
                 }
                 _uiEvent.emit(

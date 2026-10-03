@@ -14,7 +14,7 @@ import com.unihub.app.features.auth.infrastructure.data.remote.datasource.UserRe
 import com.unihub.app.features.events.domain.repository.EventRepository
 import com.unihub.app.features.location.domain.repository.LocationRepository
 import com.unihub.app.features.settings.domain.repository.SettingsRepository
-import com.unihub.app.features.subjects.domain.repository.SubjectRepository
+import com.unihub.app.features.academic.domain.repository.SubjectRepository
 import com.unihub.app.features.tasks.domain.repository.TaskRepository
 import com.unihub.app.features.tasks.domain.repository.TagRepository
 import kotlinx.coroutines.flow.Flow

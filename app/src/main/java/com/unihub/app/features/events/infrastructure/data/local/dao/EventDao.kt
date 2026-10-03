@@ -24,6 +24,12 @@ interface EventDao {
     @Query("DELETE FROM Event WHERE event_id = :id")
     suspend fun deleteEvent(id: String)
 
+    @Query("SELECT * FROM Event WHERE subject_id = :subjectId")
+    suspend fun getEventsBySubjectOnce(subjectId: String): List<EventEntity>
+
+    @Query("DELETE FROM Event WHERE subject_id = :subjectId")
+    suspend fun deleteEventsBySubject(subjectId: String)
+
     // Recurrence Rules
     @Query("SELECT * FROM RecurrenceRule WHERE recurrence_rule_id = :id")
     fun getRecurrenceRuleById(id: String): Flow<RecurrenceRuleEntity?>

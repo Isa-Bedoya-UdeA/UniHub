@@ -31,6 +31,12 @@ class EventLocalDataSource @Inject constructor(
     suspend fun deleteEvent(id: String) =
         eventDao.deleteEvent(id)
 
+    suspend fun getEventsBySubjectOnce(subjectId: String): List<EventEntity> =
+        eventDao.getEventsBySubjectOnce(subjectId)
+
+    suspend fun deleteEventsBySubject(subjectId: String) =
+        eventDao.deleteEventsBySubject(subjectId)
+
     fun getRemindersForEvent(eventId: String): Flow<List<EventReminderEntity>> =
         eventReminderDao.getRemindersForEvent(eventId)
 

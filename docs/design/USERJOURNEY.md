@@ -797,15 +797,15 @@ Save
 ### Flow D — Academic
 
 ```text
-Academic
-   ↓
-Subject
-   ↓
-Grades
-   ↓
-Calculate Average
-   ↓
-Grade Simulator
+Academic (unified)
+    ↓
+Select Study / Period
+    ↓
+View Subjects (with averages)
+    ↓
+Subject Detail
+    ↓
+Grades / Simulator
 ```
 
 ### Flow E — AI
@@ -845,20 +845,19 @@ The complete MVP journey can be summarized as:
                             ↓
               ┌─────────────┼─────────────┐
               ↓             ↓             ↓
-          Subjects       Calendar       Tasks
-              │             │             │
-              │             ↓             │
-              │        Events ───── Location
+          Academic       Calendar       Tasks
+         (subjects +      │
+          grades +         ↓
+          progress)   Events ─── Location
               │             │
-              └─────────────┼─────────────┘
-                            ↓
-                       Academic
-                            ↓
-                  Grades / Simulator
+              ↓             │
+        Subject Detail      │
+              │             │
+              └─────────────┘
                             ↓
                            AI
                             ↓
-                 Plan / Create / Query
+                  Plan / Create / Query
 ```
 
 ## 21. UX Principles Derived from the Journey

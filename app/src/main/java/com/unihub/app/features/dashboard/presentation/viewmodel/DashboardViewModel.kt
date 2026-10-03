@@ -9,7 +9,7 @@ import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.dashboard.application.usecase.GetDashboardDataUseCase
 import com.unihub.app.features.dashboard.presentation.state.DashboardState
 import com.unihub.app.features.events.domain.model.Event
-import com.unihub.app.features.subjects.application.usecase.GetAllSubjectsUseCase
+import com.unihub.app.features.academic.application.usecase.GetAllSubjectsUseCase
 import com.unihub.app.features.tasks.application.usecase.UpdateTaskStatusUseCase
 import com.unihub.app.features.tasks.domain.model.Task
 import com.unihub.app.features.tasks.domain.model.TaskStatus

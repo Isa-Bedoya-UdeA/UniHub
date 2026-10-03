@@ -58,6 +58,9 @@ fun UniHubTextArea(
             disabledPlaceholderColor = UniHubTheme.colorScheme.textSecondary,
             errorPlaceholderColor = UniHubTheme.colorScheme.textSecondary,
         ),
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences
+        ),
         textStyle = UniHubTheme.typography.body
     )
 }

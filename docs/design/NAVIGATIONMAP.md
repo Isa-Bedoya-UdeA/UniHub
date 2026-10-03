@@ -47,34 +47,34 @@ The Navigation Map is a design artifact: it describes where users can navigate. 
                               │    Main Application   │
                               └───────────┬───────────┘
                                           │
-             ┌────────────────────────────┼────────────────────────────┐
-             │                            │                            │
-             ↓                            ↓                            ↓
-      ┌───────────────┐            ┌───────────────┐            ┌───────────────┐
-      │   Dashboard   │            │    Calendar   │            │   Subjects    │
-      └───────┬───────┘            └───────┬───────┘            └───────┬───────┘
+              ┌────────────────────────────┼────────────────────────────┐
               │                            │                            │
-      ┌───────┼────────┐           ┌──────┼──────────┐          ┌──────┼──────────┐
-      │       │        │           │      │          │          │      │          │
-      ↓       ↓        ↓           ↓      ↓          ↓          ↓      ↓          ↓
-   Event    Task    Academic    Event   Create    Calendar   Subject  Create    Edit
-   Detail  Detail   Summary    Detail   Event      Date      Detail   Subject   Subject
+              ↓                            ↓                            ↓
+       ┌───────────────┐            ┌───────────────┐            ┌───────────────┐
+       │   Dashboard   │            │    Calendar   │            │   Academic    │
+       └───────┬───────┘            └───────┬───────┘            └───────┬───────┘
+               │                            │                            │
+       ┌───────┼────────┐           ┌──────┼──────────┐          ┌──────┼──────────┐
+       │       │        │           │      │          │          │      │          │
+       ↓       ↓        ↓           ↓      ↓          ↓          ↓      ↓          ↓
+    Event    Task    Academic    Event   Create    Calendar   Subject  Create    Edit
+    Detail  Detail   Summary    Detail   Event      Date      Detail   Subject   Subject
 
-                    ┌─────────────────────────────────────────────┐
-                    │              Other Main Areas               │
-                    └──────────────────────┬──────────────────────┘
-                                           │
-                              ┌────────────┼────────────┐
-                              ↓            ↓            ↓
-                         ┌──────────┐ ┌──────────┐ ┌────────────┐
-                         │ Academic │ │    AI    │ │  Settings  │
-                         └────┬─────┘ └────┬─────┘ └─────┬──────┘
-                              │            │             │
-                              ↓            ↓             ↓
-                         ┌──────────┐ ┌──────────┐ ┌────────────┐
-                         │ Grades & │ │ AI Chat  │ │  Profile   │
-                         │ Simulator│ │Assistant │ │ Preferences│
-                         └──────────┘ └──────────┘ └────────────┘
+                     ┌─────────────────────────────────────────────┐
+                     │              Other Main Areas               │
+                     └──────────────────────┬──────────────────────┘
+                                            │
+                               ┌────────────┼────────────┐
+                               ↓            ↓            ↓
+                          ┌──────────┐ ┌──────────┐ ┌────────────┐
+                          │  Tasks   │ │    AI    │ │  Settings  │
+                          └────┬─────┘ └────┬─────┘ │ (Top Bar)  │
+                               │            │        └─────┬──────┘
+                               ↓            ↓              ↓
+                          ┌──────────┐ ┌──────────┐  ┌────────────┐
+                          │ Task Mgmt│ │ AI Chat  │  │  Profile   │
+                          └──────────┘ │Assistant │  │ Preferences│
+                                       └──────────┘  └────────────┘
 ```
 
 ## 4. Authentication Flow
@@ -115,12 +115,15 @@ Main
 │
 ├── Dashboard
 ├── Calendar
-├── Subjects
 ├── Academic
-└── Settings
+├── Tasks
+├── AI Assistant
+└── Settings (Top Bar)
 ```
 
-The Bottom Navigation Bar provides access to the primary recurring areas. AI remains accessible contextually from the Dashboard and other appropriate entry points rather than being forced into the primary navigation.
+The Bottom Navigation Bar provides access to the five primary destinations: Inicio, Agenda, Academico, Tareas, and Asistente. Settings is accessible from the Top Bar gear icon on all main screens.
+
+The Academic screen unifies subject management and academic performance into a single view, providing study selection, period filtering, cumulative GPA/credits/progress, subject cards with real-time averages, and subject creation.
 
 ## 6. Dashboard Flow
 
@@ -168,16 +171,19 @@ Recurring academic schedules may contain multiple event series when weekly block
 
 ## 8. Subject Flow
 
+Subjects are managed within the unified Academic screen.
+
 ```text
-Subjects
+Academic
 │
-├── Subject Detail
-│      ├── Subject information
-│      ├── Events
-│      ├── Tasks
-│      └── Grades
+├── Subject cards (with real-time averages and evaluation progress)
+│      └── Subject Detail
+│             ├── Subject information
+│             ├── Events
+│             ├── Tasks
+│             └── Grades
 │
-├── Create Subject
+├── Create Subject (FAB)
 │
 └── Edit Subject
 ```
@@ -200,46 +206,53 @@ Task creation may be available contextually and through AI-assisted creation.
 
 ## 10. Academic Flow
 
+The Academic screen unifies subject management and academic performance into a single destination.
+
 ```text
 Academic
 │
-├── Academic Period
-│      ├── Subjects
-│      ├── Grades
-│      └── Academic Summary
+├── Study selector (programa academico)
+├── Cumulative summary (GPA, credits, progress)
+├── Period selector (chips)
+├── Subject cards (with average and % evaluated)
+│      └── Subject Detail
+│             ├── Grades
+│             ├── Tasks
+│             ├── Events
+│             └── Grade Simulator
 │
+├── Create Subject (FAB)
+├── Edit Subject
+├── Manage Periods
 ├── Grade Detail
 ├── Grade Calculator
 └── Grade Simulator
 ```
 
-The academic area provides weighted-average calculation, grade records, academic-period organization, and simulation of required grades.
+The academic area provides weighted-average calculation, grade records, academic-period organization, subject management, and simulation of required grades, all accessible from a single unified screen.
 
 ## 11. AI Flow
 
-AI acts as an interaction layer over UniHub functionality.
+AI is a primary destination accessible from the Bottom Navigation Bar.
 
 ```text
-Dashboard
-    │
-    ↓
-AI Assistant
-    │
-    ├── Text input
-    └── Voice input
-          │
-          ↓
-     Intent / Action
-          │
-     ┌────┼─────────────┐
-     ↓    ↓             ↓
-  Event Subject        Task
-     │    │             │
-     └────┼─────────────┘
-          ↓
-     Confirmation
-          ↓
-      Save data
+AI Assistant (Bottom Nav)
+     │
+     ├── Text input
+     └── Voice input
+           │
+           ↓
+      Intent / Action
+           │
+      ┌────┼─────────────┐
+      ↓    ↓             ↓
+   Event Subject        Task
+      │    │             │
+      └────┼─────────────┘
+           ↓
+      Confirmation
+           ↓
+       Save data
 ```
 
 The AI Assistant may create events, subjects, tasks, and grades, and may help plan the user's day using existing tasks and events. Data-modifying actions should request confirmation when the intent is ambiguous.
@@ -278,9 +291,10 @@ These are the initial route contracts for `core/navigation/Routes.kt`.
 |-------------|-------------|
 | `dashboard` | Dashboard   |
 | `calendar`  | Calendar    |
-| `subjects`  | Subjects    |
 | `academic`  | Academic    |
-| `settings`  | Settings    |
+| `tasks`     | Tasks       |
+| `ai/chat`   | AI Assistant|
+| `settings`  | Settings (Top Bar) |
 
 ### Detail and creation routes
 

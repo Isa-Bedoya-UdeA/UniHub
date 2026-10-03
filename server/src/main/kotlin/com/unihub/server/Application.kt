@@ -15,8 +15,9 @@ import com.unihub.server.routes.configureHealthRoutes
 import kotlinx.serialization.json.Json
 
 fun main() {
-    val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
-    val host = System.getenv("HOST") ?: "0.0.0.0"
+    System.setProperty("java.net.preferIPv4Stack", "true")
+    val port = com.unihub.server.config.EnvConfig.get("PORT").toIntOrNull() ?: 8080
+    val host = com.unihub.server.config.EnvConfig.get("HOST", "0.0.0.0")
 
     embeddedServer(Netty, port = port, host = host) {
         configureServer()

@@ -100,29 +100,29 @@ For the complete functional scope, see:
 
 ## Tech Stack
 
-| Category                 | Technology                                        |
-|--------------------------|---------------------------------------------------|
-| Language                 | Kotlin                                            |
-| Android                  | Android SDK                                       |
-| UI                       | Jetpack Compose                                   |
-| Architecture             | Clean Architecture                                |
-| Architecture Layers      | Domain, Application, Infrastructure, Presentation |
-| Dependency Injection     | Hilt                                              |
-| Asynchronous Programming | Kotlin Coroutines                                 |
-| Local Persistence        | Room                                              |
-| Cloud Database           | Firebase Firestore                                |
-| Authentication           | Firebase Authentication + Google OAuth            |
-| Maps / Location          | Google Maps Platform                              |
-| Backend                  | Ktor                                              |
-| API                      | REST                                              |
-| AI                       | Gemini / Firebase AI services                     |
-| Containerization         | Docker                                            |
-| CI/CD                    | GitHub Actions                                    |
-| Version Control          | Git + GitHub                                      |
-| Design                   | Figma                                             |
-| Diagrams                 | Lucidchart / Excalidraw                           |
-| Project Management       | Trello                                            |
-| Testing                  | JUnit + Android testing tools                     |
+| Category                 | Technology                                                          |
+|--------------------------|---------------------------------------------------------------------|
+| Language                 | Kotlin                                                              |
+| Android                  | Android SDK                                                         |
+| UI                       | Jetpack Compose                                                     |
+| Architecture             | Clean Architecture                                                  |
+| Architecture Layers      | Domain, Application, Infrastructure, Presentation                   |
+| Dependency Injection     | Hilt                                                                |
+| Asynchronous Programming | Kotlin Coroutines                                                   |
+| Local Persistence        | Room                                                                |
+| Cloud Database           | Firebase Firestore                                                  |
+| Authentication           | Firebase Authentication + Google OAuth                              |
+| Maps / Location          | Google Maps Platform                                                |
+| Backend                  | Ktor                                                                |
+| API                      | REST                                                                |
+| AI                       | Multi-provider (OpenRouter primary, Groq fallback) via Ktor backend |
+| Containerization         | Docker                                                              |
+| CI/CD                    | GitHub Actions                                                      |
+| Version Control          | Git + GitHub                                                        |
+| Design                   | Figma                                                               |
+| Diagrams                 | Lucidchart / Excalidraw                                             |
+| Project Management       | Trello                                                              |
+| Testing                  | JUnit + Android testing tools                                       |
 
 Technology choices and architectural decisions are documented in the project's technical documentation.
 

@@ -1,12 +1,13 @@
 package com.unihub.app.features.tasks.presentation.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
-import com.unihub.app.features.subjects.application.usecase.GetSubjectByIdUseCase
+import com.unihub.app.features.academic.application.usecase.GetSubjectByIdUseCase
 import com.unihub.app.features.tasks.application.usecase.GetTaskByIdUseCase
 import com.unihub.app.features.tasks.application.usecase.SaveTaskUseCase
 import com.unihub.app.features.tasks.application.usecase.UpdateTaskUseCase
@@ -38,6 +39,7 @@ class TaskFormViewModel @Inject constructor(
     private val updateTaskUseCase: UpdateTaskUseCase,
     private val getTaskByIdUseCase: GetTaskByIdUseCase,
     private val getSubjectByIdUseCase: GetSubjectByIdUseCase,
+    private val getAllSubjectsUseCase: com.unihub.app.features.academic.application.usecase.GetAllSubjectsUseCase,
     private val tagRepository: TagRepository,
     private val taskRepository: TaskRepository,
     private val getCurrentUidUseCase: GetCurrentUidUseCase,
@@ -57,18 +59,40 @@ class TaskFormViewModel @Inject constructor(
 
     init {
         currentTaskId = savedStateHandle.get<String>("taskId")
-        subjectId = savedStateHandle.get<String>("subjectId")
-        loadTags()
+        val initialSubjectId = savedStateHandle.get<String>("subjectId")
+        if (!initialSubjectId.isNullOrBlank() && initialSubjectId != "{subjectId}") {
+            subjectId = initialSubjectId
+            _state.update { it.copy(selectedSubjectId = initialSubjectId) }
+        }
+        loadSubjects()
+        syncAndLoadTags()
         currentTaskId?.let { loadTask(it) }
     }
 
-    private fun loadTags() {
+    private fun loadSubjects() {
         viewModelScope.launch {
             try {
+                getAllSubjectsUseCase(userId).collect { subjects ->
+                    _state.update { it.copy(availableSubjects = subjects) }
+                }
+            } catch (e: Exception) {
+                Log.e("TaskFormViewModel", "Error loading subjects: ${e.message}")
+            }
+        }
+    }
+
+    private fun syncAndLoadTags() {
+        viewModelScope.launch {
+            try {
+                // Primero sincronizar desde Firestore
+                tagRepository.syncTags(userId)
+                // Luego cargar las tags locales
                 tagRepository.getTagsByUser(userId).collect { tags ->
                     _state.update { it.copy(availableTags = tags) }
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                Log.e("TaskFormViewModel", "Error loading tags: ${e.message}")
+            }
         }
     }
 
@@ -88,6 +112,9 @@ class TaskFormViewModel @Inject constructor(
             }
             is TaskFormEvent.StatusChanged -> {
                 _state.update { it.copy(status = event.value) }
+            }
+            is TaskFormEvent.SubjectChanged -> {
+                _state.update { it.copy(selectedSubjectId = event.subjectId) }
             }
             is TaskFormEvent.ReminderChanged -> {
                 _state.update { it.copy(reminderType = event.type, reminderValue = event.value) }
@@ -186,6 +213,7 @@ class TaskFormViewModel @Inject constructor(
                             reminderType = it.reminderType,
                             reminderValue = it.reminderValue,
                             isDeadlineReminderEnabled = it.isDeadlineReminderEnabled,
+                            selectedSubjectId = it.subjectId,
                             isLoading = false
                         )
                     }
@@ -211,7 +239,9 @@ class TaskFormViewModel @Inject constructor(
     }
 
     private fun saveTask() {
-        if (!validateInputs()) return
+        if (!validateInputs()) {
+            return
+        }
 
         viewModelScope.launch {
             try {
@@ -225,7 +255,8 @@ class TaskFormViewModel @Inject constructor(
 
                 val now = Instant.now().toString()
                 var academicPeriodId: String? = null
-                subjectId?.let { sid ->
+                val finalSubjectId = _state.value.selectedSubjectId ?: subjectId
+                finalSubjectId?.let { sid ->
                     try {
                         val subject = getSubjectByIdUseCase(sid).first()
                         academicPeriodId = subject?.academicPeriodId
@@ -236,7 +267,7 @@ class TaskFormViewModel @Inject constructor(
                     id = currentTaskId ?: UUID.randomUUID().toString(),
                     userId = userId,
                     academicPeriodId = academicPeriodId,
-                    subjectId = subjectId,
+                    subjectId = finalSubjectId,
                     title = _state.value.title,
                     description = _state.value.description.ifBlank { null },
                     dueAt = _state.value.dueDate.ifBlank { null },
@@ -313,6 +344,7 @@ sealed class TaskFormEvent {
     data class EnteredDueDate(val value: String) : TaskFormEvent()
     data class PriorityChanged(val value: TaskPriority) : TaskFormEvent()
     data class StatusChanged(val value: TaskStatus) : TaskFormEvent()
+    data class SubjectChanged(val subjectId: String?) : TaskFormEvent()
     data class ReminderChanged(val type: TaskReminderType?, val value: Int?) : TaskFormEvent()
     object ClearReminder : TaskFormEvent()
     data class DeadlineReminderToggled(val isEnabled: Boolean) : TaskFormEvent()

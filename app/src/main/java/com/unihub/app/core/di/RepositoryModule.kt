@@ -10,8 +10,8 @@ import com.unihub.app.features.events.domain.repository.EventRepository
 import com.unihub.app.features.events.infrastructure.repository.EventRepositoryImpl
 import com.unihub.app.features.location.domain.repository.LocationRepository
 import com.unihub.app.features.location.infrastructure.repository.LocationRepositoryImpl
-import com.unihub.app.features.subjects.domain.repository.SubjectRepository
-import com.unihub.app.features.subjects.infrastructure.repository.SubjectRepositoryImpl
+import com.unihub.app.features.academic.domain.repository.SubjectRepository
+import com.unihub.app.features.academic.infrastructure.repository.SubjectRepositoryImpl
 import com.unihub.app.features.tasks.domain.repository.TaskRepository
 import com.unihub.app.features.tasks.infrastructure.repository.TaskRepositoryImpl
 import com.unihub.app.features.auth.domain.repository.AuthRepository

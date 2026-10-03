@@ -40,6 +40,10 @@ service cloud.firestore {
         match /reminders/{reminderId} {
           allow read, write: if isOwner(userId);
         }
+
+        match /eventTags/{tagId} {
+          allow read, write: if isOwner(userId);
+        }
       }
 
       match /recurrenceRules/{recurrenceRuleId} {
@@ -56,6 +60,10 @@ service cloud.firestore {
 
       match /tasks/{taskId} {
         allow read, write: if isOwner(userId);
+
+        match /taskTags/{tagId} {
+          allow read, write: if isOwner(userId);
+        }
       }
 
       match /grades/{gradeId} {

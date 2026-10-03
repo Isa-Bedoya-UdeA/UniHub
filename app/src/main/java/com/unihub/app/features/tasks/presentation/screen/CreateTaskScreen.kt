@@ -2,6 +2,7 @@ package com.unihub.app.features.tasks.presentation.screen
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -16,8 +17,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
+import com.unihub.app.core.designsystem.component.foundation.SelectOption
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubChip
+import com.unihub.app.core.designsystem.component.foundation.UniHubSelect
 import com.unihub.app.core.designsystem.component.foundation.UniHubTextArea
 import com.unihub.app.core.designsystem.component.foundation.UniHubTextField
 import com.unihub.app.core.designsystem.theme.UniHubTheme
@@ -48,11 +51,19 @@ fun CreateTaskScreen(
     var showMinutesPicker by remember { mutableStateOf(false) }
     var showHoursPicker by remember { mutableStateOf(false) }
     var showDaysPicker by remember { mutableStateOf(false) }
+    var currentMessageType by remember { mutableStateOf(MessageType.INFO) }
+
+    LaunchedEffect(subjectId) {
+        if (!subjectId.isNullOrBlank() && subjectId != "{subjectId}") {
+            viewModel.onEvent(TaskFormEvent.SubjectChanged(subjectId))
+        }
+    }
 
     LaunchedEffect(key1 = true) {
         viewModel.uiEvent.collectLatest { event ->
             when (event) {
                 is UiEvent.ShowMessage -> {
+                    currentMessageType = event.type
                     snackbarHostState.showSnackbar(
                         message = event.message,
                         duration = SnackbarDuration.Short
@@ -128,7 +139,10 @@ fun CreateTaskScreen(
 
     Scaffold(
         snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
+            com.unihub.app.core.designsystem.component.foundation.UniHubSnackbarHost(
+                hostState = snackbarHostState,
+                currentType = currentMessageType
+            )
         },
         containerColor = UniHubTheme.colorScheme.background
     ) { paddingValues ->
@@ -153,6 +167,7 @@ fun CreateTaskScreen(
             label = "Titulo de la tarea",
             placeholder = "Ej. Informe Final",
             isError = state.titleError != null,
+            imeAction = ImeAction.Next,
             modifier = Modifier.fillMaxWidth()
         )
         state.titleError?.let {
@@ -170,6 +185,24 @@ fun CreateTaskScreen(
         )
         
         Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+        val hasContextSubject = !subjectId.isNullOrBlank() && subjectId != "{subjectId}"
+        if (!hasContextSubject && state.availableSubjects.isNotEmpty()) {
+            val subjectOptions = listOf(SelectOption<String?>(null, "Ninguna")) +
+                state.availableSubjects.map { SelectOption<String?>(it.id, it.name) }
+
+            UniHubSelect(
+                options = subjectOptions,
+                selectedValue = state.selectedSubjectId,
+                onOptionSelected = { selectedSubId ->
+                    viewModel.onEvent(TaskFormEvent.SubjectChanged(selectedSubId))
+                },
+                label = "Materia (Opcional)",
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+        }
         
         Box(modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }) {
             UniHubTextField(
@@ -327,6 +360,7 @@ fun CreateTaskScreen(
             label = "Agregar etiqueta",
             placeholder = "Escribe y presiona Enter",
             modifier = Modifier.fillMaxWidth(),
+            capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.None,
             imeAction = ImeAction.Done,
             onImeAction = {
                 if (state.tagInput.isNotBlank()) {

@@ -6,7 +6,6 @@ import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.core.designsystem.component.academic.StudyOption
 import com.unihub.app.features.academic.application.usecase.DeleteAcademicPeriodUseCase
-import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.academic.application.usecase.GetAcademicPeriodsByStudyUseCase
 import com.unihub.app.features.academic.application.usecase.GetAcademicSummaryUseCase
 import com.unihub.app.features.academic.application.usecase.GetGradesBySubjectUseCase
@@ -14,13 +13,14 @@ import com.unihub.app.features.academic.application.usecase.GetStudiesUseCase
 import com.unihub.app.features.academic.application.usecase.SaveAcademicPeriodUseCase
 import com.unihub.app.features.academic.application.usecase.SetCurrentPeriodUseCase
 import com.unihub.app.features.academic.application.usecase.SetActiveStudyUseCase
+import com.unihub.app.features.academic.application.usecase.GetAllSubjectsUseCase
+import com.unihub.app.features.academic.application.usecase.GetSubjectsUseCase
+import com.unihub.app.features.academic.application.usecase.DeleteSubjectUseCase
 import com.unihub.app.features.academic.domain.model.AcademicPeriod
 import com.unihub.app.features.academic.domain.model.AcademicSummary
-import com.unihub.app.features.academic.domain.model.Grade
+import com.unihub.app.features.academic.domain.model.Subject
 import com.unihub.app.features.academic.presentation.state.AcademicState
-import com.unihub.app.features.subjects.application.usecase.GetAllSubjectsUseCase
-import com.unihub.app.features.subjects.application.usecase.GetSubjectsUseCase
-import com.unihub.app.features.subjects.domain.model.Subject
+import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -29,14 +29,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 data class SubjectWithGrade(
@@ -56,6 +55,7 @@ class AcademicViewModel @Inject constructor(
     private val setCurrentPeriodUseCase: SetCurrentPeriodUseCase,
     private val saveAcademicPeriodUseCase: SaveAcademicPeriodUseCase,
     private val deleteAcademicPeriodUseCase: DeleteAcademicPeriodUseCase,
+    private val deleteSubjectUseCase: DeleteSubjectUseCase,
     private val getGradesBySubjectUseCase: GetGradesBySubjectUseCase,
     private val getCurrentUidUseCase: GetCurrentUidUseCase
 ) : ViewModel() {
@@ -66,16 +66,17 @@ class AcademicViewModel @Inject constructor(
     val state: StateFlow<AcademicState> = _state.asStateFlow()
 
     private val _selectedStudyId = MutableStateFlow<String?>(null)
+    private val _selectedPeriodId = MutableStateFlow<String?>(null)
 
     private val _uiEvent = MutableSharedFlow<UiEvent>()
     val uiEvent = _uiEvent.asSharedFlow()
 
     init {
-        loadStudies()
+        loadData()
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private fun loadStudies() {
+    private fun loadData() {
         viewModelScope.launch {
             try {
                 getStudiesUseCase(userId).onEach { studies ->
@@ -109,46 +110,45 @@ class AcademicViewModel @Inject constructor(
                         }
                     }
                     .onEach { (periods, summary, counts) ->
-                        _state.update { it.copy(periods = periods, summary = summary, periodSubjectCounts = counts) }
+                        val currentPeriodId = _selectedPeriodId.value
+                        val autoSelected = if (currentPeriodId == null && periods.isNotEmpty()) {
+                            periods.find { it.isCurrent }?.id ?: periods.first().id
+                        } else {
+                            currentPeriodId
+                        }
+                        if (autoSelected != currentPeriodId) {
+                            _selectedPeriodId.value = autoSelected
+                        }
+                        _state.update {
+                            it.copy(
+                                periods = periods,
+                                summary = summary,
+                                periodSubjectCounts = counts,
+                                selectedPeriodId = _selectedPeriodId.value
+                            )
+                        }
                     }
                     .launchIn(viewModelScope)
 
-                _selectedStudyId
-                    .flatMapLatest { studyId ->
-                        if (studyId == null) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
-                        getAcademicPeriodsByStudyUseCase(userId, studyId)
-                            .flatMapLatest { periods ->
-                                val today = LocalDate.now()
-                                val formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
-                                
-                                val currentPeriod = periods.find { it.isCurrent } ?: periods.find { 
-                                    try {
-                                        val start = LocalDate.parse(it.startDate, formatter)
-                                        val end = LocalDate.parse(it.endDate, formatter)
-                                        !today.isBefore(start) && !today.isAfter(end)
-                                    } catch (e: Exception) { false }
-                                } ?: periods.firstOrNull()
-                                
-                                if (currentPeriod == null) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
-                                getSubjectsUseCase(userId, currentPeriod.id)
-                                    .flatMapLatest { subjects ->
-                                        if (subjects.isEmpty()) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
-                                        val subjectFlows = subjects.map { subject ->
-                                            getGradesBySubjectUseCase(subject.id).combine(flowOf(subject)) { grades, subj ->
-                                                val totalWeight = grades.sumOf { it.weight }
-                                                val weightedSum = grades.sumOf { it.value * it.weight }
-                                                val avg = weightedSum
-                                                SubjectWithGrade(subj, avg, (totalWeight * 100).toInt())
-                                            }
-                                        }
-                                        combine(subjectFlows) { it.toList() }
-                                    }
+                combine(_selectedStudyId, _selectedPeriodId) { studyId, periodId ->
+                    Pair(studyId, periodId)
+                }.flatMapLatest { (studyId, periodId) ->
+                    if (studyId == null || periodId == null) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
+                    getSubjectsUseCase(userId, periodId)
+                        .flatMapLatest { subjects ->
+                            if (subjects.isEmpty()) return@flatMapLatest flowOf(emptyList<SubjectWithGrade>())
+                            val subjectFlows = subjects.map { subject ->
+                                getGradesBySubjectUseCase(subject.id).combine(flowOf(subject)) { grades, subj ->
+                                    val totalWeight = grades.sumOf { it.weight }
+                                    val weightedSum = grades.sumOf { it.value * it.weight }
+                                    SubjectWithGrade(subj, weightedSum, (totalWeight * 100).toInt())
+                                }
                             }
-                    }
-                    .onEach { subjectsWithGrades ->
-                        _state.update { it.copy(subjects = subjectsWithGrades) }
-                    }
-                    .launchIn(viewModelScope)
+                            combine(subjectFlows) { it.toList() }
+                        }
+                }.onEach { subjectsWithGrades ->
+                    _state.update { it.copy(subjects = subjectsWithGrades, isLoading = false) }
+                }.launchIn(viewModelScope)
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, errorMessage = e.message) }
                 _uiEvent.emit(
@@ -163,6 +163,8 @@ class AcademicViewModel @Inject constructor(
 
     fun selectStudy(studyId: String) {
         _selectedStudyId.value = studyId
+        _selectedPeriodId.value = null
+        _state.update { it.copy(selectedStudyId = studyId, selectedPeriodId = null) }
         viewModelScope.launch {
             try {
                 setActiveStudyUseCase(userId, studyId)
@@ -177,14 +179,40 @@ class AcademicViewModel @Inject constructor(
         }
     }
 
+    fun selectPeriod(periodId: String) {
+        _selectedPeriodId.value = periodId
+        _state.update { it.copy(selectedPeriodId = periodId) }
+    }
+
+    fun deleteSubject(id: String) {
+        viewModelScope.launch {
+            try {
+                deleteSubjectUseCase(id)
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Materia eliminada exitosamente",
+                        type = MessageType.SUCCESS
+                    )
+                )
+            } catch (e: Exception) {
+                _uiEvent.emit(
+                    UiEvent.ShowMessage(
+                        message = "Error al eliminar la materia: ${e.message ?: "Error desconocido"}",
+                        type = MessageType.ERROR
+                    )
+                )
+            }
+        }
+    }
+
     fun setCurrentPeriod(periodId: String) {
         val period = _state.value.periods.find { it.id == periodId }
         if (period == null) return
 
         try {
-            val formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
-            val endDate = LocalDate.parse(period.endDate, formatter)
-            val today = LocalDate.now()
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy")
+            val endDate = java.time.LocalDate.parse(period.endDate, formatter)
+            val today = java.time.LocalDate.now()
 
             if (today.isAfter(endDate)) {
                 viewModelScope.launch {
@@ -197,8 +225,7 @@ class AcademicViewModel @Inject constructor(
                 }
                 return
             }
-        } catch (e: Exception) {
-            // Fallback if parsing fails
+        } catch (_: Exception) {
         }
 
         viewModelScope.launch {

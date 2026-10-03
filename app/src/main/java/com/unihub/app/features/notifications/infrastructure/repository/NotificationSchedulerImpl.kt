@@ -50,11 +50,24 @@ class NotificationSchedulerImpl(
                     pendingIntent
                 )
             } else {
-                alarmManager.setAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerAtMillis,
-                    pendingIntent
-                )
+                try {
+                    val showIntent = PendingIntent.getActivity(
+                        context,
+                        0,
+                        Intent(context, com.unihub.app.MainActivity::class.java),
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                    alarmManager.setAlarmClock(
+                        AlarmManager.AlarmClockInfo(triggerAtMillis, showIntent),
+                        pendingIntent
+                    )
+                } catch (_: Exception) {
+                    alarmManager.setAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerAtMillis,
+                        pendingIntent
+                    )
+                }
             }
         } else {
             alarmManager.setExactAndAllowWhileIdle(

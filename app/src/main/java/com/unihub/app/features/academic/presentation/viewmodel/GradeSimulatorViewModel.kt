@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.unihub.app.features.academic.application.usecase.CalculateRequiredGradeUseCase
 import com.unihub.app.features.academic.application.usecase.GetGradesBySubjectUseCase
 import com.unihub.app.features.academic.application.usecase.SimulationResult
-import com.unihub.app.features.subjects.application.usecase.GetSubjectByIdUseCase
+import com.unihub.app.features.academic.application.usecase.GetSubjectByIdUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch

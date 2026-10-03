@@ -14,7 +14,7 @@ import androidx.work.WorkerParameters
 import com.unihub.app.features.academic.domain.repository.AcademicRepository
 import com.unihub.app.features.auth.domain.repository.AuthRepository
 import com.unihub.app.features.events.domain.repository.EventRepository
-import com.unihub.app.features.subjects.domain.repository.SubjectRepository
+import com.unihub.app.features.academic.domain.repository.SubjectRepository
 import com.unihub.app.features.tasks.domain.repository.TaskRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject

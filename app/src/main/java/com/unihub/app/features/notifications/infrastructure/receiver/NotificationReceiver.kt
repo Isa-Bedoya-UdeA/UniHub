@@ -10,8 +10,17 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.unihub.app.MainActivity
 import com.unihub.app.R
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class NotificationReceiver : BroadcastReceiver() {
+
+    @Inject
+    lateinit var rescheduleRemindersUseCase: com.unihub.app.features.notifications.application.usecase.RescheduleRemindersUseCase
 
     override fun onReceive(context: Context, intent: Intent) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -48,6 +57,19 @@ class NotificationReceiver : BroadcastReceiver() {
             .build()
 
         notificationManager.notify(id.hashCode(), notification)
+
+        // Reschedule recurring reminders so the next occurrence (e.g. Thursday) is scheduled immediately
+        val pendingResult = goAsync()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                if (::rescheduleRemindersUseCase.isInitialized) {
+                    rescheduleRemindersUseCase()
+                }
+            } catch (_: Exception) {
+            } finally {
+                pendingResult.finish()
+            }
+        }
     }
 
     private fun createNotificationChannel(notificationManager: NotificationManager, channelId: String) {

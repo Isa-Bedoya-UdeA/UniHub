@@ -18,7 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.common.state.MessageType
@@ -42,10 +44,13 @@ fun CreateGradeScreen(
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    var currentMessageType by remember { mutableStateOf(MessageType.INFO) }
+
     LaunchedEffect(key1 = true) {
         viewModel.uiEvent.collectLatest { event ->
             when (event) {
                 is UiEvent.ShowMessage -> {
+                    currentMessageType = event.type
                     snackbarHostState.showSnackbar(
                         message = event.message,
                         duration = SnackbarDuration.Short
@@ -61,7 +66,10 @@ fun CreateGradeScreen(
 
     Scaffold(
         snackbarHost = {
-            SnackbarHost(hostState = snackbarHostState)
+            com.unihub.app.core.designsystem.component.foundation.UniHubSnackbarHost(
+                hostState = snackbarHostState,
+                currentType = currentMessageType
+            )
         },
         containerColor = UniHubTheme.colorScheme.background
     ) { paddingValues ->
@@ -86,6 +94,7 @@ fun CreateGradeScreen(
                 label = "Nombre de la evaluación",
                 placeholder = "Ej. Parcial 1",
                 isError = state.nameError != null,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                 modifier = Modifier.fillMaxWidth()
             )
             state.nameError?.let {
@@ -99,6 +108,8 @@ fun CreateGradeScreen(
                 onValueChange = { viewModel.onEvent(GradeFormEvent.EnteredValue(it)) },
                 label = "Nota",
                 placeholder = "0.0 - 5.0",
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                 isError = state.valueError != null,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -113,6 +124,8 @@ fun CreateGradeScreen(
                 onValueChange = { viewModel.onEvent(GradeFormEvent.EnteredWeight(it)) },
                 label = "Peso (%)",
                 placeholder = "Ej. 20",
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                 isError = state.weightError != null,
                 modifier = Modifier.fillMaxWidth()
             )

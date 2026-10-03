@@ -145,7 +145,7 @@ The architecture diagram must identify the technologies used by each major part 
 - **Local persistence:** Room / SQLite.
 - **Maps and location:** Google Maps Platform and Android location APIs.
 - **Push notifications:** Firebase Cloud Messaging.
-- **AI:** Gemini through the selected Google/Firebase AI integration.
+- **AI:** Multi-provider system (OpenRouter primary, Groq fallback, local deterministic fallback) through Ktor backend.
 - **Containerization:** Docker for the Ktor backend.
 - **CI/CD:** GitHub Actions.
 
@@ -1096,7 +1096,11 @@ diagram UniHubArchitecture
     component "Firebase Authentication" as FirebaseAuth
     component "Firebase Cloud Messaging" as FCM
     component "Google Maps Platform" as Maps
-    component "Gemini / AI Service" as Gemini
+    
+    component "AI Provider Layer" as AiLayer {
+        component "OpenRouter (Primary)" as OpenRouter
+        component "Groq (Fallback)" as Groq
+    }
 
     Student --> Android
 
@@ -1121,8 +1125,10 @@ diagram UniHubArchitecture
     Calendar --> Room
     Calendar --> Firestore
 
-    AI --> Gemini
     AI --> Ktor
+    Ktor --> AiLayer
+    AiLayer --> OpenRouter
+    AiLayer --> Groq
 
     Location --> Maps
     Android --> FCM

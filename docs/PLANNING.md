@@ -758,7 +758,7 @@ No dependerá de:
 * Room.
 * Ktor.
 * Google Maps.
-* Gemini.
+* Multi-provider AI (OpenRouter primary, Groq fallback).
 
 Contendrá:
 
@@ -893,10 +893,9 @@ app/src/main/java/com/example/unihub/
     ├── dashboard/
     ├── calendar/
     ├── events/
-    ├── subjects/
-    ├── tasks/
     ├── academic/
-    ├── gradesimulator/
+    │   (includes subjects, grades, grade simulator, studies, periods)
+    ├── tasks/
     ├── location/
     ├── ai/
     └── settings/
@@ -1114,32 +1113,34 @@ Propuesta inicial:
 ```text
                   UniHub
                      │
-          ┌──────────┼──────────┐
-          ↓          ↓          ↓
-       Dashboard   Calendar    Tasks
-                     │
-                Event Detail
+        ┌────────────┼────────────┐
+        ↓            ↓            ↓
+     Dashboard    Calendar     Academic
+        │            │            │
+   Event Detail  Event Detail  Subject Detail
+                              Create/Edit Subject
 
-          ┌──────────┼──────────┐
-          ↓          ↓          ↓
-       Subjects   Academic      AI
+        ┌────────────┼────────────┐
+        ↓            ↓            ↓
+      Tasks        AI         Settings
+                                      (Top Bar)
 ```
 
-Settings estará disponible desde el perfil o navegación secundaria.
+Settings estará disponible desde el icono de engranaje en la Top Bar en todas las pantallas principales.
 
 ### 13.4 Bottom Navigation
 
-La navegación principal podrá utilizar:
+La navegación principal utiliza:
 
 ```text
-Home
-Calendar
-Tasks
-Academic
-AI
+Inicio
+Agenda
+Academico
+Tareas
+Asistente
 ```
 
-La estructura definitiva será validada mediante prototipos.
+La pantalla de Academico unifica la gestion de materias y el rendimiento academico en una sola vista.
 
 ### 13.5 Accessibility
 
@@ -1324,48 +1325,48 @@ El objetivo no será solamente cumplir el "50%". La aplicación deberá tener un
 
 #### UI
 
-* [ ] UI 100%.
-* [ ] Navigation 100%.
-* [ ] Light Theme.
-* [ ] Dark Theme.
-* [ ] Design System.
-* [ ] Loading states.
-* [ ] Empty states.
-* [ ] Error states.
+* [x] UI 100%.
+* [x] Navigation 100%.
+* [x] Light Theme.
+* [x] Dark Theme.
+* [x] Design System.
+* [x] Loading states.
+* [x] Empty states.
+* [x] Error states.
 
 #### Funcionalidad
 
-* [ ] Authentication.
-* [ ] Subjects.
-* [ ] Events.
-* [ ] Tasks.
-* [ ] Calendar.
-* [ ] Academic grades.
-* [ ] Grade simulator.
-* [ ] Local persistence.
-* [ ] Firebase persistence.
-* [ ] Location-based events.
-* [ ] Notifications.
+* [x] Authentication.
+* [x] Subjects.
+* [x] Events.
+* [x] Tasks.
+* [x] Calendar.
+* [x] Academic grades.
+* [x] Grade simulator.
+* [x] Local persistence.
+* [x] Firebase persistence.
+* [x] Location-based events.
+* [x] Notifications.
 
 #### AI
 
-* [ ] AI integration functional.
-* [ ] Mini chat.
-* [ ] At least one functional action through natural language.
+* [x] AI integration functional.
+* [x] Mini chat.
+* [x] At least one functional action through natural language.
 
 #### Ktor
 
-* [ ] Ktor API.
-* [ ] Authentication middleware.
-* [ ] At least one useful endpoint.
+* [x] Ktor API.
+* [x] Authentication middleware.
+* [x] At least one useful endpoint.
 
 #### Documento
 
-* [ ] Descripción del avance.
-* [ ] Dificultades encontradas.
-* [ ] Estrategias utilizadas.
-* [ ] Conclusiones parciales.
-* [ ] Trabajo futuro.
+* [x] Descripción del avance.
+* [x] Dificultades encontradas.
+* [x] Estrategias utilizadas.
+* [x] Conclusiones parciales.
+* [x] Trabajo futuro.
 
 #### End-to-End Flow
 
@@ -1664,7 +1665,7 @@ Progress updated
 
 ```text
 AI mini chat
-Gemini integration
+Multi-provider AI integration (OpenRouter primary, Groq fallback)
 Prompt system
 Context builder
 
@@ -2100,7 +2101,7 @@ No se dockerizará Android Studio ni la aplicación Android.
 | Authentication  | Firebase Authentication                              |
 | OAuth           | Google                                               |
 | Notifications   | Firebase Cloud Messaging                             |
-| AI              | Gemini / Firebase AI Logic                           |
+| AI              | Multi-provider (OpenRouter primary, Groq fallback) via Ktor |
 | Maps            | Google Maps Platform                                 |
 | Backend         | Ktor                                                 |
 | Serialization   | Kotlinx Serialization                                |
@@ -2121,12 +2122,12 @@ La IA será utilizada como herramienta de productividad, manteniendo las decisio
 ### 23.1 Herramientas
 
 ```text
-Android Studio + Gemini
+Android Studio AI
 OpenCode Go
 ChatGPT
 ```
 
-### 23.2 Android Studio + Gemini
+### 23.2 Android Studio AI
 
 Usos principales:
 

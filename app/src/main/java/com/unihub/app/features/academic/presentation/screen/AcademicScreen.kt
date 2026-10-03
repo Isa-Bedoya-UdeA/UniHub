@@ -6,10 +6,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.academic.UniHubStudySelector
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
+import com.unihub.app.core.designsystem.component.foundation.UniHubChip
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.academic.presentation.viewmodel.AcademicViewModel
 import com.unihub.app.features.academic.presentation.viewmodel.SubjectWithGrade
@@ -27,6 +31,8 @@ import java.util.Locale
 @Composable
 fun AcademicScreen(
     onNavigateToSubjectDetail: (String) -> Unit,
+    onNavigateToCreateSubject: () -> Unit,
+    onNavigateToEditSubject: (String) -> Unit,
     onNavigateToManagePeriods: () -> Unit,
     viewModel: AcademicViewModel = hiltViewModel()
 ) {
@@ -34,127 +40,159 @@ fun AcademicScreen(
     val summary = state.summary
     val subjects = state.subjects
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(UniHubTheme.spacing.md)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onNavigateToCreateSubject,
+                containerColor = UniHubTheme.colorScheme.primary,
+                contentColor = UniHubTheme.colorScheme.surface,
+                shape = CircleShape
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Añadir Materia")
+            }
+        },
+        containerColor = UniHubTheme.colorScheme.background
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(UniHubTheme.spacing.md)
         ) {
-            Text(
-                text = "Mi Progreso",
-                style = UniHubTheme.typography.h1,
-                color = UniHubTheme.colorScheme.textPrimary
-            )
-            
-            Text(
-                text = "Gestionar Periodos",
-                style = UniHubTheme.typography.label,
-                color = UniHubTheme.colorScheme.primary,
-                modifier = Modifier.clickable { onNavigateToManagePeriods() }
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-
-        UniHubStudySelector(
-            studies = state.studies,
-            selectedStudyId = state.selectedStudyId,
-            onStudySelected = { viewModel.selectStudy(it) },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
-        
-        // Cumulative Card
-        UniHubCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = "GPA Acumulado",
-                    style = UniHubTheme.typography.label,
-                    color = UniHubTheme.colorScheme.textSecondary
-                )
-                Text(
-                    text = String.format(Locale.getDefault(), "%.2f", summary.cumulativeGpa),
+                    text = "Mi Progreso",
                     style = UniHubTheme.typography.h1,
-                    color = UniHubTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Black
+                    color = UniHubTheme.colorScheme.textPrimary
                 )
-                
-                if (summary.hasManualData) {
-                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
+
+                Text(
+                    text = "Gestionar Periodos",
+                    style = UniHubTheme.typography.label,
+                    color = UniHubTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onNavigateToManagePeriods() }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+            UniHubStudySelector(
+                studies = state.studies,
+                selectedStudyId = state.selectedStudyId,
+                onStudySelected = { viewModel.selectStudy(it) },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+
+            UniHubCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Incluye datos de semestres anteriores",
-                        style = UniHubTheme.typography.bodySmall,
-                        color = UniHubTheme.colorScheme.info
+                        text = "GPA Acumulado",
+                        style = UniHubTheme.typography.label,
+                        color = UniHubTheme.colorScheme.textSecondary
                     )
-                }
-                
-                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    AcademicStat(label = "Créditos", value = "${summary.earnedCredits} / ${summary.targetCredits}")
-                    AcademicStat(label = "Progreso", value = "${summary.progressPercentage.toInt()}%")
-                }
-                
-                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-                
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(CircleShape)
-                        .background(UniHubTheme.colorScheme.border)
-                ) {
+                    Text(
+                        text = String.format(Locale.getDefault(), "%.2f", summary.cumulativeGpa),
+                        style = UniHubTheme.typography.h1,
+                        color = UniHubTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Black
+                    )
+
+                    if (summary.hasManualData) {
+                        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
+                        Text(
+                            text = "Incluye datos de semestres anteriores",
+                            style = UniHubTheme.typography.bodySmall,
+                            color = UniHubTheme.colorScheme.info
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        AcademicStat(label = "Creditos", value = "${summary.earnedCredits} / ${summary.targetCredits}")
+                        AcademicStat(label = "Progreso", value = "${summary.progressPercentage.toInt()}%")
+                    }
+
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(summary.progressPercentage.toFloat() / 100f)
-                            .fillMaxHeight()
+                            .fillMaxWidth()
+                            .height(8.dp)
                             .clip(CircleShape)
-                            .background(UniHubTheme.colorScheme.accent)
-                    )
+                            .background(UniHubTheme.colorScheme.border)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(summary.progressPercentage.toFloat() / 100f)
+                                .fillMaxHeight()
+                                .clip(CircleShape)
+                                .background(UniHubTheme.colorScheme.accent)
+                        )
+                    }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.twoXl))
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
 
-        Text(
-            text = "Semestre Actual",
-            style = UniHubTheme.typography.h3,
-            color = UniHubTheme.colorScheme.textPrimary
-        )
-
-        Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-
-        if (subjects.isEmpty()) {
-            Text(
-                text = "No tienes materias registradas para el periodo seleccionado.",
-                style = UniHubTheme.typography.body,
-                color = UniHubTheme.colorScheme.info,
-                modifier = Modifier.padding(vertical = 16.dp)
-            )
-        } else {
-            subjects.forEach { item ->
-                val subject = item.subject
-                val color = try { Color(android.graphics.Color.parseColor(subject.color ?: "#4F46E5")) } catch (_: Exception) { UniHubTheme.colorScheme.primary }
-                
-                AcademicSubjectCard(
-                    code = subject.code ?: "---",
-                    name = subject.name,
-                    grade = if (item.average > 0) String.format(Locale.getDefault(), "%.1f", item.average) else "---",
-                    progress = item.progress,
-                    color = color,
-                    onClick = { onNavigateToSubjectDetail(subject.id) }
+            if (state.periods.isEmpty()) {
+                Text(
+                    text = "No hay periodos registrados para este programa.",
+                    style = UniHubTheme.typography.bodySmall,
+                    color = UniHubTheme.colorScheme.warning
                 )
-                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)
+                ) {
+                    state.periods.forEach { period ->
+                        UniHubChip(
+                            label = period.name,
+                            selected = state.selectedPeriodId == period.id,
+                            onClick = { viewModel.selectPeriod(period.id) }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
+
+            if (subjects.isEmpty()) {
+                Text(
+                    text = "No tienes materias registradas para este periodo.",
+                    style = UniHubTheme.typography.body,
+                    color = UniHubTheme.colorScheme.info,
+                    modifier = Modifier.padding(vertical = 32.dp)
+                )
+            } else {
+                subjects.forEach { item ->
+                    val subject = item.subject
+                    val colorHex = subject.color ?: "#4F46E5"
+
+                    DetailedSubjectCard(
+                        code = subject.code ?: "---",
+                        name = subject.name,
+                        professor = subject.professor ?: "Sin profesor",
+                        average = item.average,
+                        progress = item.progress,
+                        colorHex = colorHex,
+                        onClick = { onNavigateToSubjectDetail(subject.id) },
+                        onEdit = { onNavigateToEditSubject(subject.id) },
+                        onDelete = { viewModel.deleteSubject(subject.id) }
+                    )
+                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+                }
             }
         }
     }
@@ -169,43 +207,95 @@ fun AcademicStat(label: String, value: String) {
 }
 
 @Composable
-fun AcademicSubjectCard(
+fun DetailedSubjectCard(
     code: String,
     name: String,
-    grade: String,
+    professor: String,
+    average: Double,
     progress: Int,
-    color: Color,
-    onClick: () -> Unit
+    colorHex: String,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
-    UniHubCard(padding = 0.dp, onClick = onClick) {
-        Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-            Box(modifier = Modifier.width(6.dp).fillMaxHeight().background(color))
+    var showMenu by remember { mutableStateOf(false) }
+    val color = try { Color(android.graphics.Color.parseColor(colorHex)) } catch (_: Exception) { UniHubTheme.colorScheme.primary }
+
+    UniHubCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        padding = 0.dp
+    ) {
+        Column(modifier = Modifier.padding(UniHubTheme.spacing.md)) {
             Row(
-                modifier = Modifier.padding(UniHubTheme.spacing.md).fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = code, style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.textSecondary)
-                    Text(text = name, style = UniHubTheme.typography.h4, color = UniHubTheme.colorScheme.textPrimary)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "Evaluado: $progress%", style = UniHubTheme.typography.bodySmall, color = UniHubTheme.colorScheme.textSecondary)
-                }
-                
                 Box(
                     modifier = Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                        .background(color.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
+                        .clip(UniHubTheme.shape.sm)
+                        .background(color.copy(alpha = 0.1f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = grade,
-                        style = UniHubTheme.typography.h4,
-                        color = color,
-                        fontWeight = FontWeight.Bold
+                        text = code,
+                        style = UniHubTheme.typography.label,
+                        color = color
                     )
                 }
+
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Opciones")
+                    }
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Editar") },
+                            onClick = {
+                                showMenu = false
+                                onEdit()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Edit, null) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Eliminar", color = UniHubTheme.colorScheme.error) },
+                            onClick = {
+                                showMenu = false
+                                onDelete()
+                            },
+                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = UniHubTheme.colorScheme.error) }
+                        )
+                    }
+                }
+            }
+
+            Text(text = name, style = UniHubTheme.typography.h3)
+            Text(text = professor, style = UniHubTheme.typography.bodySmall, color = UniHubTheme.colorScheme.textSecondary)
+
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+            HorizontalDivider(color = UniHubTheme.colorScheme.border)
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (average > 0) String.format(Locale.getDefault(), "Promedio: %.1f / 5.0", average) else "Sin notas registradas",
+                    style = UniHubTheme.typography.body,
+                    color = if (average > 0) UniHubTheme.colorScheme.textPrimary else UniHubTheme.colorScheme.textDisabled
+                )
+
+                Text(
+                    text = "Evaluado: $progress%",
+                    style = UniHubTheme.typography.bodySmall,
+                    color = UniHubTheme.colorScheme.textSecondary
+                )
             }
         }
     }

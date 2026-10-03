@@ -23,7 +23,7 @@ import com.unihub.app.features.location.application.usecase.SaveLocationUseCase
 import com.unihub.app.features.location.application.usecase.OpenExternalMapUseCase
 import com.unihub.app.features.location.domain.model.Location
 import com.unihub.app.features.location.domain.repository.LocationCandidate
-import com.unihub.app.features.subjects.application.usecase.GetAllSubjectsUseCase
+import com.unihub.app.features.academic.application.usecase.GetAllSubjectsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow

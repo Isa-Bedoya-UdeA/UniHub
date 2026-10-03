@@ -8,6 +8,23 @@ application {
     mainClass.set("com.unihub.server.ApplicationKt")
 }
 
+tasks.register("runDirect") {
+    dependsOn("run")
+}
+
+tasks.withType<JavaExec> {
+    jvmArgs("-Djava.net.preferIPv4Stack=true")
+}
+
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = "com.unihub.server.ApplicationKt"
+    }
+    // Incluir todas las dependencias en el JAR
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 dependencies {
     implementation(libs.ktorServerCore)
     implementation(libs.ktorServerNetty)

@@ -5,7 +5,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -24,9 +24,9 @@ sealed class BottomNavItem(
 ) {
     object Dashboard : BottomNavItem(Screen.Dashboard, Icons.Default.Dashboard, "Inicio")
     object Calendar : BottomNavItem(Screen.Calendar, Icons.Default.CalendarMonth, "Agenda")
-    object Subjects : BottomNavItem(Screen.Subjects, Icons.AutoMirrored.Filled.List, "Materias")
-    object Academic : BottomNavItem(Screen.Academic, Icons.Default.School, "Académico")
-    object Settings : BottomNavItem(Screen.Settings, Icons.Default.Settings, "Ajustes")
+    object Academic : BottomNavItem(Screen.Academic, Icons.Default.School, "Academico")
+    object Tasks : BottomNavItem(Screen.Tasks, Icons.AutoMirrored.Filled.List, "Tareas")
+    object AiChat : BottomNavItem(Screen.AiChat, Icons.Default.SmartToy, "Asistente")
 }
 
 @Composable
@@ -38,9 +38,9 @@ fun UniHubBottomNavigation(
     val items = listOf(
         BottomNavItem.Dashboard,
         BottomNavItem.Calendar,
-        BottomNavItem.Subjects,
         BottomNavItem.Academic,
-        BottomNavItem.Settings
+        BottomNavItem.Tasks,
+        BottomNavItem.AiChat
     )
 
     NavigationBar(

@@ -38,4 +38,8 @@ class AcademicLocalDataSource @Inject constructor(
     suspend fun insertGrade(grade: GradeEntity) = academicDao.insertGrade(grade)
 
     suspend fun deleteGrade(id: String) = academicDao.deleteGrade(id)
+
+    suspend fun getGradesBySubjectOnce(subjectId: String): List<GradeEntity> = academicDao.getGradesBySubjectOnce(subjectId)
+
+    suspend fun deleteGradesBySubject(subjectId: String) = academicDao.deleteGradesBySubject(subjectId)
 }

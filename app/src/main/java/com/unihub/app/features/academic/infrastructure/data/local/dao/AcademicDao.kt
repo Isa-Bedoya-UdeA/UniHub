@@ -57,4 +57,10 @@ interface AcademicDao {
 
     @Query("DELETE FROM Grade WHERE grade_id = :id")
     suspend fun deleteGrade(id: String)
+
+    @Query("SELECT * FROM Grade WHERE subject_id = :subjectId")
+    suspend fun getGradesBySubjectOnce(subjectId: String): List<GradeEntity>
+
+    @Query("DELETE FROM Grade WHERE subject_id = :subjectId")
+    suspend fun deleteGradesBySubject(subjectId: String)
 }

@@ -26,6 +26,12 @@ interface TaskDao {
     @Query("DELETE FROM Task WHERE task_id = :id")
     suspend fun deleteTask(id: String)
 
+    @Query("SELECT * FROM Task WHERE subject_id = :subjectId")
+    suspend fun getTasksBySubjectOnce(subjectId: String): List<TaskEntity>
+
+    @Query("DELETE FROM Task WHERE subject_id = :subjectId")
+    suspend fun deleteTasksBySubject(subjectId: String)
+
     // Task Tags
     @Query("SELECT * FROM TaskTag WHERE task_id = :taskId")
     fun getTagsByTask(taskId: String): Flow<List<TaskTagEntity>>

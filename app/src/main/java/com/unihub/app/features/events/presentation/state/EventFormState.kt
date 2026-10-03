@@ -4,7 +4,7 @@ import com.unihub.app.features.events.domain.model.EventReminder
 import com.unihub.app.features.events.domain.model.EventType
 import com.unihub.app.features.events.domain.model.LocationType
 import com.unihub.app.features.location.domain.repository.LocationCandidate
-import com.unihub.app.features.subjects.domain.model.Subject
+import com.unihub.app.features.academic.domain.model.Subject
 
 data class EventFormState(
     val title: String = "",

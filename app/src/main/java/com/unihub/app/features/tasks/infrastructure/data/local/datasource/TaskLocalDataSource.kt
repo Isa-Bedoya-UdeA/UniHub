@@ -28,4 +28,10 @@ class TaskLocalDataSource @Inject constructor(
 
     suspend fun deleteTask(id: String) =
         taskDao.deleteTask(id)
+
+    suspend fun getTasksBySubjectOnce(subjectId: String): List<TaskEntity> =
+        taskDao.getTasksBySubjectOnce(subjectId)
+
+    suspend fun deleteTasksBySubject(subjectId: String) =
+        taskDao.deleteTasksBySubject(subjectId)
 }

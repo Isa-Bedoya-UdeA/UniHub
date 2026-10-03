@@ -9,6 +9,9 @@ import com.unihub.app.features.settings.infrastructure.data.mapper.toDomain
 import com.unihub.app.features.settings.infrastructure.data.mapper.toDto
 import com.unihub.app.features.settings.infrastructure.data.mapper.toEntity
 import com.unihub.app.features.settings.infrastructure.data.remote.datasource.SettingsRemoteDataSource
+import android.content.Context
+import com.unihub.app.core.util.PreferencesManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -17,7 +20,8 @@ import javax.inject.Singleton
 @Singleton
 class SettingsRepositoryImpl @Inject constructor(
     private val localDataSource: SettingsLocalDataSource,
-    private val remoteDataSource: SettingsRemoteDataSource
+    private val remoteDataSource: SettingsRemoteDataSource,
+    @ApplicationContext private val context: Context
 ) : SettingsRepository {
 
     override fun getUserPreferences(userId: String): Flow<UserPreferences?> {
@@ -33,6 +37,7 @@ class SettingsRepositoryImpl @Inject constructor(
         
         val preferences = UserPreferences(userId = userId, themeMode = themeMode)
         localDataSource.insertUserPreferences(preferences.toEntity())
+        PreferencesManager.setThemeMode(context, themeMode.name)
         Log.d("FIRESTORE_DEBUG", "Preferences saved to Room successfully")
         
         try {
@@ -53,6 +58,7 @@ class SettingsRepositoryImpl @Inject constructor(
             val remotePreferences = remoteDataSource.getPreferences(userId)
             if (remotePreferences != null) {
                 localDataSource.insertUserPreferences(remotePreferences.toDomain().toEntity())
+                PreferencesManager.setThemeMode(context, remotePreferences.themeMode)
             }
         } catch (e: Exception) {
             Log.e("SettingsRepositoryImpl", "Error syncing preferences from Firestore: ${e.message}")

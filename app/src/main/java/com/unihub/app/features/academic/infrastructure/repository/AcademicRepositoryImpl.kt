@@ -11,8 +11,8 @@ import com.unihub.app.features.academic.infrastructure.data.mapper.toDomain
 import com.unihub.app.features.academic.infrastructure.data.mapper.toDto
 import com.unihub.app.features.academic.infrastructure.data.mapper.toEntity
 import com.unihub.app.features.academic.infrastructure.data.remote.datasource.AcademicRemoteDataSource
-import com.unihub.app.features.subjects.infrastructure.data.local.dao.SubjectDao
-import com.unihub.app.features.subjects.infrastructure.data.mapper.toDomain as toSubjectDomain
+import com.unihub.app.features.academic.infrastructure.data.local.dao.SubjectDao
+import com.unihub.app.features.academic.infrastructure.data.mapper.toDomain as toSubjectDomain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
@@ -127,11 +127,13 @@ class AcademicRepositoryImpl @Inject constructor(
         return combine(
             localDataSource.getAllGrades(userId),
             subjectDao.getAllSubjects(userId),
-            studyLocalDataSource.getStudyById(studyId)
-        ) { gradeEntities, subjectEntities, studyEntity ->
+            studyLocalDataSource.getStudyById(studyId),
+            localDataSource.getAcademicPeriods(userId)
+        ) { gradeEntities, subjectEntities, studyEntity, periodEntities ->
             val userGrades = gradeEntities.map { it.toDomain() }
             val allSubjects = subjectEntities.map { it.toSubjectDomain() }
             val study = studyEntity?.toDomain()
+            val periods = periodEntities.map { it.toDomain() }
 
             val totalTargetCredits = study?.totalCredits ?: 0
             val manualApprovedCredits = study?.approvedCredits ?: 0
@@ -142,8 +144,24 @@ class AcademicRepositoryImpl @Inject constructor(
                 filteredSubjects.any { it.id == grade.subjectId }
             }
 
+            val today = java.time.LocalDate.now()
+
             val currentEarnedCredits = filteredSubjects.filter { subject ->
+                val period = periods.find { it.id == subject.academicPeriodId }
+                val isPeriodEnded = period?.endDate?.let {
+                    runCatching { java.time.LocalDate.parse(it).isBefore(today) }.getOrDefault(false)
+                } ?: false
+
+                // The credits of a subject should not be added to the total number of credits
+                // until marked as completed OR the academic period has ended.
+                if (!subject.isCompleted && !isPeriodEnded) {
+                    return@filter false
+                }
+
                 val subjectGrades = filteredGrades.filter { it.subjectId == subject.id }
+                if (subject.isCompleted && subjectGrades.isEmpty()) {
+                    return@filter true
+                }
                 if (subjectGrades.isEmpty()) return@filter false
                 val value = subjectGrades.sumOf { it.value * it.weight }
                 value >= 3.0

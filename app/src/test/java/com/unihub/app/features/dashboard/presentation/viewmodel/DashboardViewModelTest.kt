@@ -15,9 +15,9 @@ import com.unihub.app.features.events.domain.model.*
 import com.unihub.app.features.events.domain.repository.EventRepository
 import com.unihub.app.features.notifications.domain.model.Reminder
 import com.unihub.app.features.notifications.domain.repository.NotificationScheduler
-import com.unihub.app.features.subjects.application.usecase.GetAllSubjectsUseCase
-import com.unihub.app.features.subjects.domain.model.Subject
-import com.unihub.app.features.subjects.domain.repository.SubjectRepository
+import com.unihub.app.features.academic.application.usecase.GetAllSubjectsUseCase
+import com.unihub.app.features.academic.domain.model.Subject
+import com.unihub.app.features.academic.domain.repository.SubjectRepository
 import com.unihub.app.features.tasks.application.usecase.GetTasksUseCase
 import com.unihub.app.features.tasks.application.usecase.UpdateTaskStatusUseCase
 import com.unihub.app.features.tasks.domain.model.Task
@@ -52,7 +52,7 @@ class DashboardViewModelTest {
     @Test
     fun `getSubjectName returns subject name when found`() = runTest {
         val viewModel = createViewModel(subjects = listOf(
-            Subject("s1", "u1", "study1", "p1", "Matemáticas", null, null, null, null, null, "", "")
+            Subject("s1", "u1", "study1", "p1", "Matemáticas", null, null, null, null, null, false, "", "")
         ))
         assertEquals("Matemáticas", viewModel.getSubjectName("s1"))
     }

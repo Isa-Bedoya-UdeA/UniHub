@@ -11,9 +11,9 @@ sealed class Screen(val route: String) {
     // Main destinations (Bottom Nav)
     object Dashboard : Screen("dashboard")
     object Calendar : Screen("calendar")
-    object Subjects : Screen("subjects")
-    object Tasks : Screen("tasks")
     object Academic : Screen("academic")
+    object Tasks : Screen("tasks")
+    object AiChat : Screen("ai/chat")
     object Settings : Screen("settings")
 
     // Detail and creation routes
@@ -69,8 +69,6 @@ sealed class Screen(val route: String) {
     object GradeSimulator : Screen("academic/simulator?subjectId={subjectId}") {
         fun createRoute(subjectId: String) = "academic/simulator?subjectId=$subjectId"
     }
-
-    object AiChat : Screen("ai/chat")
 
     object SelectLocation : Screen("location/select")
 

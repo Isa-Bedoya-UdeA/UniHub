@@ -122,7 +122,6 @@ class TaskRemoteDataSource @Inject constructor(
                     .set(data)
                     .await()
             }
-            Log.d("TaskRemoteDataSource", "Task tags updated successfully")
         } catch (e: Exception) {
             Log.e("TaskRemoteDataSource", "Error updating task tags: ${e.message}", e)
         }

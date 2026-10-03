@@ -16,6 +16,8 @@ data class TaskFormState(
     val reminderType: TaskReminderType? = null,
     val reminderValue: Int? = null,
     val isDeadlineReminderEnabled: Boolean = false,
+    val selectedSubjectId: String? = null,
+    val availableSubjects: List<com.unihub.app.features.academic.domain.model.Subject> = emptyList(),
     val tagInput: String = "",
     val selectedTags: List<Tag> = emptyList(),
     val availableTags: List<Tag> = emptyList(),

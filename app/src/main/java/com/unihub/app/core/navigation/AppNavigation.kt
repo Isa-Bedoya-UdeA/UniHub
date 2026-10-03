@@ -21,7 +21,10 @@ import com.unihub.app.core.util.PreferencesManager
 import com.unihub.app.features.academic.presentation.screen.AcademicPeriodsScreen
 import com.unihub.app.features.academic.presentation.screen.AcademicScreen
 import com.unihub.app.features.academic.presentation.screen.CreateGradeScreen
+import com.unihub.app.features.academic.presentation.screen.CreateSubjectScreen
+import com.unihub.app.features.academic.presentation.screen.EditSubjectScreen
 import com.unihub.app.features.academic.presentation.screen.GradeSimulatorScreen
+import com.unihub.app.features.academic.presentation.screen.SubjectDetailsScreen
 import com.unihub.app.features.ai.presentation.screen.AiChatScreen
 import com.unihub.app.features.auth.presentation.screen.LoginScreen
 import com.unihub.app.features.auth.presentation.screen.OnboardingScreen
@@ -35,10 +38,6 @@ import com.unihub.app.features.settings.presentation.screen.EditProfileScreen
 import com.unihub.app.features.settings.presentation.screen.ManageStudiesScreen
 import com.unihub.app.features.settings.presentation.screen.PermissionGuideScreen
 import com.unihub.app.features.settings.presentation.screen.SettingsScreen
-import com.unihub.app.features.subjects.presentation.screen.CreateSubjectScreen
-import com.unihub.app.features.subjects.presentation.screen.EditSubjectScreen
-import com.unihub.app.features.subjects.presentation.screen.SubjectDetailsScreen
-import com.unihub.app.features.subjects.presentation.screen.SubjectsScreen
 import com.unihub.app.features.tasks.presentation.screen.CreateTaskScreen
 import com.unihub.app.features.tasks.presentation.screen.TaskDetailScreen
 import com.unihub.app.features.tasks.presentation.screen.TasksScreen
@@ -51,16 +50,14 @@ fun AppNavigation(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Check if current route is a bottom nav destination
     val showBottomBar = currentRoute in listOf(
         Screen.Dashboard.route,
         Screen.Calendar.route,
-        Screen.Subjects.route,
-        Screen.Tasks.route,
         Screen.Academic.route,
-        Screen.Settings.route
+        Screen.Tasks.route,
+        Screen.AiChat.route
     )
-    
+
     val showTopBar = currentRoute !in listOf(
         Screen.Splash.route,
         Screen.PermissionGuide.route,
@@ -68,11 +65,16 @@ fun AppNavigation(
         Screen.Login.route
     )
 
+    val showSettingsInTopBar = showBottomBar
+
     Scaffold(
         topBar = {
             if (showTopBar) {
                 UniHubTopBar(
-                    onBackClick = if (!showBottomBar) { { navController.popBackStack() } } else null
+                    onBackClick = if (!showBottomBar) { { navController.popBackStack() } } else null,
+                    onSettingsClick = if (showSettingsInTopBar) {
+                        { navController.navigate(Screen.Settings.route) }
+                    } else null
                 )
             }
         },
@@ -103,16 +105,14 @@ fun AppNavigation(
             composable(Screen.Splash.route) {
                 SplashScreen { isAuthenticated ->
                     if (isAuthenticated) {
-                        // User is already authenticated, go directly to Dashboard
                         navController.navigate(Screen.Dashboard.route) {
                             popUpTo(Screen.Splash.route) { inclusive = true }
                         }
                     } else {
-                        // User is not authenticated, check onboarding flow
                         val permissionGuideShown = PreferencesManager.isPermissionGuideShown(context)
                         val onboardingShown = PreferencesManager.isOnboardingShown(context)
                         val hasNotificationPermission = checkNotificationPermission(context)
-                        
+
                         when {
                             !hasNotificationPermission -> {
                                 navController.navigate(Screen.PermissionGuide.route) {
@@ -169,7 +169,7 @@ fun AppNavigation(
                 DashboardScreen(
                     onNavigateToTasks = { navController.navigate(Screen.Tasks.route) },
                     onNavigateToCalendar = { navController.navigate(Screen.Calendar.route) },
-                    onNavigateToSubjects = { navController.navigate(Screen.Subjects.route) },
+                    onNavigateToSubjects = { navController.navigate(Screen.Academic.route) },
                     onNavigateToEvent = { id ->
                         navController.navigate(Screen.EventDetail.createRoute(id))
                     },
@@ -191,16 +191,19 @@ fun AppNavigation(
                     }
                 )
             }
-            composable(Screen.Subjects.route) {
-                SubjectsScreen(
-                    onNavigateToDetails = { id -> 
-                        navController.navigate(Screen.SubjectDetail.createRoute(id)) 
+            composable(Screen.Academic.route) {
+                AcademicScreen(
+                    onNavigateToSubjectDetail = { id ->
+                        navController.navigate(Screen.SubjectDetail.createRoute(id))
                     },
-                    onNavigateToCreate = {
+                    onNavigateToCreateSubject = {
                         navController.navigate(Screen.CreateSubject.route)
                     },
-                    onNavigateToEdit = { id ->
+                    onNavigateToEditSubject = { id ->
                         navController.navigate(Screen.EditSubject.createRoute(id))
+                    },
+                    onNavigateToManagePeriods = {
+                        navController.navigate(Screen.AcademicPeriods.route)
                     }
                 )
             }
@@ -211,8 +214,8 @@ fun AppNavigation(
                 val subjectId = backStackEntry.arguments?.getString("subjectId") ?: ""
                 SubjectDetailsScreen(
                     subjectId = subjectId,
-                    onNavigateToEvent = { id -> 
-                        navController.navigate(Screen.EventDetail.createRoute(id)) 
+                    onNavigateToEvent = { id ->
+                        navController.navigate(Screen.EventDetail.createRoute(id))
                     },
                     onBack = { navController.popBackStack() },
                     onNavigateToCreateTask = {
@@ -241,22 +244,15 @@ fun AppNavigation(
             composable(Screen.Tasks.route) {
                 TasksScreen(
                     onNavigateToCreate = {
-                        navController.navigate(Screen.CreateTask.route)
+                        navController.navigate(Screen.CreateTask.createRoute())
                     },
                     onNavigateToTaskDetail = { taskId ->
                         navController.navigate(Screen.TaskDetail.createRoute(taskId))
                     }
                 )
             }
-            composable(Screen.Academic.route) {
-                AcademicScreen(
-                    onNavigateToSubjectDetail = { id ->
-                        navController.navigate(Screen.SubjectDetail.createRoute(id))
-                    },
-                    onNavigateToManagePeriods = {
-                        navController.navigate(Screen.AcademicPeriods.route)
-                    }
-                )
+            composable(Screen.AiChat.route) {
+                AiChatScreen()
             }
             composable(Screen.AcademicPeriods.route) {
                 AcademicPeriodsScreen(
@@ -316,7 +312,7 @@ fun AppNavigation(
                     onBack = { navController.popBackStack() }
                 )
             }
-            
+
             // Creation Screens
             composable(Screen.CreateSubject.route) {
                 CreateSubjectScreen(
@@ -348,7 +344,7 @@ fun AppNavigation(
             ) { backStackEntry ->
                 val subjectId = backStackEntry.arguments?.getString("subjectId")
                 val locationResult = backStackEntry.savedStateHandle.get<String>("location_result")
-                
+
                 CreateEventScreen(
                     subjectId = subjectId,
                     locationResult = locationResult,
@@ -363,7 +359,7 @@ fun AppNavigation(
             ) { backStackEntry ->
                 val eventId = backStackEntry.arguments?.getString("eventId")
                 val locationResult = backStackEntry.savedStateHandle.get<String>("location_result")
-                
+
                 CreateEventScreen(
                     eventId = eventId,
                     locationResult = locationResult,
@@ -401,7 +397,7 @@ fun AppNavigation(
                     onBack = { navController.popBackStack() }
                 )
             }
-            
+
             // Event Details
             composable(
                 route = Screen.EventDetail.route,
@@ -411,7 +407,7 @@ fun AppNavigation(
                 EventDetailsScreen(
                     eventId = eventId,
                     onBack = { navController.popBackStack() },
-                    onNavigateToEdit = { id -> 
+                    onNavigateToEdit = { id ->
                         navController.navigate(Screen.EditEvent.createRoute(id))
                     }
                 )
@@ -430,10 +426,6 @@ fun AppNavigation(
                         navController.navigate(Screen.CreateTask.createRoute(taskId = id))
                     }
                 )
-            }
-
-            composable(Screen.AiChat.route) {
-                AiChatScreen()
             }
         }
     }

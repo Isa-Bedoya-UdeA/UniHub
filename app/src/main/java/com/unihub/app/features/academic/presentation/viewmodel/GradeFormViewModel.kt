@@ -11,7 +11,7 @@ import com.unihub.app.features.academic.application.usecase.SaveGradeUseCase
 import com.unihub.app.features.academic.application.usecase.UpdateGradeUseCase
 import com.unihub.app.features.academic.domain.model.Grade
 import com.unihub.app.features.academic.presentation.state.GradeFormState
-import com.unihub.app.features.subjects.application.usecase.GetSubjectByIdUseCase
+import com.unihub.app.features.academic.application.usecase.GetSubjectByIdUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow

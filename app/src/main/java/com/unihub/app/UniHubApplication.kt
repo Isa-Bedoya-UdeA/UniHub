@@ -30,9 +30,11 @@ class UniHubApplication : Application(), Configuration.Provider {
             .build()
 
     override fun onCreate() {
-        super.onCreate()
-
+        // Initialize Places BEFORE super.onCreate() because Hilt injection
+        // (triggered by super.onCreate()) may create a PlacesClient that requires
+        // Places to be initialized first.
         initializePlaces()
+        super.onCreate()
 
         CoroutineScope(Dispatchers.IO).launch {
             rescheduleRemindersUseCase()
@@ -47,12 +49,15 @@ class UniHubApplication : Application(), Configuration.Provider {
                 packageName,
                 android.content.pm.PackageManager.GET_META_DATA
             )
-            val apiKey = info.metaData.getString("com.google.android.geo.API_KEY")
+            val apiKey = info.metaData?.getString("com.google.android.geo.API_KEY")
+            
             if (!apiKey.isNullOrBlank() && !apiKey.startsWith("$")) {
-                Places.initializeWithNewPlacesApiEnabled(applicationContext, apiKey)
+                if (!Places.isInitialized()) {
+                    Places.initialize(applicationContext, apiKey)
+                }
             }
         } catch (e: Exception) {
-            android.util.Log.e("UniHubApplication", "Failed to initialize Places SDK", e)
+            // Silently handle Places initialization errors
         }
     }
 }

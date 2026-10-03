@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
-import com.unihub.app.features.subjects.application.usecase.GetAllSubjectsUseCase
+import com.unihub.app.features.academic.application.usecase.GetAllSubjectsUseCase
 import com.unihub.app.features.tasks.application.usecase.DeleteTaskUseCase
 import com.unihub.app.features.tasks.application.usecase.GetTasksUseCase
 import com.unihub.app.features.tasks.application.usecase.SaveTaskUseCase

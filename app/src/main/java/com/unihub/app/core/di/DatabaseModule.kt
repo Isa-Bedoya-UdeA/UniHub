@@ -10,7 +10,7 @@ import com.unihub.app.features.events.infrastructure.data.local.dao.EventDao
 import com.unihub.app.features.events.infrastructure.data.local.dao.EventReminderDao
 import com.unihub.app.features.location.infrastructure.data.local.dao.LocationDao
 import com.unihub.app.features.settings.infrastructure.data.local.dao.UserPreferencesDao
-import com.unihub.app.features.subjects.infrastructure.data.local.dao.SubjectDao
+import com.unihub.app.features.academic.infrastructure.data.local.dao.SubjectDao
 import com.unihub.app.features.tasks.infrastructure.data.local.dao.TagDao
 import com.unihub.app.features.tasks.infrastructure.data.local.dao.TaskDao
 import dagger.Module
@@ -31,7 +31,6 @@ object DatabaseModule {
             AppDatabase::class.java,
             "unihub_database"
         )
-            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
             .fallbackToDestructiveMigration()
             .build()
     }

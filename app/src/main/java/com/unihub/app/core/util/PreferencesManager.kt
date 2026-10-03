@@ -28,6 +28,16 @@ object PreferencesManager {
         getPreferences(context).edit().putBoolean(KEY_ONBOARDING_SHOWN, shown).apply()
     }
 
+    private const val KEY_THEME_MODE = "theme_mode"
+
+    fun getThemeMode(context: Context): String? {
+        return getPreferences(context).getString(KEY_THEME_MODE, null)
+    }
+
+    fun setThemeMode(context: Context, themeMode: String) {
+        getPreferences(context).edit().putString(KEY_THEME_MODE, themeMode).apply()
+    }
+
     fun resetAllPreferences(context: Context) {
         getPreferences(context).edit().clear().apply()
     }

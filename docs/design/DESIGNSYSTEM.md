@@ -874,8 +874,7 @@ domain models. Each option shows the study name and institution.
 Use in:
 
 ``` text
-Academic view (progress)
-Subjects view
+Academic view (unified: progress + subjects)
 Any screen that filters content by study
 ```
 
@@ -888,6 +887,7 @@ Use for:
 ``` text
 Screen title
 Back navigation
+Settings access (gear icon on main screens)
 Contextual actions
 ```
 
@@ -898,14 +898,14 @@ Do not overload the top bar.
 Recommended primary destinations:
 
 ``` text
-Home
-Calendar
-Tasks
-Academics
+Inicio
+Agenda
+Academico
+Tareas
+Asistente
 ```
 
-The final navigation labels can be adjusted during the navigation-map
-stage.
+Settings is accessible from the Top Bar gear icon on all main screens.
 
 Rules:
 
@@ -1050,9 +1050,8 @@ UniHub
     ├── Authentication
     ├── Dashboard
     ├── Calendar
-    ├── Subjects
+    ├── Academic (unified: subjects + grades + progress)
     ├── Tasks
-    ├── Academics
     ├── AI Assistant
     └── Settings
 ```

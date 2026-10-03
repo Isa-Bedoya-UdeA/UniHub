@@ -263,6 +263,7 @@ fun PeriodDialog(
                 label = "Nombre",
                 placeholder = "Ej: 2024-2",
                 isError = nameError != null,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done,
                 modifier = Modifier.fillMaxWidth()
             )
             if (nameError != null) {
