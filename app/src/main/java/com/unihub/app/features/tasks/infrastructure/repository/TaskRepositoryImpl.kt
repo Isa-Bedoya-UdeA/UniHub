@@ -79,10 +79,11 @@ class TaskRepositoryImpl @Inject constructor(
 
     override suspend fun updateTaskStatus(id: String, status: TaskStatus) {
         localDataSource.updateStatus(id, status)
-        val task = localDataSource.getTaskById(id).firstOrNull() ?: return
+        val taskEntity = localDataSource.getTaskById(id).firstOrNull() ?: return
         try {
-            val dto = task.toDto()
-            remoteDataSource.saveTask(task.userId, dto)
+            val domainTask = taskEntity.toDomain()
+            val dto = domainTask.toDto()
+            remoteDataSource.saveTask(domainTask.userId, dto)
         } catch (e: Exception) {
             Log.e("TaskRepositoryImpl", "Error syncing task status to Firestore: ${e.message}")
         }

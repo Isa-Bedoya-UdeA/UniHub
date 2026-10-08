@@ -1,5 +1,6 @@
 package com.unihub.app.features.academic.infrastructure.data.local.datasource
 
+import androidx.room.withTransaction
 import com.unihub.app.core.database.AppDatabase
 import com.unihub.app.features.academic.infrastructure.data.local.dao.AcademicDao
 import com.unihub.app.features.academic.infrastructure.data.local.entity.AcademicPeriodEntity
