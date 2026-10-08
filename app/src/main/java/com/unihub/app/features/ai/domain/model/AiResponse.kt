@@ -9,9 +9,11 @@ enum class AiResponseSource {
     LIMITED_MODE
 }
 
+@Serializable
 data class AiResponse(
     val text: String,
     val source: AiResponseSource = AiResponseSource.AI,
     val provider: String? = null,
-    val model: String? = null
+    val model: String? = null,
+    val structuredResponse: AiStructuredResponse? = null
 )

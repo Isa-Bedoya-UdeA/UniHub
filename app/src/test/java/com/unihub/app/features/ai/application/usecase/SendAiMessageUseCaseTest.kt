@@ -1,7 +1,19 @@
 package com.unihub.app.features.ai.application.usecase
 
+import com.unihub.app.features.academic.application.usecase.GetAcademicPeriodsUseCase
+import com.unihub.app.features.academic.application.usecase.GetAcademicSummaryUseCase
 import com.unihub.app.features.academic.application.usecase.GetAllSubjectsUseCase
+import com.unihub.app.features.academic.application.usecase.GetGradesBySubjectUseCase
+import com.unihub.app.features.academic.application.usecase.GetStudiesUseCase
+import com.unihub.app.features.academic.application.usecase.SaveGradeUseCase
+import com.unihub.app.features.academic.application.usecase.SaveSubjectUseCase
+import com.unihub.app.features.academic.domain.model.AcademicPeriod
+import com.unihub.app.features.academic.domain.model.AcademicSummary
+import com.unihub.app.features.academic.domain.model.Grade
+import com.unihub.app.features.academic.domain.model.Study
 import com.unihub.app.features.academic.domain.model.Subject
+import com.unihub.app.features.academic.domain.repository.AcademicRepository
+import com.unihub.app.features.academic.domain.repository.StudyRepository
 import com.unihub.app.features.academic.domain.repository.SubjectRepository
 import com.unihub.app.features.ai.domain.model.AiResponse
 import com.unihub.app.features.ai.domain.model.AiResponseSource
@@ -10,9 +22,15 @@ import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import com.unihub.app.features.auth.domain.model.AuthState
 import com.unihub.app.features.auth.domain.repository.AuthRepository
 import com.unihub.app.features.events.application.usecase.GetEventsUseCase
+import com.unihub.app.features.events.application.usecase.SaveEventUseCase
 import com.unihub.app.features.events.domain.model.*
 import com.unihub.app.features.events.domain.repository.EventRepository
+import com.unihub.app.features.notifications.application.usecase.ScheduleEventReminderUseCase
+import com.unihub.app.features.notifications.application.usecase.ScheduleTaskReminderUseCase
+import com.unihub.app.features.notifications.domain.model.Reminder
+import com.unihub.app.features.notifications.domain.repository.NotificationScheduler
 import com.unihub.app.features.tasks.application.usecase.GetTasksUseCase
+import com.unihub.app.features.tasks.application.usecase.SaveTaskUseCase
 import com.unihub.app.features.tasks.domain.model.Task
 import com.unihub.app.features.tasks.domain.model.TaskPriority
 import com.unihub.app.features.tasks.domain.model.TaskStatus
@@ -94,6 +112,37 @@ class SendAiMessageUseCaseTest {
             override suspend fun syncExistingUser(userId: String) {}
         }
 
+        val fakeStudyRepo = object : StudyRepository {
+            override fun getStudies(userId: String): Flow<List<Study>> = flowOf(emptyList())
+            override fun getStudyById(id: String): Flow<Study?> = flowOf(null)
+            override suspend fun saveStudy(study: Study) {}
+            override suspend fun deleteStudy(id: String) {}
+            override suspend fun setActiveStudy(userId: String, studyId: String) {}
+            override suspend fun syncStudies(userId: String) {}
+        }
+
+        val fakeAcademicRepo = object : AcademicRepository {
+            override fun getAcademicPeriods(userId: String): Flow<List<AcademicPeriod>> = flowOf(emptyList())
+            override fun getAcademicPeriodsByStudy(userId: String, studyId: String): Flow<List<AcademicPeriod>> = flowOf(emptyList())
+            override suspend fun saveAcademicPeriod(period: AcademicPeriod) {}
+            override suspend fun updateAcademicPeriod(period: AcademicPeriod) {}
+            override suspend fun deleteAcademicPeriod(id: String) {}
+            override suspend fun setCurrentPeriod(userId: String, id: String) {}
+            override fun getGradesBySubject(subjectId: String): Flow<List<Grade>> = flowOf(emptyList())
+            override suspend fun saveGrade(grade: Grade) {}
+            override suspend fun updateGrade(grade: Grade) {}
+            override suspend fun deleteGrade(id: String) {}
+            override fun getAcademicSummary(userId: String, studyId: String): Flow<AcademicSummary> = flowOf(AcademicSummary(0.0, 0.0, 0, 0, 0.0))
+            override suspend fun syncAcademicData(userId: String) {}
+        }
+
+        val fakeScheduler = object : NotificationScheduler {
+            override fun schedule(reminder: Reminder) {}
+            override fun cancel(reminderId: String) {}
+            override fun cancelAllForEntity(entityId: String) {}
+            override fun hasExactAlarmPermission(): Boolean = true
+        }
+
         val localFallbackUseCase = LocalAiFallbackUseCase(
             getEventsUseCase = GetEventsUseCase(fakeEventRepo),
             getTasksUseCase = GetTasksUseCase(fakeTaskRepo),
@@ -102,10 +151,34 @@ class SendAiMessageUseCaseTest {
 
         val getCurrentUidUseCase = GetCurrentUidUseCase(fakeAuthRepo)
 
+        val buildAiContextUseCase = BuildAiContextUseCase(
+            getCurrentUidUseCase = getCurrentUidUseCase,
+            getStudiesUseCase = GetStudiesUseCase(fakeStudyRepo),
+            getAcademicPeriodsUseCase = GetAcademicPeriodsUseCase(fakeAcademicRepo),
+            getAllSubjectsUseCase = GetAllSubjectsUseCase(fakeSubjectRepo),
+            getEventsUseCase = GetEventsUseCase(fakeEventRepo),
+            getTasksUseCase = GetTasksUseCase(fakeTaskRepo),
+            getGradesBySubjectUseCase = GetGradesBySubjectUseCase(fakeAcademicRepo),
+            getAcademicSummaryUseCase = GetAcademicSummaryUseCase(fakeAcademicRepo)
+        )
+
+        val resolveAndExecuteAiActionUseCase = ResolveAndExecuteAiActionUseCase(
+            getCurrentUidUseCase = getCurrentUidUseCase,
+            getStudiesUseCase = GetStudiesUseCase(fakeStudyRepo),
+            getAcademicPeriodsUseCase = GetAcademicPeriodsUseCase(fakeAcademicRepo),
+            getAllSubjectsUseCase = GetAllSubjectsUseCase(fakeSubjectRepo),
+            saveSubjectUseCase = SaveSubjectUseCase(fakeSubjectRepo),
+            saveTaskUseCase = SaveTaskUseCase(fakeTaskRepo, ScheduleTaskReminderUseCase(fakeScheduler)),
+            saveEventUseCase = SaveEventUseCase(fakeEventRepo, ScheduleEventReminderUseCase(fakeEventRepo, fakeScheduler)),
+            saveGradeUseCase = SaveGradeUseCase(fakeAcademicRepo)
+        )
+
         useCase = SendAiMessageUseCase(
             repository = fakeRepository,
             localAiFallbackUseCase = localFallbackUseCase,
-            getCurrentUidUseCase = getCurrentUidUseCase
+            getCurrentUidUseCase = getCurrentUidUseCase,
+            buildAiContextUseCase = buildAiContextUseCase,
+            resolveAndExecuteAiActionUseCase = resolveAndExecuteAiActionUseCase
         )
     }
 
@@ -233,19 +306,63 @@ class SendAiMessageUseCaseTest {
     @Test
     fun `general query returns friendly fallback when AI fails`() = runBlocking {
         fakeRepository.shouldFail = true
-        val result = useCase("Explícame la física cuántica")
+        val result = useCase("Explícame cálculo integral")
         assertTrue(result.isSuccess)
         val text = result.getOrNull()?.text ?: ""
-        assertTrue(text.contains("limitada") || text.contains("problema"))
+        assertTrue(text.contains("disponible") || text.contains("limitada") || text.contains("problema"))
         assertEquals(AiResponseSource.LIMITED_MODE, result.getOrNull()?.source)
     }
+
+    @Test
+    fun `create task request delegates to AI repository instead of local fallback`() = runBlocking {
+        fakeRepository.response = "Voy a crear la tarea."
+        val result = useCase("créame una tarea de algoritmos para mañana")
+        assertTrue(result.isSuccess)
+        assertEquals(AiResponseSource.AI, result.getOrNull()?.source)
+    }
+
+    @Test
+    fun `create subject request delegates to AI repository instead of local fallback`() = runBlocking {
+        fakeRepository.response = "Voy a crear la materia."
+        val result = useCase("créame la materia bases de datos")
+        assertTrue(result.isSuccess)
+        assertEquals(AiResponseSource.AI, result.getOrNull()?.source)
+    }
+
+    @Test
+    fun `create event request delegates to AI repository instead of local fallback`() = runBlocking {
+        fakeRepository.response = "Voy a crear el evento."
+        val result = useCase("agrega un evento de calculo mañana de 2 a 4")
+        assertTrue(result.isSuccess)
+        assertEquals(AiResponseSource.AI, result.getOrNull()?.source)
+    }
+
+    @Test
+    fun `register grade request delegates to AI repository instead of local fallback`() = runBlocking {
+        fakeRepository.response = "Voy a registrar la nota."
+        val result = useCase("registra un 4.5 en algoritmos")
+        assertTrue(result.isSuccess)
+        assertEquals(AiResponseSource.AI, result.getOrNull()?.source)
+    }
+
+    @Test
+    fun `tasks query still handled locally`() = runBlocking {
+        val result = useCase("¿qué tareas tengo?")
+        assertTrue(result.isSuccess)
+        assertEquals(AiResponseSource.LOCAL_FALLBACK, result.getOrNull()?.source)
+    }
+}
 }
 
 class FakeAiRepository : AiRepository {
     var response: String = ""
     var shouldFail: Boolean = false
 
-    override suspend fun sendMessage(message: String): Result<AiResponse> {
+    override suspend fun sendMessage(
+        message: String,
+        context: String?,
+        conversationHistory: List<com.unihub.app.features.ai.domain.repository.AiConversationMessage>
+    ): Result<AiResponse> {
         return if (shouldFail) {
             Result.failure(Exception("Fake error"))
         } else {

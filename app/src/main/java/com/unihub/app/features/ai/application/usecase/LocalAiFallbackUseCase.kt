@@ -28,6 +28,10 @@ class LocalAiFallbackUseCase @Inject constructor(
             return "Hola, ¿en qué puedo ayudarte?"
         }
 
+        if (isMutationIntent(normalized)) {
+            return null
+        }
+
         if (isDailyPlanRequest(normalized)) {
             return buildDailyPlan(userId)
         }
@@ -74,6 +78,38 @@ class LocalAiFallbackUseCase @Inject constructor(
             .replace(Regex("[^a-z0-9\\s]"), " ")
             .replace(Regex("\\s+"), " ")
             .trim()
+    }
+
+    private fun isMutationIntent(input: String): Boolean {
+        val mutationVerbs = listOf(
+            "crear", "creame", "crea", "crear",
+            "agregar", "agregame", "agrega", "agregale",
+            "registrar", "registra", "registrame",
+            "anadir", "anadime", "anade", "añadir", "añademe", "añade",
+            "guardar", "guarda", "guardame",
+            "programar", "programa", "programame",
+            "asignar", "asigna", "asigname",
+            "poner", "ponme", "pon",
+            "hacer", "hazme", "haz",
+            "insertar", "inserta",
+            "nueva", "nuevo"
+        )
+
+        val patterns = listOf(
+            "\\bcrea(r|me|s)?\\b".toRegex(),
+            "\\bagrega(r|me|s|le)?\\b".toRegex(),
+            "\\bregistra(r|me|s)?\\b".toRegex(),
+            "\\ba[nñ]ade(r|me|s)?\\b".toRegex(),
+            "\\bguarda(r|me|s)?\\b".toRegex(),
+            "\\bprograma(r|me|s)?\\b".toRegex(),
+            "\\basigna(r|me|s)?\\b".toRegex(),
+            "\\bpon(me|ga|)?\\b".toRegex(),
+            "\\bhaz(me)?\\b".toRegex(),
+            "\\bnuev[oa]\\b".toRegex()
+        )
+
+        return patterns.any { it.containsMatchIn(input) } ||
+                mutationVerbs.any { input.contains(it) }
     }
 
     private fun isGreeting(input: String): Boolean {

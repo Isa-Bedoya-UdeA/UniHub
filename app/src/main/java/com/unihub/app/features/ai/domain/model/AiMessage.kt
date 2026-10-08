@@ -16,5 +16,7 @@ data class AiMessage(
     val role: AiMessageRole,
     val content: String,
     val timestamp: Long = System.currentTimeMillis(),
-    val source: AiResponseSource? = null
+    val source: AiResponseSource? = null,
+    val structuredResponse: AiStructuredResponse? = null,
+    val pendingAction: AiPendingAction? = null
 )

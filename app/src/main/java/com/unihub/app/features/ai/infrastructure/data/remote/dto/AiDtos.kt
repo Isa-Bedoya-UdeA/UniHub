@@ -3,8 +3,16 @@ package com.unihub.app.features.ai.infrastructure.data.remote.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class AiConversationMessageDto(
+    val role: String,
+    val content: String
+)
+
+@Serializable
 data class AiChatRequestDto(
-    val message: String
+    val message: String,
+    val context: String? = null,
+    val conversationHistory: List<AiConversationMessageDto> = emptyList()
 )
 
 @Serializable

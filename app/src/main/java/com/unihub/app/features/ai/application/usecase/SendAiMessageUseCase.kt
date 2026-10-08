@@ -2,6 +2,7 @@ package com.unihub.app.features.ai.application.usecase
 
 import com.unihub.app.features.ai.domain.model.AiResponse
 import com.unihub.app.features.ai.domain.model.AiResponseSource
+import com.unihub.app.features.ai.domain.repository.AiConversationMessage
 import com.unihub.app.features.ai.domain.repository.AiRepository
 import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import javax.inject.Inject
@@ -9,9 +10,14 @@ import javax.inject.Inject
 class SendAiMessageUseCase @Inject constructor(
     private val repository: AiRepository,
     private val localAiFallbackUseCase: LocalAiFallbackUseCase,
-    private val getCurrentUidUseCase: GetCurrentUidUseCase
+    private val getCurrentUidUseCase: GetCurrentUidUseCase,
+    private val buildAiContextUseCase: BuildAiContextUseCase,
+    private val resolveAndExecuteAiActionUseCase: ResolveAndExecuteAiActionUseCase
 ) {
-    suspend operator fun invoke(message: String): Result<AiResponse> {
+    suspend operator fun invoke(
+        message: String,
+        conversationHistory: List<AiConversationMessage> = emptyList()
+    ): Result<AiResponse> {
         val trimmed = message.trim()
         if (trimmed.isBlank()) {
             return Result.failure(IllegalArgumentException("El mensaje no puede estar vacío"))
@@ -22,7 +28,6 @@ class SendAiMessageUseCase @Inject constructor(
 
         val userId = getCurrentUidUseCase() ?: "current_user"
 
-        // 1. Check if the input is a deterministic intent (greetings, events, tasks, daily plan, subjects)
         val deterministicResponse = localAiFallbackUseCase.handleDeterministicIntent(trimmed, userId)
         if (deterministicResponse != null) {
             return Result.success(
@@ -33,15 +38,34 @@ class SendAiMessageUseCase @Inject constructor(
             )
         }
 
-        // 2. Call external AI via Ktor
-        val remoteResult = repository.sendMessage(trimmed)
+        val userContext = try {
+            buildAiContextUseCase()
+        } catch (_: Exception) {
+            null
+        }
+
+        val recentHistory = conversationHistory.takeLast(MAX_CONVERSATION_MESSAGES)
+
+        val remoteResult = repository.sendMessage(trimmed, userContext, recentHistory)
 
         return remoteResult.fold(
-            onSuccess = { response -> Result.success(response) },
+            onSuccess = { response ->
+                val rawStructured = response.structuredResponse
+                if (rawStructured != null) {
+                    val resolvedStructured = resolveAndExecuteAiActionUseCase.resolve(rawStructured)
+                    Result.success(
+                        response.copy(
+                            text = resolvedStructured.message.ifBlank { response.text },
+                            structuredResponse = resolvedStructured
+                        )
+                    )
+                } else {
+                    Result.success(response)
+                }
+            },
             onFailure = {
-                // 3. Fallback when AI is unavailable/fails: try local keyword response or friendly limited capability message
                 val fallbackResponse = localAiFallbackUseCase.handleFallbackForFailedAi(trimmed, userId)
-                    ?: "Hay un problema con el asistente. Por ahora puedo ayudarte de forma limitada con tus eventos, tareas y agenda."
+                    ?: "El asistente externo no está disponible en este momento. Puedes consultar tus eventos, tareas y plan del día."
                 Result.success(
                     AiResponse(
                         text = fallbackResponse,
@@ -54,5 +78,6 @@ class SendAiMessageUseCase @Inject constructor(
 
     companion object {
         const val MAX_MESSAGE_LENGTH = 2000
+        const val MAX_CONVERSATION_MESSAGES = 6
     }
 }

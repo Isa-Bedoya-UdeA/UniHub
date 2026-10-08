@@ -11,7 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -96,6 +95,7 @@ fun AiChatScreen(
                     }
                 }
             }
+
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
@@ -112,7 +112,16 @@ fun AiChatScreen(
                 }
 
                 items(state.messages) { message ->
-                    UniHubAIMessage(message = message)
+                    UniHubAIMessage(
+                        message = message,
+                        onConfirmAction = { pendingAction ->
+                            viewModel.confirmPendingAction(pendingAction)
+                        },
+                        onCancelAction = {
+                            viewModel.cancelPendingAction()
+                        },
+                        isActionActive = (message.pendingAction != null && message.pendingAction == state.pendingAction)
+                    )
                 }
 
                 if (state.isLoading) {
@@ -244,7 +253,7 @@ private fun WelcomeCard(userName: String) {
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
 
             Text(
-                text = "Soy tu asistente de IA. Puedo ayudarte a organizar tu horario, hacer seguimiento de tareas y optimizar tu tiempo de estudio. Como puedo ayudarte hoy?",
+                text = "Soy tu asistente de IA. Puedo ayudarte a organizar tu horario, hacer seguimiento de tareas y optimizar tu tiempo de estudio. ¿Cómo puedo ayudarte hoy?",
                 style = UniHubTheme.typography.body,
                 color = UniHubTheme.colorScheme.textSecondary,
                 modifier = Modifier.padding(horizontal = UniHubTheme.spacing.md)

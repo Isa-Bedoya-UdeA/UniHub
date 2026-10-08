@@ -1,6 +1,7 @@
 package com.unihub.app.features.ai.presentation.state
 
 import com.unihub.app.features.ai.domain.model.AiMessage
+import com.unihub.app.features.ai.domain.model.AiPendingAction
 
 enum class AiChatStatus {
     IDLE,
@@ -8,6 +9,8 @@ enum class AiChatStatus {
     AI_RESPONSE,
     DETERMINISTIC_FALLBACK,
     LIMITED_MODE,
+    CONFIRMATION_REQUIRED,
+    ACTION_EXECUTING,
     ERROR
 }
 
@@ -18,5 +21,6 @@ data class AiChatUiState(
     val status: AiChatStatus = AiChatStatus.IDLE,
     val errorMessage: String? = null,
     val userName: String = "Usuario",
-    val isLimitedMode: Boolean = false
+    val isLimitedMode: Boolean = false,
+    val pendingAction: AiPendingAction? = null
 )
