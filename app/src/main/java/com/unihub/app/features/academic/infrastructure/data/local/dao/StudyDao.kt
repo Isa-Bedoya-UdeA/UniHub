@@ -1,6 +1,9 @@
 package com.unihub.app.features.academic.infrastructure.data.local.dao
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
 import com.unihub.app.features.academic.infrastructure.data.local.entity.StudyEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -17,12 +20,6 @@ interface StudyDao {
 
     @Query("UPDATE Study SET is_active = 0 WHERE user_id = :userId")
     suspend fun deactivateAllStudies(userId: String)
-
-    @Transaction
-    suspend fun setActiveStudy(userId: String, studyId: String) {
-        deactivateAllStudies(userId)
-        markActive(studyId)
-    }
 
     @Query("UPDATE Study SET is_active = 1 WHERE study_id = :studyId")
     suspend fun markActive(studyId: String)

@@ -1,5 +1,6 @@
 package com.unihub.app.features.academic.infrastructure.data.local.datasource
 
+import com.unihub.app.core.database.AppDatabase
 import com.unihub.app.features.academic.infrastructure.data.local.dao.StudyDao
 import com.unihub.app.features.academic.infrastructure.data.local.entity.StudyEntity
 import kotlinx.coroutines.flow.Flow
@@ -8,7 +9,8 @@ import javax.inject.Singleton
 
 @Singleton
 class StudyLocalDataSource @Inject constructor(
-    private val studyDao: StudyDao
+    private val studyDao: StudyDao,
+    private val database: AppDatabase
 ) {
     fun getStudies(userId: String): Flow<List<StudyEntity>> = studyDao.getStudies(userId)
 
@@ -18,5 +20,8 @@ class StudyLocalDataSource @Inject constructor(
 
     suspend fun deleteStudy(id: String) = studyDao.deleteStudy(id)
 
-    suspend fun setActiveStudy(userId: String, studyId: String) = studyDao.setActiveStudy(userId, studyId)
+    suspend fun setActiveStudy(userId: String, studyId: String) = database.withTransaction {
+        studyDao.deactivateAllStudies(userId)
+        studyDao.markActive(studyId)
+    }
 }

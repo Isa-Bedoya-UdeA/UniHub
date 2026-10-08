@@ -1,5 +1,6 @@
 package com.unihub.app.features.academic.infrastructure.data.local.datasource
 
+import com.unihub.app.core.database.AppDatabase
 import com.unihub.app.features.academic.infrastructure.data.local.dao.AcademicDao
 import com.unihub.app.features.academic.infrastructure.data.local.entity.AcademicPeriodEntity
 import com.unihub.app.features.academic.infrastructure.data.local.entity.GradeEntity
@@ -9,7 +10,8 @@ import javax.inject.Singleton
 
 @Singleton
 class AcademicLocalDataSource @Inject constructor(
-    private val academicDao: AcademicDao
+    private val academicDao: AcademicDao,
+    private val database: AppDatabase
 ) {
     fun getPeriodById(id: String): Flow<AcademicPeriodEntity?> =
         academicDao.getPeriodById(id)
@@ -22,9 +24,15 @@ class AcademicLocalDataSource @Inject constructor(
 
     suspend fun insertPeriod(period: AcademicPeriodEntity) = academicDao.insertPeriod(period)
 
-    suspend fun deletePeriod(id: String) = academicDao.deletePeriod(id)
+    suspend fun deletePeriod(id: String) = database.withTransaction {
+        academicDao.deleteSubjectsByPeriod(id)
+        academicDao.deletePeriodOnly(id)
+    }
 
-    suspend fun setCurrentPeriod(userId: String, id: String) = academicDao.setCurrentPeriod(userId, id)
+    suspend fun setCurrentPeriod(userId: String, id: String) = database.withTransaction {
+        academicDao.deactivateAllPeriods(userId)
+        academicDao.markPeriodCurrent(id)
+    }
 
     fun getGradeById(id: String): Flow<GradeEntity?> =
         academicDao.getGradeById(id)

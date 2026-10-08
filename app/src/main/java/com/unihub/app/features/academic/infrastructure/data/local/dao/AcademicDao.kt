@@ -1,6 +1,9 @@
 package com.unihub.app.features.academic.infrastructure.data.local.dao
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
 import com.unihub.app.features.academic.infrastructure.data.local.entity.AcademicPeriodEntity
 import com.unihub.app.features.academic.infrastructure.data.local.entity.GradeEntity
 import kotlinx.coroutines.flow.Flow
@@ -25,23 +28,11 @@ interface AcademicDao {
     @Query("UPDATE AcademicPeriod SET is_current = 1 WHERE academic_period_id = :id")
     suspend fun markPeriodCurrent(id: String)
 
-    @Transaction
-    suspend fun setCurrentPeriod(userId: String, id: String) {
-        deactivateAllPeriods(userId)
-        markPeriodCurrent(id)
-    }
-
     @Query("DELETE FROM AcademicPeriod WHERE academic_period_id = :id")
     suspend fun deletePeriodOnly(id: String)
 
     @Query("DELETE FROM Subject WHERE academic_period_id = :id")
     suspend fun deleteSubjectsByPeriod(id: String)
-
-    @Transaction
-    suspend fun deletePeriod(id: String) {
-        deleteSubjectsByPeriod(id)
-        deletePeriodOnly(id)
-    }
 
     @Query("SELECT * FROM Grade WHERE subject_id = :subjectId")
     fun getGradesBySubject(subjectId: String): Flow<List<GradeEntity>>

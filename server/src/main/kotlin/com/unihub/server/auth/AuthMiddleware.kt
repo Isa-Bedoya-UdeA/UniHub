@@ -30,6 +30,7 @@ fun Route.authenticateFirebase(
         }
     })
 
+    @Suppress("DEPRECATION")
     authenticatedRoute.intercept(ApplicationCallPipeline.Plugins) {
         val authHeader = call.request.header(HttpHeaders.Authorization)
         if (authHeader.isNullOrBlank() || !authHeader.startsWith("Bearer ", ignoreCase = true)) {

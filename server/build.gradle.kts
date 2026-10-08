@@ -8,6 +8,10 @@ application {
     mainClass.set("com.unihub.server.ApplicationKt")
 }
 
+kotlin {
+    jvmToolchain(21)
+}
+
 tasks.register("runDirect") {
     dependsOn("run")
 }
