@@ -43,7 +43,9 @@ class RepeatSubjectUseCase @Inject constructor(
                     Log.w("RepeatSubjectUseCase", "Failed deleting grade ${grade.id} from Firestore: ${e.message}")
                 }
                 if (grade.userId.isNotBlank() && grade.userId != effectiveUid) {
-                    try { academicRemoteDataSource.deleteGrade(grade.userId, grade.id) } catch (_: Exception) {}
+                    try { academicRemoteDataSource.deleteGrade(grade.userId, grade.id) } catch (e: Exception) {
+                        Log.w("RepeatSubjectUseCase", "Failed deleting grade ${grade.id} from alternate user: ${e.message}")
+                    }
                 }
             }
             academicLocalDataSource.deleteGradesBySubject(subjectId)
@@ -74,7 +76,9 @@ class RepeatSubjectUseCase @Inject constructor(
                     Log.w("RepeatSubjectUseCase", "Failed deleting task ${task.id} from Firestore: ${e.message}")
                 }
                 if (task.userId.isNotBlank() && task.userId != effectiveUid) {
-                    try { taskRemoteDataSource.deleteTask(task.userId, task.id) } catch (_: Exception) {}
+                    try { taskRemoteDataSource.deleteTask(task.userId, task.id) } catch (e: Exception) {
+                        Log.w("RepeatSubjectUseCase", "Failed deleting task ${task.id} from alternate user: ${e.message}")
+                    }
                 }
             }
             taskLocalDataSource.deleteTasksBySubject(subjectId)
@@ -110,7 +114,9 @@ class RepeatSubjectUseCase @Inject constructor(
                     Log.w("RepeatSubjectUseCase", "Failed deleting event ${event.id} from Firestore: ${e.message}")
                 }
                 if (event.userId.isNotBlank() && event.userId != effectiveUid) {
-                    try { eventRemoteDataSource.deleteEvent(event.userId, event.id) } catch (_: Exception) {}
+                    try { eventRemoteDataSource.deleteEvent(event.userId, event.id) } catch (e: Exception) {
+                        Log.w("RepeatSubjectUseCase", "Failed deleting event ${event.id} from alternate user: ${e.message}")
+                    }
                 }
             }
             eventLocalDataSource.deleteEventsBySubject(subjectId)

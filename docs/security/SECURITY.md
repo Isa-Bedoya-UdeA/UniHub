@@ -593,3 +593,71 @@ Given the project's four-month timeframe, security priorities are:
 
 Advanced security mechanisms must not compromise MVP stability.
 
+## 22. Firebase App Check
+
+Firebase App Check has been evaluated for the UniHub project. The complete evaluation, including technical feasibility analysis, cost-benefit assessment, and implementation plan, is documented in:
+
+**[Firebase App Check Evaluation](FIREBASE_APP_CHECK_EVALUATION.md)**
+
+### Current Status
+
+- **MVP Phase:** Not implemented. The existing security measures (Firebase Authentication, Firestore Security Rules with ownership validation, Ktor token validation) provide adequate protection for the university MVP.
+- **Production Phase:** Recommended for implementation when the app is published to the Google Play Store.
+
+### Rationale
+
+The project already implements defense-in-depth with multiple security layers:
+
+1. **Authentication:** Firebase Authentication with Google OAuth.
+2. **Authorization:** Firestore Security Rules enforce ownership (`request.auth.uid == userId`) on all collections and subcollections.
+3. **Backend Protection:** Ktor validates Firebase ID Tokens using Firebase Admin SDK.
+4. **Secret Management:** API keys are stored only in the backend environment, never in the Android client.
+
+Firebase App Check would add device attestation to prevent automated abuse, but requires Google Play Console configuration and adds development complexity that is not justified for the current MVP phase.
+
+### Implementation Requirements (Future)
+
+When ready for production:
+
+1. Google Play Console account ($25 one-time fee).
+2. App published in Play Store (at least closed testing).
+3. Play Integrity API configured as attestation provider.
+4. App Check SDK integrated in Android app.
+5. Firestore rules updated with `request.app_check.status == 'VALID'` condition.
+6. Optional: Ktor backend integration for additional API protection.
+
+## 23. Input Validation Summary
+
+### Server-Side (Ktor)
+
+All endpoints validate:
+
+- Required fields presence and non-blank values.
+- Numeric ranges (grades: 0.0-5.0, weights: 0.0-100.0).
+- NaN and Infinity rejection for numeric fields.
+- String length limits (prompts: 2000 characters).
+- Malformed request payloads return `400 Bad Request`.
+- Missing or invalid authentication returns `401 Unauthorized`.
+
+### Client-Side (Android)
+
+Forms validate:
+
+- Required fields (names, titles, descriptions).
+- Numeric ranges and validity (no NaN, Infinity, or out-of-range values).
+- String length limits (names: 100 characters, notes: 500 characters).
+- Date and time consistency.
+- Enum values and identifiers.
+
+Validation occurs in ViewModels before data reaches Use Cases or Repositories.
+
+## 24. Security Audit Trail
+
+### Week 13 Security Improvements
+
+1. **Input Validation Enhancement:** Added NaN and Infinity validation in `AcademicRoutes.kt` (Ktor) and `GradeFormViewModel.kt` (Android).
+2. **Error Handling:** Eliminated empty catch blocks in `RepeatSubjectUseCase.kt`, replacing them with appropriate warning logs.
+3. **Security Testing:** Added comprehensive tests for input validation edge cases and authentication scenarios in `AcademicRoutesTest.kt` and `AuthMiddlewareTest.kt`.
+4. **App Check Evaluation:** Completed technical feasibility study and documented recommendation (see section 22).
+5. **Secrets Audit:** Verified that all sensitive credentials are properly excluded from version control and no secrets are hardcoded in source code.
+

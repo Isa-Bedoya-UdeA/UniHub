@@ -137,20 +137,48 @@ class GradeFormViewModel @Inject constructor(
 
     private fun validateInputs(): Boolean {
         var isValid = true
+        
+        // Validate name
         if (_state.value.name.isBlank()) {
             _state.update { it.copy(nameError = "El nombre es obligatorio") }
             isValid = false
+        } else if (_state.value.name.length > 100) {
+            _state.update { it.copy(nameError = "El nombre no puede exceder 100 caracteres") }
+            isValid = false
         }
+        
+        // Validate grade value
         val gradeValue = _state.value.value.toDoubleOrNull()
-        if (gradeValue == null || gradeValue < 0.0 || gradeValue > 5.0) {
+        if (gradeValue == null) {
+            _state.update { it.copy(valueError = "La nota debe ser un número válido") }
+            isValid = false
+        } else if (gradeValue.isNaN() || gradeValue.isInfinite()) {
+            _state.update { it.copy(valueError = "La nota debe ser un número finito") }
+            isValid = false
+        } else if (gradeValue < 0.0 || gradeValue > 5.0) {
             _state.update { it.copy(valueError = "La nota debe estar entre 0.0 y 5.0") }
             isValid = false
         }
+        
+        // Validate weight
         val weightValue = _state.value.weight.toDoubleOrNull()
-        if (weightValue == null || weightValue <= 0.0 || weightValue > 100.0) {
+        if (weightValue == null) {
+            _state.update { it.copy(weightError = "El peso debe ser un número válido") }
+            isValid = false
+        } else if (weightValue.isNaN() || weightValue.isInfinite()) {
+            _state.update { it.copy(weightError = "El peso debe ser un número finito") }
+            isValid = false
+        } else if (weightValue <= 0.0 || weightValue > 100.0) {
             _state.update { it.copy(weightError = "El peso debe estar entre 1 y 100") }
             isValid = false
         }
+        
+        // Validate notes length
+        if (_state.value.notes.length > 500) {
+            _state.update { it.copy(errorMessage = "Las notas no pueden exceder 500 caracteres") }
+            isValid = false
+        }
+        
         return isValid
     }
 }

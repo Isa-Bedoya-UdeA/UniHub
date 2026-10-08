@@ -66,7 +66,7 @@ fun Routing.configureAcademicRoutes(tokenVerifier: FirebaseTokenVerifier) {
                     return@post
                 }
 
-                if (request.currentGrade < 0.0 || request.currentGrade > 5.0) {
+                if (request.currentGrade < 0.0 || request.currentGrade > 5.0 || request.currentGrade.isNaN() || request.currentGrade.isInfinite()) {
                     call.respond(
                         HttpStatusCode.BadRequest,
                         ApiErrorResponse.create(
@@ -77,7 +77,7 @@ fun Routing.configureAcademicRoutes(tokenVerifier: FirebaseTokenVerifier) {
                     return@post
                 }
 
-                if (request.targetGrade < 0.0 || request.targetGrade > 5.0) {
+                if (request.targetGrade < 0.0 || request.targetGrade > 5.0 || request.targetGrade.isNaN() || request.targetGrade.isInfinite()) {
                     call.respond(
                         HttpStatusCode.BadRequest,
                         ApiErrorResponse.create(
@@ -88,7 +88,7 @@ fun Routing.configureAcademicRoutes(tokenVerifier: FirebaseTokenVerifier) {
                     return@post
                 }
 
-                if (request.evaluatedWeight < 0.0 || request.evaluatedWeight >= 100.0) {
+                if (request.evaluatedWeight < 0.0 || request.evaluatedWeight >= 100.0 || request.evaluatedWeight.isNaN() || request.evaluatedWeight.isInfinite()) {
                     call.respond(
                         HttpStatusCode.BadRequest,
                         ApiErrorResponse.create(

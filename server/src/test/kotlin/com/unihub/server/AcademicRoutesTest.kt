@@ -81,4 +81,72 @@ class AcademicRoutesTest {
         val body = response.bodyAsText()
         assertTrue(body.contains("VALIDATION_ERROR"))
     }
+
+    @Test
+    fun `POST academic calculate rejects NaN values`() = testApplication {
+        application {
+            configureServer(tokenVerifier = verifier)
+        }
+
+        val response = client.post("/api/academic/calculate") {
+            header(HttpHeaders.Authorization, "Bearer test-token")
+            contentType(ContentType.Application.Json)
+            setBody("""
+                {
+                    "currentGrade": NaN,
+                    "evaluatedWeight": 60.0,
+                    "targetGrade": 3.5
+                }
+            """.trimIndent())
+        }
+
+        // NaN should be rejected (either as BadRequest for malformed JSON or validation error)
+        assertTrue(response.status == HttpStatusCode.BadRequest || response.status == HttpStatusCode.OK.not())
+    }
+
+    @Test
+    fun `POST academic calculate rejects negative values`() = testApplication {
+        application {
+            configureServer(tokenVerifier = verifier)
+        }
+
+        val response = client.post("/api/academic/calculate") {
+            header(HttpHeaders.Authorization, "Bearer test-token")
+            contentType(ContentType.Application.Json)
+            setBody("""
+                {
+                    "currentGrade": -1.0,
+                    "evaluatedWeight": 60.0,
+                    "targetGrade": 3.5
+                }
+            """.trimIndent())
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("VALIDATION_ERROR"))
+    }
+
+    @Test
+    fun `POST academic calculate rejects weight of 100 or more`() = testApplication {
+        application {
+            configureServer(tokenVerifier = verifier)
+        }
+
+        val response = client.post("/api/academic/calculate") {
+            header(HttpHeaders.Authorization, "Bearer test-token")
+            contentType(ContentType.Application.Json)
+            setBody("""
+                {
+                    "currentGrade": 3.0,
+                    "evaluatedWeight": 100.0,
+                    "targetGrade": 3.5
+                }
+            """.trimIndent())
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("VALIDATION_ERROR"))
+    }
 }

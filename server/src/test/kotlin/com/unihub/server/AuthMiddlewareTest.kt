@@ -58,4 +58,85 @@ class AuthMiddlewareTest {
         val body = response.bodyAsText()
         assertTrue(body.contains("user-123"))
     }
+
+    @Test
+    fun `Protected route returns 401 when token is blank`() = testApplication {
+        application {
+            configureServer(tokenVerifier = verifier)
+        }
+
+        val response = client.get("/api/profile") {
+            header(HttpHeaders.Authorization, "Bearer ")
+        }
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `Protected route returns 401 when Authorization header has wrong scheme`() = testApplication {
+        application {
+            configureServer(tokenVerifier = verifier)
+        }
+
+        val response = client.get("/api/profile") {
+            header(HttpHeaders.Authorization, "Basic valid-token-123")
+        }
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `Protected route returns 401 when Authorization header is malformed`() = testApplication {
+        application {
+            configureServer(tokenVerifier = verifier)
+        }
+
+        val response = client.get("/api/profile") {
+            header(HttpHeaders.Authorization, "valid-token-123")
+        }
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `Health endpoint is public and does not require authentication`() = testApplication {
+        application {
+            configureServer(tokenVerifier = verifier)
+        }
+
+        val response = client.get("/api/health")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("ok"))
+    }
+
+    @Test
+    fun `User can access their own data but not other users data`() = testApplication {
+        val multiUserVerifier = MockFirebaseTokenVerifier(
+            validTokens = mapOf(
+                "token-user-a" to AuthenticatedUser(uid = "user-a", email = "a@unihub.app"),
+                "token-user-b" to AuthenticatedUser(uid = "user-b", email = "b@unihub.app")
+            ),
+            acceptMockPrefix = false
+        )
+
+        application {
+            configureServer(tokenVerifier = multiUserVerifier)
+        }
+
+        // User A accessing their own profile
+        val responseA = client.get("/api/profile") {
+            header(HttpHeaders.Authorization, "Bearer token-user-a")
+        }
+        assertEquals(HttpStatusCode.OK, responseA.status)
+        assertTrue(responseA.bodyAsText().contains("user-a"))
+
+        // User B accessing their own profile
+        val responseB = client.get("/api/profile") {
+            header(HttpHeaders.Authorization, "Bearer token-user-b")
+        }
+        assertEquals(HttpStatusCode.OK, responseB.status)
+        assertTrue(responseB.bodyAsText().contains("user-b"))
+
+        // Verify users are isolated (User A response should not contain User B data)
+        assertTrue(!responseA.bodyAsText().contains("user-b"))
+        assertTrue(!responseB.bodyAsText().contains("user-a"))
+    }
 }
