@@ -27,24 +27,14 @@ class StudyRepositoryImpl @Inject constructor(
         localDataSource.getStudyById(id).map { it?.toDomain() }
 
     override suspend fun saveStudy(study: Study) {
-        Log.d("FIRESTORE_DEBUG", "=== SAVE STUDY CALLED ===")
-        Log.d("FIRESTORE_DEBUG", "Study ID: ${study.id}")
-        Log.d("FIRESTORE_DEBUG", "Study Name: ${study.name}")
-        Log.d("FIRESTORE_DEBUG", "User ID: ${study.userId}")
         
         localDataSource.insertStudy(study.toEntity())
-        Log.d("FIRESTORE_DEBUG", "Study saved to Room successfully")
         
         try {
-            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveStudy()")
             val dto = study.toDto()
-            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
             remoteDataSource.saveStudy(dto)
-            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveStudy() completed successfully")
         } catch (e: Exception) {
-            Log.e("FIRESTORE_DEBUG", "ERROR saving study to Firestore: ${e.message}", e)
-            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
-            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+            Log.e("StudyRepositoryImpl", "Error saving study to Firestore: ${e.message}", e)
         }
     }
 

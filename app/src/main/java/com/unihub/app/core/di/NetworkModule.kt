@@ -1,5 +1,6 @@
 package com.unihub.app.core.di
 
+import com.unihub.app.BuildConfig
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -35,8 +36,7 @@ object NetworkModule {
                 })
             }
             defaultRequest {
-                // Base URL would be configured here
-                // url("https://api.unihub.com/")
+                url(BuildConfig.KTOR_BASE_URL)
                 header(HttpHeaders.ContentType, ContentType.Application.Json)
             }
         }

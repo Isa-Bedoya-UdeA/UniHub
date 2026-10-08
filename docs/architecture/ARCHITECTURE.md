@@ -918,7 +918,11 @@ Synchronization rules are documented in `FIRESTORE.md`.
 
 ### Login Synchronization
 
-After successful authentication, `AuthRepositoryImpl` orchestrates a full pull of all user data from Firestore into Room. This ensures data recovery after app reinstallation. Each entity sync is wrapped in try/catch so that a failure in one collection does not prevent other collections from syncing.
+After successful authentication, `AuthRepositoryImpl` orchestrates a full pull of all user data from Firestore into Room. This ensures data recovery after app reinstallation. Each entity sync is wrapped in try/catch so that a failure in one collection does not prevent other collections from syncing. Synced collections include: profile, studies, academic periods, subjects, events (with reminders, tags, and recurrence rules), tasks (with tags), tags, locations, and preferences.
+
+### Background Synchronization
+
+`SyncWorker` runs periodically (every 15 minutes) via WorkManager with a network connectivity constraint. It syncs all entity types from Firestore to Room: profile, studies, academic data, subjects, events, tasks, tags, locations, and preferences. Each sync operation is independently wrapped in try/catch so that a failure in one collection does not prevent others from syncing. Failures trigger exponential backoff retry.
 
 ## 21. Testing Architecture
 

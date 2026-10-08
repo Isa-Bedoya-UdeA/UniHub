@@ -56,24 +56,13 @@ class LocationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveLocation(location: Location) {
-        Log.d("FIRESTORE_DEBUG", "=== SAVE LOCATION CALLED ===")
-        Log.d("FIRESTORE_DEBUG", "Location ID: ${location.id}")
-        Log.d("FIRESTORE_DEBUG", "Location Name: ${location.name}")
-        Log.d("FIRESTORE_DEBUG", "User ID: ${location.userId}")
-        
         localDataSource.insertLocation(location.toEntity())
-        Log.d("FIRESTORE_DEBUG", "Location saved to Room successfully")
         
         try {
-            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveLocation()")
             val dto = location.toDto()
-            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
             remoteDataSource.saveLocation(location.userId, dto)
-            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveLocation() completed successfully")
         } catch (e: Exception) {
-            Log.e("FIRESTORE_DEBUG", "ERROR saving location to Firestore: ${e.message}", e)
-            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
-            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+            Log.e("LocationRepositoryImpl", "Error saving location to Firestore: ${e.message}", e)
         }
     }
 

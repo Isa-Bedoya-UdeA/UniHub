@@ -1,6 +1,8 @@
 package com.unihub.app.features.ai.infrastructure.data.remote.datasource
 
 import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
+import com.unihub.app.BuildConfig
 import com.unihub.app.features.ai.infrastructure.data.remote.dto.AiChatRequestDto
 import com.unihub.app.features.ai.infrastructure.data.remote.dto.AiChatResponseDto
 import com.unihub.app.features.ai.infrastructure.data.remote.dto.AiConversationMessageDto
@@ -15,15 +17,16 @@ import io.ktor.http.isSuccess
 import javax.inject.Inject
 
 class AiRemoteDataSource @Inject constructor(
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
+    private val firebaseAuth: FirebaseAuth
 ) {
     companion object {
         private const val TAG = "AiRemoteDataSource"
         private val CANDIDATE_URLS = listOf(
-            "http://192.168.128.8:8080",
-            "http://localhost:8080",
-            "http://10.0.2.2:8080"
-        )
+            BuildConfig.KTOR_BASE_URL,
+            "http://10.0.2.2:8080",
+            "http://localhost:8080"
+        ).distinct()
         @Volatile
         private var workingBaseUrl: String? = null
     }
@@ -33,25 +36,32 @@ class AiRemoteDataSource @Inject constructor(
         context: String? = null,
         conversationHistory: List<AiConversationMessageDto> = emptyList()
     ): Result<AiChatResponseDto> {
+        val idToken = try {
+            firebaseAuth.currentUser?.getIdToken(false)?.await()?.token
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not get Firebase ID Token: ${e.message}")
+            null
+        }
+
         val candidates = if (workingBaseUrl != null) {
             listOf(workingBaseUrl!!) + (CANDIDATE_URLS - workingBaseUrl!!)
         } else {
             CANDIDATE_URLS
         }
 
-        Log.d(TAG, "Intentando enviar mensaje a ${candidates.size} URLs candidatas")
-        Log.d(TAG, "URLs: ${candidates.joinToString(", ")}")
+        Log.d(TAG, "Attempting ${candidates.size} candidate URLs")
 
         var lastException: Exception? = null
 
         for (baseUrl in candidates) {
             try {
-                Log.d(TAG, "Intentando conectar con: $baseUrl")
                 val url = "$baseUrl/api/v1/ai/chat"
-                Log.d(TAG, "URL completa: $url")
-                
+
                 val response = httpClient.post(url) {
                     contentType(ContentType.Application.Json)
+                    idToken?.let {
+                        io.ktor.client.request.header("Authorization", "Bearer $it")
+                    }
                     setBody(
                         AiChatRequestDto(
                             message = message,
@@ -61,28 +71,23 @@ class AiRemoteDataSource @Inject constructor(
                     )
                 }
 
-                Log.d(TAG, "Respuesta recibida - Status: ${response.status.value}")
-
                 if (response.status.isSuccess()) {
                     workingBaseUrl = baseUrl
-                    Log.d(TAG, "Éxito con $baseUrl")
                     val body = response.body<AiChatResponseDto>()
-                    Log.d(TAG, "Respuesta del servidor: ${body.response.take(100)}...")
                     return Result.success(body)
                 } else {
                     val errorBody = response.bodyAsText()
-                    Log.e(TAG, "Error HTTP ${response.status.value} de $baseUrl: $errorBody")
+                    Log.e(TAG, "HTTP ${response.status.value} from $baseUrl: $errorBody")
                     workingBaseUrl = baseUrl
-                    return Result.failure(Exception("Error del servidor: ${response.status.value}"))
+                    return Result.failure(Exception("Server error: ${response.status.value}"))
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Excepción al conectar con $baseUrl: ${e.javaClass.simpleName}: ${e.message}")
-                e.printStackTrace()
+                Log.e(TAG, "Exception with $baseUrl: ${e.javaClass.simpleName}: ${e.message}")
                 lastException = e
             }
         }
 
-        Log.e(TAG, "Todas las URLs fallaron. Último error: ${lastException?.message}")
-        return Result.failure(lastException ?: Exception("No se pudo conectar al servidor Ktor"))
+        Log.e(TAG, "All URLs failed. Last error: ${lastException?.message}")
+        return Result.failure(lastException ?: Exception("Could not connect to Ktor server"))
     }
 }

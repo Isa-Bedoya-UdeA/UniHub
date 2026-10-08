@@ -387,6 +387,8 @@ Background synchronization uses WorkManager with:
 - Network connectivity constraint
 - Exponential backoff on failure
 - Authenticated user context
+- Independent try/catch per collection (profile, studies, academic periods, subjects, events, tasks, tags, locations, preferences)
+- A failure in one collection does not prevent other collections from syncing
 
 ### 19.4 Conflict Resolution
 

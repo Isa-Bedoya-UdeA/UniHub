@@ -79,46 +79,26 @@ class EventRepositoryImpl @Inject constructor(
         }
 
     override suspend fun saveEvent(event: Event) {
-        Log.d("FIRESTORE_DEBUG", "=== SAVE EVENT CALLED ===")
-        Log.d("FIRESTORE_DEBUG", "Event ID: ${event.id}")
-        Log.d("FIRESTORE_DEBUG", "Event Title: ${event.title}")
-        Log.d("FIRESTORE_DEBUG", "User ID: ${event.userId}")
         
         localDataSource.insertEvent(event.toEntity())
-        Log.d("FIRESTORE_DEBUG", "Event saved to Room successfully")
         
         try {
-            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveEvent()")
             val dto = event.toDto()
-            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
             remoteDataSource.saveEvent(event.userId, dto)
-            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveEvent() completed successfully")
         } catch (e: Exception) {
-            Log.e("FIRESTORE_DEBUG", "ERROR saving event to Firestore: ${e.message}", e)
-            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
-            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+            Log.e("EventRepositoryImpl", "Error saving event to Firestore: ${e.message}", e)
         }
     }
 
     override suspend fun updateEvent(event: Event) {
-        Log.d("FIRESTORE_DEBUG", "=== UPDATE EVENT CALLED ===")
-        Log.d("FIRESTORE_DEBUG", "Event ID: ${event.id}")
-        Log.d("FIRESTORE_DEBUG", "Event Title: ${event.title}")
-        Log.d("FIRESTORE_DEBUG", "User ID: ${event.userId}")
         
         localDataSource.insertEvent(event.toEntity())
-        Log.d("FIRESTORE_DEBUG", "Event updated in Room successfully")
         
         try {
-            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveEvent() for update")
             val dto = event.toDto()
-            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
             remoteDataSource.saveEvent(event.userId, dto)
-            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveEvent() completed successfully")
         } catch (e: Exception) {
-            Log.e("FIRESTORE_DEBUG", "ERROR updating event in Firestore: ${e.message}", e)
-            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
-            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+            Log.e("EventRepositoryImpl", "Error updating event in Firestore: ${e.message}", e)
         }
     }
 
@@ -246,7 +226,15 @@ class EventRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteRemindersForEvent(eventId: String) {
+        val event = localDataSource.getEventById(eventId).first()
         localDataSource.deleteRemindersForEvent(eventId)
+        if (event != null) {
+            try {
+                remoteDataSource.deleteRemindersForEvent(event.userId, eventId)
+            } catch (e: Exception) {
+                Log.e("EventRepositoryImpl", "Error deleting reminders from Firestore: ${e.message}")
+            }
+        }
     }
 
     override fun getAllEnabledReminders(): Flow<List<EventReminder>> =
@@ -299,11 +287,27 @@ class EventRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteRecurrenceRule(id: String) {
+        val rule = localDataSource.getRecurrenceRuleById(id).first()
         localDataSource.deleteRecurrenceRule(id)
+        if (rule != null) {
+            try {
+                remoteDataSource.deleteRecurrenceRuleRemote(rule.userId, id)
+            } catch (e: Exception) {
+                Log.e("EventRepositoryImpl", "Error deleting recurrence rule from Firestore: ${e.message}")
+            }
+        }
     }
 
     override suspend fun deleteRecurrenceDaysByRule(ruleId: String) {
+        val rule = localDataSource.getRecurrenceRuleById(ruleId).first()
         localDataSource.deleteRecurrenceDaysByRule(ruleId)
+        if (rule != null) {
+            try {
+                remoteDataSource.deleteRecurrenceDaysForRuleRemote(rule.userId, ruleId)
+            } catch (e: Exception) {
+                Log.e("EventRepositoryImpl", "Error deleting recurrence days from Firestore: ${e.message}")
+            }
+        }
     }
 
     override fun getEventTags(eventId: String): Flow<List<EventTag>> =
@@ -332,6 +336,14 @@ class EventRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteEventTagsForEvent(eventId: String) {
+        val event = localDataSource.getEventById(eventId).first()
         localDataSource.deleteEventTagsForEvent(eventId)
+        if (event != null) {
+            try {
+                remoteDataSource.deleteEventTagsForEvent(event.userId, eventId)
+            } catch (e: Exception) {
+                Log.e("EventRepositoryImpl", "Error deleting event tags from Firestore: ${e.message}")
+            }
+        }
     }
 }

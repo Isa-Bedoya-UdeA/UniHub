@@ -2,38 +2,45 @@
 
 ## 1. Overview
 
-UniHub uses a Ktor REST API as the backend boundary for operations that require server-side processing, external service integration, or centralized business logic.
+UniHub uses a Ktor REST API as the backend boundary for operations that require server-side processing, external service integration, Firebase authentication validation, academic calculations, AI command parsing, or centralized business logic.
 
 The API follows RESTful conventions and uses JSON for request/response payloads.
 
 ## 2. Base URL
 
 **Development:**
-```
+```text
 http://localhost:8080
 ```
 
 **Production:**
-```
+```text
 [Configure based on deployment]
 ```
 
 ## 3. Authentication
 
-API endpoints may require Firebase ID tokens for authentication. Token validation is handled server-side.
+Protected API endpoints require Firebase ID tokens provided via the standard Authorization header:
+
+```http
+Authorization: Bearer <Firebase ID Token>
+```
+
+Server-side verification validates the token using the Firebase Admin SDK or verifier middleware to establish the authenticated user's Firebase UID. Unauthenticated or invalid token requests receive an `HTTP 401 Unauthorized` response.
 
 ## 4. Endpoints
 
 ### 4.1 Health Check
 
-**GET** `/health`
+**GET** `/api/health` (also accessible at `/health`)
 
-Returns the health status of the Ktor server.
+Returns the health status of the Ktor server. Public endpoint.
 
-**Response:**
+**Response (200 OK):**
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "service": "unihub-api"
 }
 ```
 
@@ -42,94 +49,173 @@ Returns the health status of the Ktor server.
 
 ---
 
-### 4.2 AI Chat
+### 4.2 Profile
+
+**GET** `/api/profile`
+
+Retrieves profile information for the authenticated user based on their validated Firebase ID Token.
+
+**Authentication:** Required (`Bearer <Firebase ID Token>`)
+
+**Success Response (200 OK):**
+```json
+{
+  "uid": "abc123firebaseUid",
+  "email": "student@unihub.app",
+  "displayName": "Alex Student",
+  "photoUrl": "https://example.com/photo.jpg"
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` — Missing or invalid authentication token.
+
+---
+
+### 4.3 Academic Summary
+
+**GET** `/api/academic/summary`
+
+Retrieves an academic summary for the authenticated user.
+
+**Authentication:** Required (`Bearer <Firebase ID Token>`)
+
+**Success Response (200 OK):**
+```json
+{
+  "uid": "abc123firebaseUid",
+  "activeProgram": "Ingeniería de Sistemas",
+  "activePeriod": "2025-1",
+  "approvedCredits": 0,
+  "totalCredits": 160,
+  "cumulativeGpa": 0.0,
+  "subjectsCount": 0
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` — Missing or invalid authentication token.
+
+---
+
+### 4.4 Academic Calculate
+
+**POST** `/api/academic/calculate`
+
+Calculates the required grade needed in the remaining percentage of a course to reach a target final grade.
+
+**Authentication:** Required (`Bearer <Firebase ID Token>`)
+
+**Request Body:**
+```json
+{
+  "currentGrade": 3.0,
+  "evaluatedWeight": 60.0,
+  "targetGrade": 3.5
+}
+```
+
+**Validation Rules:**
+- `currentGrade`: float/double between `0.0` and `5.0`.
+- `evaluatedWeight`: float/double between `0.0` and `< 100.0`.
+- `targetGrade`: float/double between `0.0` and `5.0`.
+
+**Success Response (200 OK):**
+```json
+{
+  "currentGrade": 3.0,
+  "evaluatedWeight": 60.0,
+  "remainingWeight": 40.0,
+  "targetGrade": 3.5,
+  "requiredGrade": 4.25,
+  "isAchievable": true,
+  "message": "Necesitas una nota promedio de 4.25 en el 40.0% restante."
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` — Validation error or invalid ranges.
+  ```json
+  {
+    "error": {
+      "code": "VALIDATION_ERROR",
+      "message": "currentGrade must be between 0.0 and 5.0"
+    }
+  }
+  ```
+- `401 Unauthorized` — Missing or invalid token.
+
+---
+
+### 4.5 AI Parse
+
+**POST** `/api/ai/parse`
+
+Parses natural language instructions into structured academic actions (e.g., `CREATE_EVENT`, `CREATE_TASK`, `CREATE_SUBJECT`, `REGISTER_GRADE`).
+
+**Authentication:** Required (`Bearer <Firebase ID Token>`)
+
+**Request Body:**
+```json
+{
+  "prompt": "Agrega una clase de Computación Móvil el jueves de 6 a 8 en la UdeA.",
+  "context": "optional contextual string"
+}
+```
+
+**Fields:**
+- `prompt` (required): Natural language instruction (1 to 2000 characters).
+- `context` (optional): Additional academic context.
+
+**Success Response (200 OK):**
+```json
+{
+  "action": "CREATE_EVENT",
+  "rawPrompt": "Agrega una clase de Computación Móvil el jueves de 6 a 8 en la UdeA.",
+  "structuredData": {
+    "detected_action": "CREATE_EVENT",
+    "input_length": "68"
+  },
+  "reply": "Entendido, creando evento para Computación Móvil."
+}
+```
+
+**Error Responses:**
+- `400 Bad Request` — Empty prompt or character length exceeded (> 2000).
+- `401 Unauthorized` — Missing or invalid token.
+
+---
+
+### 4.6 AI Chat
 
 **POST** `/api/v1/ai/chat`
 
-Send a message to the AI assistant and receive a response.
+Send a message to the AI assistant and receive a response. Uses a multi-provider fallback chain (OpenRouter primary, Groq fallback).
 
-The AI system uses a multi-provider architecture with automatic fallback:
-1. **OpenRouter** (primary)
-2. **Groq** (fallback)
+**Authentication:** Required (`Bearer <Firebase ID Token>`) when Firebase is configured on the server. Falls back to unauthenticated when no token verifier is available (development mode).
 
 **Request Headers:**
-```
+```http
 Content-Type: application/json
 ```
 
 **Request Body:**
 ```json
 {
-  "message": "string"
+  "message": "¿Cómo puedo organizar mi día de estudio?",
+  "context": "optional context string",
+  "conversationHistory": []
 }
 ```
-
-**Fields:**
-- `message` (required): The user's message to the AI assistant. Must be between 1 and 2000 characters.
 
 **Success Response (200 OK):**
 ```json
 {
-  "response": "string",
-  "provider": "string",
-  "model": "string"
+  "response": "Para organizar tu día de estudio, te recomiendo...",
+  "provider": "OpenRouter",
+  "model": "openrouter/free"
 }
 ```
-
-**Fields:**
-- `response`: The AI assistant's response text
-- `provider`: The AI provider that generated the response (optional, for debugging)
-- `model`: The specific model used (optional, for debugging)
-
-**Error Responses:**
-
-**400 Bad Request**
-```json
-{
-  "error": "AI_INVALID_REQUEST"
-}
-```
-The request was malformed or the message was empty/too long.
-
-**429 Too Many Requests**
-```json
-{
-  "error": "AI_RATE_LIMITED"
-}
-```
-The AI service is temporarily rate-limited. Retry after a short delay.
-
-**502 Bad Gateway**
-```json
-{
-  "error": "AI_UNAVAILABLE"
-}
-```
-The AI service is temporarily unavailable.
-
-**503 Service Unavailable**
-```json
-{
-  "error": "AI_CONFIGURATION_ERROR"
-}
-```
-The AI service is not properly configured.
-
-**504 Gateway Timeout**
-```json
-{
-  "error": "AI_NETWORK_ERROR"
-}
-```
-The AI service timed out.
-
-**500 Internal Server Error**
-```json
-{
-  "error": "AI_UNKNOWN_ERROR"
-}
-```
-An unknown error occurred.
 
 **Error Codes:**
 - `AI_UNAVAILABLE` — AI service is temporarily unavailable
@@ -139,35 +225,28 @@ An unknown error occurred.
 - `AI_NETWORK_ERROR` — Network or timeout error
 - `AI_UNKNOWN_ERROR` — Unknown error
 
-**Example Request:**
-```bash
-curl -X POST http://localhost:8080/api/v1/ai/chat \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "¿Cómo puedo organizar mi día de estudio?"
-  }'
-```
-
-**Example Response:**
-```json
-{
-  "response": "Para organizar tu día de estudio, te recomiendo:\n\n1. **Prioriza tareas urgentes**: Revisa tus tareas con fechas de entrega cercanas y complétalas primero.\n\n2. **Bloques de tiempo**: Dedica bloques de 45-50 minutos a cada materia, con descansos de 10 minutos entre ellos.\n\n3. **Revisión activa**: Al final del día, repasa lo que aprendiste para reforzar la memoria.",
-  "provider": "OpenRouter",
-  "model": "openrouter/free"
-}
-```
+---
 
 ## 5. Error Handling
 
-All errors follow a consistent format:
+All standard errors follow a consistent response structure:
 
 ```json
 {
-  "error": "string"
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "The request contains invalid fields."
+  }
 }
 ```
 
-The `error` field contains a standardized error code that the client can use to determine the appropriate user-facing message.
+Standardized Error Codes:
+- `UNAUTHORIZED` — Missing or invalid authentication credentials
+- `FORBIDDEN` — Resource access not allowed
+- `VALIDATION_ERROR` — Request body or query parameters failed validation
+- `NOT_FOUND` — Resource not found
+- `BAD_REQUEST` — Malformed JSON or invalid syntax
+- `INTERNAL_ERROR` — Unexpected server error
 
 ## 6. Rate Limiting
 
@@ -177,16 +256,15 @@ The AI providers also have their own rate limits. The system automatically retri
 
 ## 7. Security
 
-- All API keys for AI providers are stored server-side and never exposed to the client
-- The Android app communicates only with the Ktor backend, never directly with AI providers
-- Request validation is performed server-side
-- Sensitive information is not logged
+- All API keys for AI providers are stored server-side and never exposed to the client.
+- Firebase ID tokens are validated server-side using Firebase Admin SDK.
+- The Android app communicates with the Ktor backend using HTTPS and Bearer tokens.
+- Request validation is performed server-side independently of client checks.
+- Sensitive information and full tokens are never logged.
 
 ## 8. Versioning
 
-The API uses URL-based versioning. The current version is `v1`.
-
-Future versions will be introduced as `/api/v2/...` when breaking changes are necessary.
+The API uses URL-based versioning for versioned endpoints. The current version is `v1`.
 
 ## 9. CORS
 

@@ -15,6 +15,7 @@ import com.unihub.app.features.academic.infrastructure.data.local.dao.SubjectDao
 import com.unihub.app.features.academic.infrastructure.data.mapper.toDomain as toSubjectDomain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -39,24 +40,14 @@ class AcademicRepositoryImpl @Inject constructor(
         }
 
     override suspend fun saveAcademicPeriod(period: AcademicPeriod) {
-        Log.d("FIRESTORE_DEBUG", "=== SAVE ACADEMIC PERIOD CALLED ===")
-        Log.d("FIRESTORE_DEBUG", "Period ID: ${period.id}")
-        Log.d("FIRESTORE_DEBUG", "Period Name: ${period.name}")
-        Log.d("FIRESTORE_DEBUG", "User ID: ${period.userId}")
         
         localDataSource.insertPeriod(period.toEntity())
-        Log.d("FIRESTORE_DEBUG", "Period saved to Room successfully")
         
         try {
-            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveAcademicPeriod()")
             val dto = period.toDto()
-            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
             remoteDataSource.saveAcademicPeriod(dto)
-            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveAcademicPeriod() completed successfully")
         } catch (e: Exception) {
-            Log.e("FIRESTORE_DEBUG", "ERROR saving academic period to Firestore: ${e.message}", e)
-            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
-            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+            Log.e("AcademicRepositoryImpl", "Error saving academic period to Firestore: ${e.message}", e)
         }
     }
 
@@ -78,6 +69,15 @@ class AcademicRepositoryImpl @Inject constructor(
 
     override suspend fun setCurrentPeriod(userId: String, id: String) {
         localDataSource.setCurrentPeriod(userId, id)
+        try {
+            val allPeriods = localDataSource.getAcademicPeriods(userId).first()
+            allPeriods.forEach { periodEntity ->
+                val dto = periodEntity.toDomain().toDto()
+                remoteDataSource.saveAcademicPeriod(dto)
+            }
+        } catch (e: Exception) {
+            Log.e("AcademicRepositoryImpl", "Error syncing current period to Firestore: ${e.message}")
+        }
     }
 
     override fun getGradesBySubject(subjectId: String): Flow<List<Grade>> =
@@ -86,24 +86,14 @@ class AcademicRepositoryImpl @Inject constructor(
         }
 
     override suspend fun saveGrade(grade: Grade) {
-        Log.d("FIRESTORE_DEBUG", "=== SAVE GRADE CALLED ===")
-        Log.d("FIRESTORE_DEBUG", "Grade ID: ${grade.id}")
-        Log.d("FIRESTORE_DEBUG", "Grade Name: ${grade.name}")
-        Log.d("FIRESTORE_DEBUG", "User ID: ${grade.userId}")
         
         localDataSource.insertGrade(grade.toEntity())
-        Log.d("FIRESTORE_DEBUG", "Grade saved to Room successfully")
         
         try {
-            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveGrade()")
             val dto = grade.toDto()
-            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
             remoteDataSource.saveGrade(dto)
-            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveGrade() completed successfully")
         } catch (e: Exception) {
-            Log.e("FIRESTORE_DEBUG", "ERROR saving grade to Firestore: ${e.message}", e)
-            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
-            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+            Log.e("AcademicRepositoryImpl", "Error saving grade to Firestore: ${e.message}", e)
         }
     }
 

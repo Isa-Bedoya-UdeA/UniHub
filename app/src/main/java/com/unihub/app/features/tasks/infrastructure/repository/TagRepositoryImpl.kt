@@ -35,24 +35,13 @@ class TagRepositoryImpl @Inject constructor(
         localDataSource.getTagById(id).map { it?.toDomain() }
 
     override suspend fun saveTag(tag: Tag) {
-        Log.d("FIRESTORE_DEBUG", "=== SAVE TAG CALLED ===")
-        Log.d("FIRESTORE_DEBUG", "Tag ID: ${tag.id}")
-        Log.d("FIRESTORE_DEBUG", "Tag Name: ${tag.name}")
-        Log.d("FIRESTORE_DEBUG", "User ID: ${tag.userId}")
-        
         localDataSource.insertTag(tag.toEntity())
-        Log.d("FIRESTORE_DEBUG", "Tag saved to Room successfully")
         
         try {
-            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveTag()")
             val dto = tag.toDto()
-            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
             remoteDataSource.saveTag(tag.userId, dto)
-            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveTag() completed successfully")
         } catch (e: Exception) {
-            Log.e("FIRESTORE_DEBUG", "ERROR saving tag to Firestore: ${e.message}", e)
-            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
-            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+            Log.e("TagRepositoryImpl", "Error saving tag to Firestore: ${e.message}", e)
         }
     }
 

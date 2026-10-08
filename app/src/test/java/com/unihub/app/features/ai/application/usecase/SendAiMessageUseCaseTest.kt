@@ -352,7 +352,6 @@ class SendAiMessageUseCaseTest {
         assertEquals(AiResponseSource.LOCAL_FALLBACK, result.getOrNull()?.source)
     }
 }
-}
 
 class FakeAiRepository : AiRepository {
     var response: String = ""

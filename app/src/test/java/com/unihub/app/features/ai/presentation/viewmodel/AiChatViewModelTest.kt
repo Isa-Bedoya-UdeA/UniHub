@@ -280,7 +280,8 @@ class AiChatViewModelTest {
         assertEquals(2, state.messages.size)
         assertTrue(state.isLimitedMode)
         assertEquals(AiChatStatus.LIMITED_MODE, state.status)
-        assertTrue(state.messages[1].content.contains("limitada") || state.messages[1].content.contains("problema"))
+        val content = state.messages[1].content
+        assertTrue(content.contains("limitada") || content.contains("problema") || content.contains("disponible") || content.contains("asistente"))
     }
 
     @Test

@@ -12,6 +12,7 @@ import com.unihub.app.features.tasks.infrastructure.data.mapper.toDto
 import com.unihub.app.features.tasks.infrastructure.data.mapper.toEntity
 import com.unihub.app.features.tasks.infrastructure.data.remote.datasource.TaskRemoteDataSource
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -41,46 +42,26 @@ class TaskRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveTask(task: Task) {
-        Log.d("FIRESTORE_DEBUG", "=== SAVE TASK CALLED ===")
-        Log.d("FIRESTORE_DEBUG", "Task ID: ${task.id}")
-        Log.d("FIRESTORE_DEBUG", "Task Title: ${task.title}")
-        Log.d("FIRESTORE_DEBUG", "User ID: ${task.userId}")
         
         localDataSource.insertTask(task.toEntity())
-        Log.d("FIRESTORE_DEBUG", "Task saved to Room successfully")
         
         try {
-            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveTask()")
             val dto = task.toDto()
-            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
             remoteDataSource.saveTask(task.userId, dto)
-            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveTask() completed successfully")
         } catch (e: Exception) {
-            Log.e("FIRESTORE_DEBUG", "ERROR saving task to Firestore: ${e.message}", e)
-            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
-            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+            Log.e("TaskRepositoryImpl", "Error saving task to Firestore: ${e.message}", e)
         }
     }
 
     override suspend fun updateTask(task: Task) {
-        Log.d("FIRESTORE_DEBUG", "=== UPDATE TASK CALLED ===")
-        Log.d("FIRESTORE_DEBUG", "Task ID: ${task.id}")
-        Log.d("FIRESTORE_DEBUG", "Task Title: ${task.title}")
-        Log.d("FIRESTORE_DEBUG", "User ID: ${task.userId}")
         
         localDataSource.insertTask(task.toEntity())
-        Log.d("FIRESTORE_DEBUG", "Task updated in Room successfully")
         
         try {
-            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveTask() for update")
             val dto = task.toDto()
-            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
             remoteDataSource.saveTask(task.userId, dto)
-            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveTask() completed successfully")
         } catch (e: Exception) {
-            Log.e("FIRESTORE_DEBUG", "ERROR updating task in Firestore: ${e.message}", e)
-            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
-            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+            Log.e("TaskRepositoryImpl", "Error updating task in Firestore: ${e.message}", e)
         }
     }
 
@@ -98,6 +79,13 @@ class TaskRepositoryImpl @Inject constructor(
 
     override suspend fun updateTaskStatus(id: String, status: TaskStatus) {
         localDataSource.updateStatus(id, status)
+        val task = localDataSource.getTaskById(id).firstOrNull() ?: return
+        try {
+            val dto = task.toDto()
+            remoteDataSource.saveTask(task.userId, dto)
+        } catch (e: Exception) {
+            Log.e("TaskRepositoryImpl", "Error syncing task status to Firestore: ${e.message}")
+        }
     }
 
     override suspend fun syncTasks(userId: String) {
@@ -137,7 +125,7 @@ class TaskRepositoryImpl @Inject constructor(
 
     override suspend fun getTaskTags(userId: String, taskId: String): List<String> {
         return try {
-            remoteDataSource.getTaskTags(userId, taskId)
+            taskDao.getTagsByTask(taskId).first().map { it.tagId }
         } catch (e: Exception) {
             Log.e("TaskRepositoryImpl", "Error getting task tags: ${e.message}")
             emptyList()

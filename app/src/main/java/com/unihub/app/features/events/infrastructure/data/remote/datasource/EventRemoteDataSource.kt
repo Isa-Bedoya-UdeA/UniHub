@@ -267,4 +267,61 @@ class EventRemoteDataSource @Inject constructor(
             throw e
         }
     }
+
+    suspend fun deleteEventTagsForEvent(userId: String, eventId: String) {
+        try {
+            val snapshot = firestore.collection("users")
+                .document(userId)
+                .collection("events")
+                .document(eventId)
+                .collection("eventTags")
+                .get()
+                .await()
+            snapshot.documents.forEach { doc ->
+                doc.reference.delete().await()
+            }
+        } catch (e: Exception) {
+            Log.e("EventRemoteDataSource", "Error deleting event tags from Firestore: ${e.message}", e)
+        }
+    }
+
+    suspend fun deleteRecurrenceRuleRemote(userId: String, ruleId: String) {
+        try {
+            val daysSnapshot = firestore.collection("users")
+                .document(userId)
+                .collection("recurrenceRules")
+                .document(ruleId)
+                .collection("days")
+                .get()
+                .await()
+            daysSnapshot.documents.forEach { doc ->
+                doc.reference.delete().await()
+            }
+            firestore.collection("users")
+                .document(userId)
+                .collection("recurrenceRules")
+                .document(ruleId)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            Log.e("EventRemoteDataSource", "Error deleting recurrence rule from Firestore: ${e.message}", e)
+        }
+    }
+
+    suspend fun deleteRecurrenceDaysForRuleRemote(userId: String, ruleId: String) {
+        try {
+            val snapshot = firestore.collection("users")
+                .document(userId)
+                .collection("recurrenceRules")
+                .document(ruleId)
+                .collection("days")
+                .get()
+                .await()
+            snapshot.documents.forEach { doc ->
+                doc.reference.delete().await()
+            }
+        } catch (e: Exception) {
+            Log.e("EventRemoteDataSource", "Error deleting recurrence days from Firestore: ${e.message}", e)
+        }
+    }
 }

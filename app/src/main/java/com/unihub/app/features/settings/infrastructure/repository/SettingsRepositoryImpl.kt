@@ -31,25 +31,15 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateThemeMode(userId: String, themeMode: ThemeMode) {
-        Log.d("FIRESTORE_DEBUG", "=== UPDATE THEME MODE CALLED ===")
-        Log.d("FIRESTORE_DEBUG", "User ID: $userId")
-        Log.d("FIRESTORE_DEBUG", "Theme Mode: $themeMode")
-        
         val preferences = UserPreferences(userId = userId, themeMode = themeMode)
         localDataSource.insertUserPreferences(preferences.toEntity())
         PreferencesManager.setThemeMode(context, themeMode.name)
-        Log.d("FIRESTORE_DEBUG", "Preferences saved to Room successfully")
         
         try {
-            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.savePreferences()")
             val dto = preferences.toDto()
-            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
             remoteDataSource.savePreferences(userId, dto)
-            Log.d("FIRESTORE_DEBUG", "remoteDataSource.savePreferences() completed successfully")
         } catch (e: Exception) {
-            Log.e("FIRESTORE_DEBUG", "ERROR saving preferences to Firestore: ${e.message}", e)
-            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
-            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+            Log.e("SettingsRepositoryImpl", "Error saving preferences to Firestore: ${e.message}", e)
         }
     }
 

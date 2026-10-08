@@ -37,24 +37,14 @@ class SubjectRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveSubject(subject: Subject) {
-        Log.d("FIRESTORE_DEBUG", "=== SAVE SUBJECT CALLED ===")
-        Log.d("FIRESTORE_DEBUG", "Subject ID: ${subject.id}")
-        Log.d("FIRESTORE_DEBUG", "Subject Name: ${subject.name}")
-        Log.d("FIRESTORE_DEBUG", "User ID: ${subject.userId}")
         
         localDataSource.insertSubject(subject.toEntity())
-        Log.d("FIRESTORE_DEBUG", "Subject saved to Room successfully")
         
         try {
-            Log.d("FIRESTORE_DEBUG", "About to call remoteDataSource.saveSubject()")
             val dto = subject.toDto()
-            Log.d("FIRESTORE_DEBUG", "DTO created: $dto")
             remoteDataSource.saveSubject(dto)
-            Log.d("FIRESTORE_DEBUG", "remoteDataSource.saveSubject() completed successfully")
         } catch (e: Exception) {
-            Log.e("FIRESTORE_DEBUG", "ERROR saving subject to Firestore: ${e.message}", e)
-            Log.e("FIRESTORE_DEBUG", "Exception type: ${e.javaClass.simpleName}")
-            Log.e("FIRESTORE_DEBUG", "Stack trace: ${e.stackTraceToString()}")
+            Log.e("SubjectRepositoryImpl", "Error saving subject to Firestore: ${e.message}", e)
         }
     }
 

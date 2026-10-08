@@ -32,6 +32,8 @@ dependencies {
     implementation(libs.ktorSerializationKotlinxJson)
     implementation(libs.ktorServerCors)
     implementation(libs.ktorServerStatusPages)
+    implementation(libs.ktorServerAuth)
+    implementation(libs.firebase.admin)
     implementation(libs.ktorClientCore)
     implementation(libs.ktorClientOkhttp)
     implementation(libs.ktorClientContentNegotiation)
@@ -40,4 +42,5 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.ktorServerTestHost)
 }

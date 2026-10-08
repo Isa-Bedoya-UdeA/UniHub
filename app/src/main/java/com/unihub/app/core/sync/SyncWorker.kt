@@ -12,9 +12,14 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.unihub.app.features.academic.domain.repository.AcademicRepository
-import com.unihub.app.features.auth.domain.repository.AuthRepository
-import com.unihub.app.features.events.domain.repository.EventRepository
+import com.unihub.app.features.academic.domain.repository.StudyRepository
 import com.unihub.app.features.academic.domain.repository.SubjectRepository
+import com.unihub.app.features.auth.domain.repository.AuthRepository
+import com.unihub.app.features.auth.domain.repository.UserRepository
+import com.unihub.app.features.events.domain.repository.EventRepository
+import com.unihub.app.features.location.domain.repository.LocationRepository
+import com.unihub.app.features.settings.domain.repository.SettingsRepository
+import com.unihub.app.features.tasks.domain.repository.TagRepository
 import com.unihub.app.features.tasks.domain.repository.TaskRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -27,10 +32,15 @@ class SyncWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted workerParams: WorkerParameters,
     private val authRepository: AuthRepository,
+    private val userRepository: UserRepository,
+    private val studyRepository: StudyRepository,
     private val subjectRepository: SubjectRepository,
     private val eventRepository: EventRepository,
     private val taskRepository: TaskRepository,
-    private val academicRepository: AcademicRepository
+    private val tagRepository: TagRepository,
+    private val academicRepository: AcademicRepository,
+    private val locationRepository: LocationRepository,
+    private val settingsRepository: SettingsRepository
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -42,16 +52,29 @@ class SyncWorker @AssistedInject constructor(
             }
 
             return@withContext try {
-                subjectRepository.syncSubjects(userId)
-                eventRepository.syncEvents(userId)
-                taskRepository.syncTasks(userId)
-                academicRepository.syncAcademicData(userId)
+                syncWithCatch(userId, "profile") { userRepository.syncProfile(userId) }
+                syncWithCatch(userId, "studies") { studyRepository.syncStudies(userId) }
+                syncWithCatch(userId, "academic") { academicRepository.syncAcademicData(userId) }
+                syncWithCatch(userId, "subjects") { subjectRepository.syncSubjects(userId) }
+                syncWithCatch(userId, "events") { eventRepository.syncEvents(userId) }
+                syncWithCatch(userId, "tasks") { taskRepository.syncTasks(userId) }
+                syncWithCatch(userId, "tags") { tagRepository.syncTags(userId) }
+                syncWithCatch(userId, "locations") { locationRepository.syncLocations(userId) }
+                syncWithCatch(userId, "preferences") { settingsRepository.syncPreferences(userId) }
                 Log.i(TAG, "Sync completed successfully for user: $userId")
                 Result.success()
             } catch (e: Exception) {
                 Log.e(TAG, "Sync failed: ${e.message}")
                 Result.retry()
             }
+        }
+    }
+
+    private suspend fun syncWithCatch(userId: String, label: String, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: Exception) {
+            Log.w(TAG, "Sync $label failed for user $userId: ${e.message}")
         }
     }
 
