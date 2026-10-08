@@ -101,7 +101,7 @@ class AcademicRoutesTest {
         }
 
         // NaN should be rejected (either as BadRequest for malformed JSON or validation error)
-        assertTrue(response.status == HttpStatusCode.BadRequest || response.status == HttpStatusCode.OK.not())
+        assertEquals(HttpStatusCode.BadRequest, response.status)
     }
 
     @Test

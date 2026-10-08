@@ -4,6 +4,8 @@ import com.unihub.app.features.academic.application.usecase.GetGradesBySubjectUs
 import com.unihub.app.features.academic.application.usecase.GetSubjectByIdUseCase
 import com.unihub.app.features.academic.application.usecase.SaveGradeUseCase
 import com.unihub.app.features.academic.application.usecase.UpdateGradeUseCase
+import com.unihub.app.features.academic.domain.model.Grade
+import com.unihub.app.features.academic.domain.model.Subject
 import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -14,35 +16,41 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.kotlin.any
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GradeFormViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var viewModel: GradeFormViewModel
-    private lateinit var saveGradeUseCase: SaveGradeUseCase
-    private lateinit var updateGradeUseCase: UpdateGradeUseCase
-    private lateinit var getGradesBySubjectUseCase: GetGradesBySubjectUseCase
-    private lateinit var getSubjectByIdUseCase: GetSubjectByIdUseCase
-    private lateinit var getCurrentUidUseCase: GetCurrentUidUseCase
+    
+    // Fake implementations
+    private val fakeSaveGradeUseCase = object : SaveGradeUseCase {
+        override suspend fun invoke(grade: Grade) {}
+    }
+    
+    private val fakeUpdateGradeUseCase = object : UpdateGradeUseCase {
+        override suspend fun invoke(grade: Grade) {}
+    }
+    
+    private val fakeGetGradesBySubjectUseCase = object : GetGradesBySubjectUseCase {
+        override fun invoke(subjectId: String) = flowOf(emptyList<Grade>())
+    }
+    
+    private val fakeGetSubjectByIdUseCase = object : GetSubjectByIdUseCase {
+        override fun invoke(subjectId: String) = flowOf<Subject?>(null)
+    }
+    
+    private val fakeGetCurrentUidUseCase = object : GetCurrentUidUseCase {
+        override fun invoke() = "test-user-id"
+    }
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        saveGradeUseCase = mock()
-        updateGradeUseCase = mock()
-        getGradesBySubjectUseCase = mock()
-        getSubjectByIdUseCase = mock()
-        getCurrentUidUseCase = mock()
-        whenever(getCurrentUidUseCase()).thenReturn("test-user-id")
     }
 
     @After
@@ -56,11 +64,11 @@ class GradeFormViewModelTest {
             gradeId?.let { set("gradeId", it) }
         }
         return GradeFormViewModel(
-            saveGradeUseCase,
-            updateGradeUseCase,
-            getGradesBySubjectUseCase,
-            getSubjectByIdUseCase,
-            getCurrentUidUseCase,
+            fakeSaveGradeUseCase,
+            fakeUpdateGradeUseCase,
+            fakeGetGradesBySubjectUseCase,
+            fakeGetSubjectByIdUseCase,
+            fakeGetCurrentUidUseCase,
             savedStateHandle
         )
     }
