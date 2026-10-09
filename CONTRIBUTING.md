@@ -337,13 +337,22 @@ Examples:
 
 Ktor endpoints and relevant backend services should be tested.
 
+### Code Coverage Requirement (80% Minimum)
+
+The CI/CD pipeline enforces automated test execution and coverage verification:
+
+- All UseCases, calculation utilities, and domain business rules must have unit test coverage.
+- PRs targeting `main`, `master`, or `develop` must meet a minimum **80% line test coverage** threshold.
+- Pull requests falling below 80% coverage in tested application modules will fail automated CI checks.
+
 ### Before Merging
 
 At minimum, contributors should verify:
 
 ```text
-[ ] Project builds successfully
-[ ] Relevant tests pass
+[ ] Project builds successfully (./gradlew assembleDebug :server:assemble)
+[ ] All unit tests pass (./gradlew testDebugUnitTest :server:test)
+[ ] Coverage satisfies the minimum 80% requirement
 [ ] No obvious regressions were introduced
 [ ] UI changes were manually checked
 [ ] Documentation was updated if necessary

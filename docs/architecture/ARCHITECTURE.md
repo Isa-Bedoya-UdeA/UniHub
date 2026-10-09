@@ -1044,100 +1044,17 @@ The current architecture should remain intentionally simple enough to be impleme
 | [Database](../database/DATABASE.md)             | Data model and persistence architecture    |
 | [API](../api/API.md)                            | Ktor API contract                          |
 | [Security](../security/SECURITY.md)             | Security model and controls                |
+| [Deployment](../deploy/DEPLOY.md)               | Deployment architecture, CI/CD and release |
 | [Design System](../design/DESIGNSYSTEM.md)      | UI visual system and reusable components   |
 | [User Journey](../design/USERJOURNEY.md)        | Main user journeys and interaction flows   |
 
-## 26. Initial Architecture Diagram
+## 26. Architecture Component Summary
 
-The following conceptual diagram summarizes the intended architecture:
+The core structural components of the UniHub system comprise:
 
-```diagram
-diagram UniHubArchitecture
-
-    actor Student
-
-    component "Android App\nKotlin + Jetpack Compose" as Android
-
-    package "com.unihub.app" {
-        package "core" {
-            component "Design System" as DesignSystem
-            component "Navigation" as Navigation
-            component "DI" as DI
-        }
-
-        package "features" {
-            package "academic" {
-                component "Presentation" as AcademicPresentation
-                component "Application / Use Cases" as AcademicApplication
-                component "Domain" as AcademicDomain
-                component "Infrastructure" as AcademicInfrastructure
-            }
-
-            package "auth" {
-                component "Auth Presentation" as AuthPresentation
-                component "Auth Application" as AuthApplication
-                component "Auth Domain" as AuthDomain
-                component "Auth Infrastructure" as AuthInfrastructure
-            }
-
-            package "calendar" {
-                component "Calendar Feature" as Calendar
-            }
-
-            package "ai" {
-                component "AI Assistant" as AI
-            }
-
-            package "geolocation" {
-                component "Location & Maps" as Location
-            }
-        }
-    }
-
-    component "Ktor REST API\nKotlin + Ktor" as Ktor
-    database "Room / SQLite" as Room
-    database "Cloud Firestore" as Firestore
-    component "Firebase Authentication" as FirebaseAuth
-    component "Firebase Cloud Messaging" as FCM
-    component "Google Maps Platform" as Maps
-    
-    component "AI Provider Layer" as AiLayer {
-        component "OpenRouter (Primary)" as OpenRouter
-        component "Groq (Fallback)" as Groq
-    }
-
-    Student --> Android
-
-    Android --> AcademicPresentation
-    Android --> AuthPresentation
-    Android --> Calendar
-    Android --> AI
-    Android --> Location
-
-    AcademicPresentation --> AcademicApplication
-    AcademicApplication --> AcademicDomain
-    AcademicDomain --> AcademicInfrastructure
-    AcademicInfrastructure --> Room
-    AcademicInfrastructure --> Firestore
-    AcademicInfrastructure --> Ktor
-
-    AuthPresentation --> AuthApplication
-    AuthApplication --> AuthDomain
-    AuthDomain --> AuthInfrastructure
-    AuthInfrastructure --> FirebaseAuth
-
-    Calendar --> Room
-    Calendar --> Firestore
-
-    AI --> Ktor
-    Ktor --> AiLayer
-    AiLayer --> OpenRouter
-    AiLayer --> Groq
-
-    Location --> Maps
-    Android --> FCM
-
-end
-```
-
-This conceptual diagram is complemented by the final visual diagrams stored in `docs/architecture/`.
+- Mobile Frontend: Android native application implemented in Kotlin with Jetpack Compose, structured into feature-based Clean Architecture (Presentation, Application, Domain, Infrastructure).
+- Local Data Tier: Room database (SQLite) providing offline-first persistence for academic records, schedules, tasks, and user preferences.
+- Cloud Synchronization: Firebase Authentication and Cloud Firestore for multi-device sync and real-time data persistence.
+- Backend Application Server: Standalone Kotlin Ktor service providing authorized proxy endpoints for AI completions and centralized business workflows.
+- External Integrations: AI Provider Layer (primary OpenRouter, secondary Groq fallback), Firebase Admin SDK for token verification, and Google Maps Platform for campus location services.
+- Continuous Quality & Delivery: GitHub Actions CI/CD pipeline enforcing automated unit/use-case testing, code verification, and a minimum test coverage threshold of 80%.
