@@ -56,6 +56,21 @@ Write-Host "JAR: $($jarPath.Name)" -ForegroundColor Gray
 Write-Host "Presiona Ctrl+C para detener el servidor" -ForegroundColor Gray
 Write-Host ""
 
+# Intentar configurar adb reverse para dispositivos Android conectados
+$adbExe = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+if (Test-Path $adbExe) {
+    try {
+        $adbDevices = & $adbExe devices | Where-Object { $_ -match '\tdevice$' } | ForEach-Object { ($_ -split '\t')[0] }
+        foreach ($dev in $adbDevices) {
+            Write-Host "Configurando adb reverse tcp:8080 tcp:8080 para $dev..." -ForegroundColor Green
+            & $adbExe -s $dev reverse tcp:8080 tcp:8080 2>$null
+        }
+    } catch {
+        Write-Host "No se pudo configurar adb reverse automáticamente." -ForegroundColor Yellow
+    }
+}
+
+
 # Ejecutar el JAR directamente con Java 21
 $java21Path = "C:\Users\User\.gradle\jdks\eclipse_adoptium-21-amd64-windows.2\bin\java.exe"
 if (Test-Path $java21Path) {

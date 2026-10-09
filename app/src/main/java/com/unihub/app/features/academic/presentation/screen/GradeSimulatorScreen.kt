@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.unihub.app.core.designsystem.component.feedback.UniHubLoadingState
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.component.foundation.UniHubTextField
 import com.unihub.app.core.designsystem.theme.UniHubTheme
@@ -32,6 +33,11 @@ fun GradeSimulatorScreen(
 
     LaunchedEffect(subjectId) {
         viewModel.loadSubject(subjectId)
+    }
+
+    if (state.isLoading && state.subjectName.isEmpty()) {
+        UniHubLoadingState(message = "Cargando simulador...")
+        return
     }
 
     Column(

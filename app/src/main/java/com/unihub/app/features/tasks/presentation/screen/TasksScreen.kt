@@ -1,5 +1,8 @@
 package com.unihub.app.features.tasks.presentation.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +40,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyState
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyStateType
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.component.foundation.UniHubChip
 import com.unihub.app.core.designsystem.theme.UniHubTheme
@@ -111,28 +116,44 @@ fun TasksScreen(
                 verticalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.md)
             ) {
                 if (filteredTasks.isEmpty()) {
-                    Text(
-                        text = "No tienes tareas registradas.",
-                        style = UniHubTheme.typography.body,
-                        color = UniHubTheme.colorScheme.info,
-                        modifier = Modifier.padding(vertical = 32.dp)
-                    )
-                } else {
-                    filteredTasks.forEach { task ->
-                        val priorityColor = when (task.priority) {
-                            TaskPriority.HIGH -> UniHubTheme.colorScheme.error
-                            TaskPriority.MEDIUM -> UniHubTheme.colorScheme.warning
-                            TaskPriority.LOW -> UniHubTheme.colorScheme.success
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn() + slideInVertically { it / 4 }
+                    ) {
+                        val emptyType = when (selectedFilter) {
+                            "Todas" -> UniHubEmptyStateType.NO_TASKS
+                            "Pendientes" -> UniHubEmptyStateType.NO_TASKS
+                            "En progreso" -> UniHubEmptyStateType.NO_TASKS
+                            "Completadas" -> UniHubEmptyStateType.NO_TASKS
+                            else -> UniHubEmptyStateType.NO_DATA
                         }
-                        DetailedTaskCard(
-                            title = task.title,
-                            subject = viewModel.getSubjectName(task.subjectId),
-                            date = task.dueAt ?: "Sin fecha",
-                            priorityColor = priorityColor,
-                            isCompleted = task.status == TaskStatus.COMPLETED,
-                            onToggle = { viewModel.toggleTaskCompletion(task) },
-                            onClick = { onNavigateToTaskDetail(task.id) }
+                        UniHubEmptyState(
+                            type = emptyType,
+                            actionLabel = if (selectedFilter == "Todas") "Crear Tarea" else null,
+                            onAction = if (selectedFilter == "Todas") onNavigateToCreate else null
                         )
+                    }
+                } else {
+                    filteredTasks.forEachIndexed { index, task ->
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn() + slideInVertically { it / 4 }
+                        ) {
+                            val priorityColor = when (task.priority) {
+                                TaskPriority.HIGH -> UniHubTheme.colorScheme.error
+                                TaskPriority.MEDIUM -> UniHubTheme.colorScheme.warning
+                                TaskPriority.LOW -> UniHubTheme.colorScheme.success
+                            }
+                            DetailedTaskCard(
+                                title = task.title,
+                                subject = viewModel.getSubjectName(task.subjectId),
+                                date = task.dueAt ?: "Sin fecha",
+                                priorityColor = priorityColor,
+                                isCompleted = task.status == TaskStatus.COMPLETED,
+                                onToggle = { viewModel.toggleTaskCompletion(task) },
+                                onClick = { onNavigateToTaskDetail(task.id) }
+                            )
+                        }
                     }
                 }
             }

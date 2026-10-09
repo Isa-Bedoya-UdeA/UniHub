@@ -1,5 +1,8 @@
 package com.unihub.app.features.academic.presentation.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,9 +24,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.designsystem.component.academic.UniHubStudySelector
+import com.unihub.app.core.designsystem.component.feedback.UniHubConfirmationDialog
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyState
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyStateType
+import com.unihub.app.core.designsystem.component.feedback.UniHubLoadingState
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.component.foundation.UniHubChip
 import com.unihub.app.core.designsystem.theme.UniHubTheme
+import com.unihub.app.features.academic.domain.model.Subject
 import com.unihub.app.features.academic.presentation.viewmodel.AcademicViewModel
 import com.unihub.app.features.academic.presentation.viewmodel.SubjectWithGrade
 import java.util.Locale
@@ -39,6 +47,22 @@ fun AcademicScreen(
     val state by viewModel.state.collectAsState()
     val summary = state.summary
     val subjects = state.subjects
+    var subjectToDelete by remember { mutableStateOf<Subject?>(null) }
+
+    if (subjectToDelete != null) {
+        UniHubConfirmationDialog(
+            onDismissRequest = { subjectToDelete = null },
+            onConfirm = {
+                subjectToDelete?.let { viewModel.deleteSubject(it.id) }
+                subjectToDelete = null
+            },
+            title = "Eliminar materia",
+            message = "¿Estás seguro de que deseas eliminar la materia '${subjectToDelete?.name}'? Esta acción no se puede deshacer.",
+            confirmText = "Eliminar",
+            dismissText = "Cancelar",
+            isDestructive = true
+        )
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -169,28 +193,37 @@ fun AcademicScreen(
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
 
             if (subjects.isEmpty()) {
-                Text(
-                    text = "No tienes materias registradas para este periodo.",
-                    style = UniHubTheme.typography.body,
-                    color = UniHubTheme.colorScheme.info,
-                    modifier = Modifier.padding(vertical = 32.dp)
-                )
+                AnimatedVisibility(
+                    visible = true,
+                    enter = fadeIn() + slideInVertically { it / 4 }
+                ) {
+                    UniHubEmptyState(
+                        type = UniHubEmptyStateType.NO_SUBJECTS,
+                        actionLabel = "Crear Materia",
+                        onAction = onNavigateToCreateSubject
+                    )
+                }
             } else {
                 subjects.forEach { item ->
-                    val subject = item.subject
-                    val colorHex = subject.color ?: "#4F46E5"
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn() + slideInVertically { it / 4 }
+                    ) {
+                        val subject = item.subject
+                        val colorHex = subject.color ?: "#4F46E5"
 
-                    DetailedSubjectCard(
-                        code = subject.code ?: "---",
-                        name = subject.name,
-                        professor = subject.professor ?: "Sin profesor",
-                        average = item.average,
-                        progress = item.progress,
-                        colorHex = colorHex,
-                        onClick = { onNavigateToSubjectDetail(subject.id) },
-                        onEdit = { onNavigateToEditSubject(subject.id) },
-                        onDelete = { viewModel.deleteSubject(subject.id) }
-                    )
+                        DetailedSubjectCard(
+                            code = subject.code ?: "---",
+                            name = subject.name,
+                            professor = subject.professor ?: "Sin profesor",
+                            average = item.average,
+                            progress = item.progress,
+                            colorHex = colorHex,
+                            onClick = { onNavigateToSubjectDetail(subject.id) },
+                            onEdit = { onNavigateToEditSubject(subject.id) },
+                            onDelete = { subjectToDelete = subject }
+                        )
+                    }
                     Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
                 }
             }

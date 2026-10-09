@@ -1,5 +1,8 @@
 package com.unihub.app.features.dashboard.presentation.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -22,6 +25,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyState
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyStateType
+import com.unihub.app.core.designsystem.component.feedback.UniHubErrorState
+import com.unihub.app.core.designsystem.component.feedback.UniHubErrorType
 import com.unihub.app.core.designsystem.component.feedback.UniHubLoadingState
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
@@ -63,50 +70,39 @@ fun DashboardScreen(
 
     when {
         state.isLoading -> {
-            UniHubLoadingState()
+            UniHubLoadingState(message = "Cargando tu resumen académico...")
         }
         state.errorMessage != null -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn() + slideInVertically { it / 4 }
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(UniHubTheme.spacing.xl)
-                ) {
-                    Text(
-                        text = "Error al cargar datos",
-                        style = UniHubTheme.typography.h3,
-                        color = UniHubTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
-                    Text(
-                        text = state.errorMessage ?: "Error desconocido",
-                        style = UniHubTheme.typography.body,
-                        color = UniHubTheme.colorScheme.textSecondary
-                    )
-                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.lg))
-                    UniHubButton(
-                        onClick = { viewModel.refresh() },
-                        text = "Reintentar",
-                        variant = UniHubButtonVariant.Primary
-                    )
-                }
+                UniHubErrorState(
+                    type = UniHubErrorType.UNKNOWN,
+                    message = state.errorMessage,
+                    actionLabel = "Reintentar",
+                    onAction = { viewModel.refresh() }
+                )
             }
         }
         else -> {
-            DashboardContent(
-                state = state,
-                today = today,
-                locale = locale,
-                dateText = dateText,
-                viewModel = viewModel,
-                openMeetingUrl = openMeetingUrl,
-                onNavigateToTasks = onNavigateToTasks,
-                onNavigateToCalendar = onNavigateToCalendar,
-                onNavigateToEvent = onNavigateToEvent,
-                onNavigateToTaskDetail = onNavigateToTaskDetail
-            )
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn() + slideInVertically { it / 4 }
+            ) {
+                DashboardContent(
+                    state = state,
+                    today = today,
+                    locale = locale,
+                    dateText = dateText,
+                    viewModel = viewModel,
+                    openMeetingUrl = openMeetingUrl,
+                    onNavigateToTasks = onNavigateToTasks,
+                    onNavigateToCalendar = onNavigateToCalendar,
+                    onNavigateToEvent = onNavigateToEvent,
+                    onNavigateToTaskDetail = onNavigateToTaskDetail
+                )
+            }
         }
     }
 }
@@ -207,23 +203,15 @@ private fun DashboardContent(
         }
 
         if (todayEvents.isEmpty() && otherEvents.isEmpty() && state.pendingTasks.isEmpty()) {
-            UniHubCard {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth().padding(UniHubTheme.spacing.lg)
-                ) {
-                    Text(
-                        text = "¡No tienes pendientes para hoy!",
-                        style = UniHubTheme.typography.h4,
-                        color = UniHubTheme.colorScheme.success
-                    )
-                    Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
-                    Text(
-                        text = "Disfruta tu día libre.",
-                        style = UniHubTheme.typography.body,
-                        color = UniHubTheme.colorScheme.textSecondary
-                    )
-                }
+            AnimatedVisibility(
+                visible = true,
+                enter = fadeIn() + slideInVertically { it / 4 }
+            ) {
+                UniHubEmptyState(
+                    type = UniHubEmptyStateType.NO_EVENTS,
+                    title = "¡No tienes pendientes para hoy!",
+                    message = "Disfruta tu día libre."
+                )
             }
         } else {
             if (todayEvents.isNotEmpty()) {

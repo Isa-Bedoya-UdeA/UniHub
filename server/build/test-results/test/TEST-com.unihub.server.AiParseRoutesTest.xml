@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.unihub.server.AiParseRoutesTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-09T02:32:09.072Z" hostname="TORRE-IZZY" time="6.995">
+  <properties/>
+  <testcase name="POST ai parse detects CREATE_EVENT action" classname="com.unihub.server.AiParseRoutesTest" time="6.989"/>
+  <testcase name="POST ai parse rejects blank prompt" classname="com.unihub.server.AiParseRoutesTest" time="0.006"/>
+  <system-out><![CDATA[]]>&#x1f916;<![CDATA[ AI Service initialized
+]]>&#x1f916;<![CDATA[ AI Service: Received message: Analiza y genera una respuesta para la instrucción...
+]]>&#x1f916;<![CDATA[ AI Service: Calling provider chain...
+AI fallback chain: OpenRouter -> Groq
+Trying provider: OpenRouter
+AI provider attempt: OpenRouter (attempt 1/2)
+AI provider success: OpenRouter
+Provider success: OpenRouter
+]]>&#x1f916;<![CDATA[ AI Service: Result success: true
+]]>&#x1f916;<![CDATA[ AI Service: Success from OpenRouter
+]]>&#x1f916;<![CDATA[ AI Service initialized
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

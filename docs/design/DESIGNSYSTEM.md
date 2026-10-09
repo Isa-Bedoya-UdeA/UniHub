@@ -46,43 +46,53 @@ subjects, academic performance, planning, and event locations.
 
 ``` text
 core/designsystem/
+├── animation/
+│   └── Animations.kt
 ├── color/
 │   ├── Color.kt
 │   └── ColorScheme.kt
 ├── component/
-│   ├── UniHubButton.kt
-│   ├── UniHubIconButton.kt
-│   ├── UniHubChip.kt
-│   ├── UniHubCard.kt
-│   ├── UniHubTextField.kt
-│   ├── UniHubTextArea.kt
-│   ├── UniHubDropdown.kt
-│   ├── UniHubDialog.kt
-│   ├── UniHubAlert.kt
-│   ├── UniHubProgressBar.kt
-│   ├── UniHubCircularProgress.kt
-│   ├── UniHubTopBar.kt
-│   ├── UniHubBottomNavigation.kt
-│   ├── UniHubFloatingActionButton.kt
-│   ├── UniHubEmptyState.kt
-│   ├── UniHubLoadingState.kt
-│   ├── UniHubErrorState.kt
-│   ├── UniHubColorPicker.kt
-│   ├── UniHubSubjectCard.kt
-│   ├── UniHubEventCard.kt
-│   ├── UniHubTaskItem.kt
-│   ├── UniHubGradeCard.kt
-│   ├── UniHubDashboardItem.kt
-│   ├── UniHubCalendar.kt
-│   ├── UniHubCalendarEvent.kt
-│   ├── UniHubLocationCard.kt
-│   ├── UniHubRemoteMeetingCard.kt
-│   ├── UniHubAcademicSummary.kt
-│   ├── UniHubGradeSimulator.kt
-│   ├── UniHubStudySelector.kt
-│   ├── StudyOption.kt
-│   ├── UniHubAIAssistantInput.kt
-│   └── UniHubAIMessage.kt
+│   ├── academic/
+│   │   ├── UniHubSubjectCard.kt
+│   │   ├── UniHubEventCard.kt
+│   │   ├── UniHubTaskItem.kt
+│   │   ├── UniHubGradeCard.kt
+│   │   ├── UniHubDashboardItem.kt
+│   │   ├── UniHubCalendar.kt
+│   │   ├── UniHubCalendarEvent.kt
+│   │   ├── UniHubLocationCard.kt
+│   │   ├── UniHubRemoteMeetingCard.kt
+│   │   ├── UniHubAcademicSummary.kt
+│   │   ├── UniHubGradeSimulator.kt
+│   │   ├── UniHubStudySelector.kt
+│   │   └── StudyOption.kt
+│   ├── ai/
+│   │   ├── UniHubAIAssistantInput.kt
+│   │   └── UniHubAIMessage.kt
+│   ├── feedback/
+│   │   ├── UniHubEmptyState.kt
+│   │   ├── UniHubLoadingState.kt
+│   │   ├── UniHubErrorState.kt
+│   │   ├── UniHubConfirmationDialog.kt
+│   │   ├── UniHubSnackbar.kt
+│   │   └── UniHubSuccessMessage.kt
+│   └── foundation/
+│       ├── UniHubButton.kt
+│       ├── UniHubIconButton.kt
+│       ├── UniHubChip.kt
+│       ├── UniHubCard.kt
+│       ├── UniHubTextField.kt
+│       ├── UniHubTextArea.kt
+│       ├── UniHubDropdown.kt
+│       ├── UniHubDialog.kt
+│       ├── UniHubAlert.kt
+│       ├── UniHubProgressBar.kt
+│       ├── UniHubCircularProgress.kt
+│       ├── UniHubTopBar.kt
+│       ├── UniHubBottomNavigation.kt
+│       ├── UniHubFloatingActionButton.kt
+│       ├── UniHubColorPicker.kt
+│       └── UniHubSelect.kt
 ├── shape/
 │   └── Shape.kt
 ├── spacing/
@@ -95,6 +105,50 @@ core/designsystem/
 
 Feature-specific components remain inside their feature package. The
 Design System contains reusable components shared by multiple features.
+
+## 3.1 Animation System
+
+UniHub provides a declarative animation system based on Material Design 3
+principles. All animations should be purposeful, smooth, and respect
+accessibility settings.
+
+### Animation Durations
+
+| Constant | Duration | Use Case |
+|----------|----------|----------|
+| `SHORT`  | 150ms    | Micro-interactions (button press, toggle) |
+| `MEDIUM` | 300ms    | Standard transitions (content appearing, navigation) |
+| `LONG`   | 500ms    | Complex animations (screen transitions, multi-step) |
+
+### Available Animations
+
+- **fadeIn**: Fades content in with optional scale animation
+- **slideUp**: Animates content from bottom to top
+- **pulse**: Creates a subtle attention-drawing pulse
+
+### Usage
+
+```kotlin
+import com.unihub.app.core.designsystem.animation.fadeIn
+import com.unihub.app.core.designsystem.animation.slideUp
+
+// Fade in with default duration (300ms)
+AnimatedVisibility(
+    visible = true,
+    enter = fadeIn() + slideUp()
+) {
+    // Content
+}
+
+// Custom duration
+.fadeIn(durationMillis = 500)
+```
+
+### Accessibility
+
+All animations respect system accessibility settings. Users with
+"Reduce motion" enabled will see reduced or disabled animations
+automatically through Compose's built-in accessibility support.
 
 ## 4. Color System
 

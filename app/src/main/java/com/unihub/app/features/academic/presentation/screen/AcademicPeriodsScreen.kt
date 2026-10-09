@@ -12,6 +12,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyState
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyStateType
 import com.unihub.app.core.designsystem.component.foundation.UniHubConfirmationDialog
 import com.unihub.app.core.designsystem.component.foundation.UniHubAlert
 import com.unihub.app.core.designsystem.component.foundation.UniHubAlertVariant
@@ -152,11 +154,12 @@ fun AcademicPeriodsScreen(
                 }
             } else if (periods.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    UniHubAlert(
-                        variant = UniHubAlertVariant.Info,
+                    UniHubEmptyState(
+                        type = UniHubEmptyStateType.NO_DATA,
                         title = "Sin periodos",
                         message = "No hay periodos configurados para este programa. Usa el botón + para añadir uno.",
-                        icon = Icons.Default.Info
+                        actionLabel = "Crear Periodo",
+                        onAction = { showAddDialog = true }
                     )
                 }
             } else {

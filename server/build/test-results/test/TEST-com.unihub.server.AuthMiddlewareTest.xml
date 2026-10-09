@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.unihub.server.AuthMiddlewareTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-09T02:32:16.083Z" hostname="TORRE-IZZY" time="0.057">
+  <properties/>
+  <testcase name="Protected route returns 401 when token is blank" classname="com.unihub.server.AuthMiddlewareTest" time="0.007"/>
+  <testcase name="User can access their own data but not other users data" classname="com.unihub.server.AuthMiddlewareTest" time="0.01"/>
+  <testcase name="Health endpoint is public and does not require authentication" classname="com.unihub.server.AuthMiddlewareTest" time="0.009"/>
+  <testcase name="Protected route returns 401 when Authorization header is missing" classname="com.unihub.server.AuthMiddlewareTest" time="0.005"/>
+  <testcase name="Protected route returns 401 when Authorization header has wrong scheme" classname="com.unihub.server.AuthMiddlewareTest" time="0.006"/>
+  <testcase name="Protected route returns 401 when Authorization header is invalid" classname="com.unihub.server.AuthMiddlewareTest" time="0.006"/>
+  <testcase name="Protected route returns 401 when Authorization header is malformed" classname="com.unihub.server.AuthMiddlewareTest" time="0.005"/>
+  <testcase name="Protected route succeeds when token is valid" classname="com.unihub.server.AuthMiddlewareTest" time="0.007"/>
+  <system-out><![CDATA[]]>&#x1f916;<![CDATA[ AI Service initialized
+]]>&#x1f916;<![CDATA[ AI Service initialized
+]]>&#x1f916;<![CDATA[ AI Service initialized
+]]>&#x1f916;<![CDATA[ AI Service initialized
+]]>&#x1f916;<![CDATA[ AI Service initialized
+]]>&#x1f916;<![CDATA[ AI Service initialized
+]]>&#x1f916;<![CDATA[ AI Service initialized
+]]>&#x1f916;<![CDATA[ AI Service initialized
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

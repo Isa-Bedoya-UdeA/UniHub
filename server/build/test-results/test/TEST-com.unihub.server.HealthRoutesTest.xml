@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.unihub.server.HealthRoutesTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-09T02:32:16.141Z" hostname="TORRE-IZZY" time="0.01">
+  <properties/>
+  <testcase name="GET health returns status ok" classname="com.unihub.server.HealthRoutesTest" time="0.005"/>
+  <testcase name="GET api health returns status ok" classname="com.unihub.server.HealthRoutesTest" time="0.005"/>
+  <system-out><![CDATA[]]>&#x1f916;<![CDATA[ AI Service initialized
+]]>&#x1f916;<![CDATA[ AI Service initialized
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

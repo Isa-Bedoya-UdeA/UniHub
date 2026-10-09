@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.unihub.server.AiServiceTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-09T02:32:16.068Z" hostname="TORRE-IZZY" time="0.014">
+  <properties/>
+  <testcase name="ProviderFallbackChain stops on first success" classname="com.unihub.server.AiServiceTest" time="0.004"/>
+  <testcase name="ProviderFallbackChain fails when all providers fail" classname="com.unihub.server.AiServiceTest" time="0.001"/>
+  <testcase name="AiService can be instantiated" classname="com.unihub.server.AiServiceTest" time="0.002"/>
+  <testcase name="ProviderFallbackChain tries providers in order" classname="com.unihub.server.AiServiceTest" time="0.001"/>
+  <testcase name="RetryPolicy does not retry non-retryable errors" classname="com.unihub.server.AiServiceTest" time="0.002"/>
+  <testcase name="AiService maps errors to user-friendly messages" classname="com.unihub.server.AiServiceTest" time="0.001"/>
+  <testcase name="ProviderFallbackChain can be created with default providers" classname="com.unihub.server.AiServiceTest" time="0.0"/>
+  <testcase name="OpenRouterAiProvider is not configured without API key" classname="com.unihub.server.AiServiceTest" time="0.0"/>
+  <testcase name="ProviderFallbackChain fails when no providers are configured" classname="com.unihub.server.AiServiceTest" time="0.001"/>
+  <testcase name="GroqAiProvider is not configured without API key" classname="com.unihub.server.AiServiceTest" time="0.0"/>
+  <system-out><![CDATA[AI fallback chain: Provider1 -> Provider2 -> Provider3
+Trying provider: Provider1
+Provider success: Provider1
+AI fallback chain: Provider1 -> Provider2 -> Provider3
+Trying provider: Provider1
+Provider failed: Provider1 - Ocurrió un error al procesar tu mensaje: Mock error
+Trying provider: Provider2
+Provider failed: Provider2 - Ocurrió un error al procesar tu mensaje: Mock error
+Trying provider: Provider3
+Provider failed: Provider3 - Ocurrió un error al procesar tu mensaje: Mock error
+All providers failed
+]]>&#x1f916;<![CDATA[ AI Service initialized
+AI fallback chain: Provider1 -> Provider2 -> Provider3
+Trying provider: Provider1
+Provider failed: Provider1 - Ocurrió un error al procesar tu mensaje: Mock error
+Trying provider: Provider2
+Provider failed: Provider2 - Ocurrió un error al procesar tu mensaje: Mock error
+Trying provider: Provider3
+Provider success: Provider3
+AI provider attempt: TestProvider (attempt 1/2)
+AI provider non-retryable error: TestProvider - Error de autenticación con el servicio de IA: Auth failed
+]]>&#x1f916;<![CDATA[ AI Service initialized
+]]>&#x1f916;<![CDATA[ AI Service: Received message: test...
+]]>&#x1f916;<![CDATA[ AI Service: Calling provider chain...
+AI fallback chain: FailingProvider
+Trying provider: FailingProvider
+Provider failed: FailingProvider - Error de conexión con el servicio de IA. Verifica tu conexión a internet: Connection failed
+All providers failed
+]]>&#x1f916;<![CDATA[ AI Service: Result success: false
+]]>&#x1f916;<![CDATA[ AI Service: Failed - NetworkError: Error de conexión con el servicio de IA. Verifica tu conexión a internet: Connection failed
+AI configuration error: No providers configured
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

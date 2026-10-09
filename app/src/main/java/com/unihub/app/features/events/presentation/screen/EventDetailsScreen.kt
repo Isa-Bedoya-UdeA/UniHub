@@ -18,6 +18,9 @@ import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.core.designsystem.component.academic.UniHubLocationCard
 import com.unihub.app.core.designsystem.component.academic.UniHubRemoteMeetingCard
+import com.unihub.app.core.designsystem.component.feedback.UniHubConfirmationDialog
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyState
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyStateType
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
@@ -53,32 +56,20 @@ fun EventDetailsScreen(
 
     if (showDeleteDialog && event != null) {
         val isRecurring = event.recurrenceRuleId != null
-        AlertDialog(
+        UniHubConfirmationDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text(if (isRecurring) "Eliminar Serie de Eventos" else "Eliminar Evento") },
-            text = { 
-                Text(
-                    if (isRecurring) 
-                        "Este es un evento recurrente. ¿Estás seguro de que deseas eliminar todas las ocurrencias de '${event.title}'? Esta acción no se puede deshacer."
-                    else 
-                        "¿Estás seguro de que deseas eliminar el evento '${event.title}'? Esta acción no se puede deshacer."
-                ) 
+            onConfirm = {
+                showDeleteDialog = false
+                viewModel.deleteEvent(onDeleted = onBack)
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        viewModel.deleteEvent(onDeleted = onBack)
-                    }
-                ) {
-                    Text("Eliminar", color = UniHubTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancelar")
-                }
-            }
+            title = if (isRecurring) "Eliminar Serie de Eventos" else "Eliminar Evento",
+            message = if (isRecurring) 
+                "Este es un evento recurrente. ¿Estás seguro de que deseas eliminar todas las ocurrencias de '${event.title}'? Esta acción no se puede deshacer."
+            else 
+                "¿Estás seguro de que deseas eliminar el evento '${event.title}'? Esta acción no se puede deshacer.",
+            confirmText = "Eliminar",
+            dismissText = "Cancelar",
+            isDestructive = true
         )
     }
 
@@ -94,7 +85,13 @@ fun EventDetailsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             if (event == null) {
-                Text("Evento no encontrado", style = UniHubTheme.typography.h2)
+                UniHubEmptyState(
+                    type = UniHubEmptyStateType.NO_DATA,
+                    title = "Evento no encontrado",
+                    message = "No se pudo cargar la información del evento.",
+                    actionLabel = "Volver",
+                    onAction = onBack
+                )
                 return@Scaffold
             }
 

@@ -144,6 +144,12 @@ fun EditProfileScreen(
                 placeholder = "Ingresa tu nombre",
                 leadingIcon = Icons.Default.Person,
                 isError = state.errorMessage != null,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                onImeAction = {
+                    if (!state.isSaving && !state.isUploadingImage && state.name.isNotBlank()) {
+                        viewModel.saveProfile()
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             )
 

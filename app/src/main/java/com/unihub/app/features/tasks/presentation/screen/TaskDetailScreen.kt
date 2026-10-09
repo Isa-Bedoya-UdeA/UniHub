@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
+import com.unihub.app.core.designsystem.component.feedback.UniHubConfirmationDialog
+import com.unihub.app.core.designsystem.component.feedback.UniHubLoadingState
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
@@ -35,6 +37,7 @@ fun TaskDetailScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(taskId) {
         viewModel.loadTask(taskId)
@@ -59,17 +62,30 @@ fun TaskDetailScreen(
 
     val task = state.task
 
+    if (showDeleteDialog && task != null) {
+        UniHubConfirmationDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            onConfirm = {
+                showDeleteDialog = false
+                viewModel.deleteTask()
+            },
+            title = "Eliminar tarea",
+            message = "¿Estás seguro de que deseas eliminar la tarea '${task.title}'? Esta acción no se puede deshacer.",
+            confirmText = "Eliminar",
+            dismissText = "Cancelar",
+            isDestructive = true
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = UniHubTheme.colorScheme.background
     ) { paddingValues ->
         if (task == null) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = UniHubTheme.colorScheme.primary)
-            }
+            UniHubLoadingState(
+                message = "Cargando tarea...",
+                modifier = Modifier.padding(paddingValues)
+            )
             return@Scaffold
         }
 
@@ -200,7 +216,7 @@ fun TaskDetailScreen(
             UniHubButton(
                 text = "Eliminar Tarea",
                 variant = UniHubButtonVariant.Destructive,
-                onClick = { viewModel.deleteTask() },
+                onClick = { showDeleteDialog = true },
                 modifier = Modifier.fillMaxWidth()
             )
         }

@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.unihub.app.core.designsystem.component.feedback.UniHubConfirmationDialog
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
@@ -38,6 +39,7 @@ fun SettingsScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -151,7 +153,7 @@ fun SettingsScreen(
             text = "Cerrar Sesión",
             variant = UniHubButtonVariant.Destructive,
             leadingIcon = Icons.AutoMirrored.Filled.Logout,
-            onClick = onLogout,
+            onClick = { showLogoutDialog = true },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -195,6 +197,21 @@ fun SettingsScreen(
                     Text("Cerrar")
                 }
             }
+        )
+    }
+
+    if (showLogoutDialog) {
+        UniHubConfirmationDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            onConfirm = {
+                showLogoutDialog = false
+                onLogout()
+            },
+            title = "Cerrar sesión",
+            message = "¿Estás seguro de que deseas cerrar sesión en UniHub?",
+            confirmText = "Cerrar sesión",
+            dismissText = "Cancelar",
+            isDestructive = true
         )
     }
 }

@@ -25,9 +25,10 @@ class AiRemoteDataSource @Inject constructor(
     companion object {
         private const val TAG = "AiRemoteDataSource"
         private val CANDIDATE_URLS = listOf(
+            "http://localhost:8080",
             BuildConfig.KTOR_BASE_URL,
-            "http://10.0.2.2:8080",
-            "http://localhost:8080"
+            "http://192.168.128.8:8080",
+            "http://10.0.2.2:8080"
         ).distinct()
         @Volatile
         private var workingBaseUrl: String? = null
@@ -78,6 +79,38 @@ class AiRemoteDataSource @Inject constructor(
                     workingBaseUrl = baseUrl
                     val body = response.body<AiChatResponseDto>()
                     return Result.success(body)
+                } else if (response.status.value == 401 && firebaseAuth.currentUser != null) {
+                    Log.w(TAG, "HTTP 401 from $baseUrl - refreshing token and retrying once")
+                    val refreshedToken = try {
+                        firebaseAuth.currentUser?.getIdToken(true)?.await()?.token
+                    } catch (e: Exception) {
+                        null
+                    }
+
+                    if (refreshedToken != null && refreshedToken != idToken) {
+                        val retryResponse = httpClient.post(url) {
+                            contentType(ContentType.Application.Json)
+                            header("Authorization", "Bearer $refreshedToken")
+                            setBody(
+                                AiChatRequestDto(
+                                    message = message,
+                                    context = context,
+                                    conversationHistory = conversationHistory
+                                )
+                            )
+                        }
+
+                        if (retryResponse.status.isSuccess()) {
+                            workingBaseUrl = baseUrl
+                            val body = retryResponse.body<AiChatResponseDto>()
+                            return Result.success(body)
+                        }
+                    }
+
+                    val errorBody = response.bodyAsText()
+                    Log.e(TAG, "HTTP 401 from $baseUrl: $errorBody")
+                    workingBaseUrl = baseUrl
+                    return Result.failure(Exception("Server error: ${response.status.value}"))
                 } else {
                     val errorBody = response.bodyAsText()
                     Log.e(TAG, "HTTP ${response.status.value} from $baseUrl: $errorBody")

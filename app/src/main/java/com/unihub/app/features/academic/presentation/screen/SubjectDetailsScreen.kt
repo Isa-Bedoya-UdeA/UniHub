@@ -18,6 +18,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.common.state.MessageType
+import com.unihub.app.core.designsystem.component.feedback.UniHubConfirmationDialog
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyState
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyStateType
+import com.unihub.app.core.designsystem.component.feedback.UniHubErrorState
+import com.unihub.app.core.designsystem.component.feedback.UniHubLoadingState
+import com.unihub.app.features.academic.domain.model.Grade
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
@@ -50,6 +56,7 @@ fun SubjectDetailsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showFabMenu by remember { mutableStateOf(false) }
     var showRepeatDialog by remember { mutableStateOf(false) }
+    var gradeToDelete by remember { mutableStateOf<Grade?>(null) }
 
     LaunchedEffect(subjectId) {
         viewModel.loadSubject(subjectId)
@@ -120,60 +127,32 @@ fun SubjectDetailsScreen(
                 }
             }
             if (showRepeatDialog) {
-                UniHubDialog(
-                    onDismissRequest = { showRepeatDialog = false }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(UniHubTheme.spacing.md),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = UniHubTheme.colorScheme.error,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
-                        Text(
-                            text = "¿Repetir materia?",
-                            style = UniHubTheme.typography.h3,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
-                        Text(
-                            text = "Esta acción eliminará todas las notas, tareas y eventos asociados a esta materia para que puedas comenzarla desde cero.",
-                            style = UniHubTheme.typography.body,
-                            color = UniHubTheme.colorScheme.textSecondary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(UniHubTheme.spacing.lg))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.sm)
-                        ) {
-                            OutlinedButton(
-                                onClick = { showRepeatDialog = false },
-                                modifier = Modifier.weight(1f),
-                                shape = UniHubTheme.shape.button
-                            ) {
-                                Text("Cancelar")
-                            }
-                            Button(
-                                onClick = {
-                                    showRepeatDialog = false
-                                    viewModel.repeatSubject()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = UniHubTheme.colorScheme.error),
-                                modifier = Modifier.weight(1f),
-                                shape = UniHubTheme.shape.button
-                            ) {
-                                Text("Repetir", color = Color.White)
-                            }
-                        }
-                    }
-                }
+                UniHubConfirmationDialog(
+                    onDismissRequest = { showRepeatDialog = false },
+                    onConfirm = {
+                        showRepeatDialog = false
+                        viewModel.repeatSubject()
+                    },
+                    title = "¿Repetir materia?",
+                    message = "Esta acción eliminará todas las notas, tareas y eventos asociados a esta materia para que puedas comenzarla desde cero.",
+                    confirmText = "Repetir",
+                    dismissText = "Cancelar",
+                    isDestructive = true
+                )
+            }
+            if (gradeToDelete != null) {
+                UniHubConfirmationDialog(
+                    onDismissRequest = { gradeToDelete = null },
+                    onConfirm = {
+                        gradeToDelete?.let { viewModel.deleteGrade(it.id) }
+                        gradeToDelete = null
+                    },
+                    title = "Eliminar calificación",
+                    message = "¿Estás seguro de que deseas eliminar '${gradeToDelete?.name}'? Esta acción no se puede deshacer.",
+                    confirmText = "Eliminar",
+                    dismissText = "Cancelar",
+                    isDestructive = true
+                )
             }
             FloatingActionButton(
                 onClick = { showFabMenu = true },
@@ -186,6 +165,22 @@ fun SubjectDetailsScreen(
         },
         containerColor = UniHubTheme.colorScheme.background
     ) { innerPadding ->
+        if (state.isLoading && state.subject == null) {
+            UniHubLoadingState(
+                message = "Cargando materia...",
+                modifier = Modifier.padding(innerPadding)
+            )
+            return@Scaffold
+        }
+        if (state.errorMessage != null && state.subject == null) {
+            UniHubErrorState(
+                message = state.errorMessage,
+                actionLabel = "Reintentar",
+                onAction = { viewModel.loadSubject(subjectId) },
+                modifier = Modifier.padding(innerPadding)
+            )
+            return@Scaffold
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -339,9 +334,19 @@ fun SubjectDetailsScreen(
                 Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
             }
 
-            if (state.tasks.isNotEmpty()) {
-                Text(text = "Tareas", style = UniHubTheme.typography.h3)
-                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+            Text(text = "Tareas", style = UniHubTheme.typography.h3)
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+            if (state.tasks.isEmpty()) {
+                UniHubEmptyState(
+                    type = UniHubEmptyStateType.NO_TASKS,
+                    title = "Sin tareas pendientes",
+                    message = "No tienes tareas registradas para esta materia.",
+                    actionLabel = "Crear Tarea",
+                    onAction = onNavigateToCreateTask
+                )
+            } else {
+
+
                 
                 state.tasks.forEach { task ->
                     TaskCard(
@@ -358,9 +363,17 @@ fun SubjectDetailsScreen(
                 Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
             }
             
-            if (state.grades.isNotEmpty()) {
-                Text(text = "Calificaciones", style = UniHubTheme.typography.h3)
-                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+            Text(text = "Calificaciones", style = UniHubTheme.typography.h3)
+            Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+            if (state.grades.isEmpty()) {
+                UniHubEmptyState(
+                    type = UniHubEmptyStateType.NO_GRADES,
+                    actionLabel = "Registrar Nota",
+                    onAction = onNavigateToCreateGrade
+                )
+            } else {
+
+
                 
                 state.grades.forEach { grade ->
                     GradeDetailItem(
@@ -368,7 +381,7 @@ fun SubjectDetailsScreen(
                         value = grade.value,
                         weight = grade.weight,
                         onEdit = { onNavigateToEditGrade(grade.id) },
-                        onDelete = { viewModel.deleteGrade(grade.id) }
+                        onDelete = { gradeToDelete = grade }
                     )
                     Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
                 }
@@ -405,7 +418,7 @@ fun GradeDetailItem(
                 Text(text = value.toString(), style = UniHubTheme.typography.h4, color = UniHubTheme.colorScheme.primary)
                 Box {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, null, tint = UniHubTheme.colorScheme.textDisabled)
+                        Icon(Icons.Default.MoreVert, contentDescription = "Opciones de calificación", tint = UniHubTheme.colorScheme.textDisabled)
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         DropdownMenuItem(text = { Text("Editar") }, onClick = { showMenu = false; onEdit() })

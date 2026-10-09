@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyState
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyStateType
 import com.unihub.app.core.designsystem.component.foundation.*
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.academic.domain.model.Study
@@ -148,11 +150,12 @@ fun ManageStudiesScreen(
         ) {
             if (studies.isEmpty()) {
                 item {
-                    UniHubAlert(
-                        variant = UniHubAlertVariant.Info,
+                    UniHubEmptyState(
+                        type = UniHubEmptyStateType.NO_DATA,
                         title = "Sin programas académicos",
                         message = "Aún no has creado ningún programa. Usa el botón + para añadir uno.",
-                        icon = Icons.Default.Info
+                        actionLabel = "Crear Programa",
+                        onAction = { showAddDialog = true }
                     )
                 }
             } else {

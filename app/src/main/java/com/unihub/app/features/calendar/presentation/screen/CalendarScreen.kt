@@ -28,6 +28,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyState
+import com.unihub.app.core.designsystem.component.feedback.UniHubEmptyStateType
+import com.unihub.app.core.designsystem.component.feedback.UniHubErrorState
+import com.unihub.app.core.designsystem.component.feedback.UniHubLoadingState
 import com.unihub.app.core.designsystem.component.foundation.UniHubChip
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.calendar.presentation.viewmodel.CalendarViewModel
@@ -68,6 +72,20 @@ fun CalendarScreen(
         },
         containerColor = UniHubTheme.colorScheme.background
     ) { innerPadding ->
+        if (state.isLoading && events.isEmpty()) {
+            UniHubLoadingState(
+                message = "Cargando agenda...",
+                modifier = Modifier.padding(innerPadding)
+            )
+            return@Scaffold
+        }
+        if (state.error != null && events.isEmpty()) {
+            UniHubErrorState(
+                message = state.error,
+                modifier = Modifier.padding(innerPadding)
+            )
+            return@Scaffold
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -342,12 +360,10 @@ fun DailyEvents(date: LocalDate, events: List<Event>, onEventClick: (String) -> 
         verticalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.md)
     ) {
         if (dayEvents.isEmpty()) {
-            Text(
-                text = "No tienes eventos programados para este día.",
-                style = UniHubTheme.typography.body,
-                color = UniHubTheme.colorScheme.info,
-                modifier = Modifier.padding(vertical = 32.dp).fillMaxWidth(),
-                textAlign = TextAlign.Center
+            UniHubEmptyState(
+                type = UniHubEmptyStateType.NO_EVENTS,
+                title = "Sin eventos programados",
+                message = "No tienes eventos para este día."
             )
         } else {
             dayEvents.forEach { event ->
