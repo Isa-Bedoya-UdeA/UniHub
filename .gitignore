@@ -19,3 +19,5 @@ secrets.properties
 server/secrets.properties
 server/.env
 .env
+*.jks
+*.keystore
