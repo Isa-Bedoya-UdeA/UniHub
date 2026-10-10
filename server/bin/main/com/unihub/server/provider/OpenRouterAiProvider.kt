@@ -12,9 +12,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * OpenRouter AI Provider - First fallback provider
+ * OpenRouter AI Provider - Primary AI provider
  * Uses OpenAI-compatible API at https://openrouter.ai/api/v1
- * Uses the free router model: openrouter/free
+ * Automatically iterates through verified active free models.
  */
 class OpenRouterAiProvider(
     private val apiKey: String = com.unihub.server.config.EnvConfig.get("OPENROUTER_API_KEY")
@@ -51,87 +51,134 @@ class OpenRouterAiProvider(
             )
         }
         
-        return RetryPolicy.executeWithRetry(name) { attempt ->
-            try {
-                val request = OpenRouterRequest(
-                    model = MODEL,
-                    messages = buildList {
-                        systemPrompt?.let {
-                            add(OpenRouterMessage(role = "system", content = it))
-                        }
-                        add(OpenRouterMessage(role = "user", content = prompt))
+        var lastError: AiProviderError? = null
+        val models = getCandidateModels()
+
+        for (model in models) {
+            println("🌐 OpenRouter: Attempting model $model")
+            val modelResult = RetryPolicy.executeWithRetry("$name ($model)") { attempt ->
+                tryModel(model, prompt, systemPrompt)
+            }
+
+            if (modelResult.isSuccess) {
+                return modelResult
+            }
+
+            val error = modelResult.exceptionOrNull()
+            if (error is AiProviderError.AuthenticationError) {
+                println("❌ OpenRouter: Authentication failed with provided API key. Aborting.")
+                return Result.failure(error)
+            }
+
+            if (error is AiProviderError) {
+                lastError = error
+            }
+            println("⚠️ OpenRouter: Model $model failed (${error?.message}). Trying next candidate...")
+        }
+        
+        return Result.failure(
+            lastError ?: AiProviderError.UnknownError("All OpenRouter candidate models failed")
+        )
+    }
+
+    private suspend fun tryModel(
+        model: String,
+        prompt: String,
+        systemPrompt: String?
+    ): Result<AiProviderResponse> {
+        return try {
+            val request = OpenRouterRequest(
+                model = model,
+                messages = buildList {
+                    systemPrompt?.let {
+                        add(OpenRouterMessage(role = "system", content = it))
                     }
-                )
-                
-                val response = httpClient.post("$API_URL/chat/completions") {
-                    contentType(ContentType.Application.Json)
-                    header("Authorization", "Bearer $apiKey")
-                    header("HTTP-Referer", "https://unihub.app")
-                    header("X-Title", "UniHub")
-                    setBody(request)
+                    add(OpenRouterMessage(role = "user", content = prompt))
                 }
+            )
+            
+            val response = httpClient.post("$API_URL/chat/completions") {
+                contentType(ContentType.Application.Json)
+                header("Authorization", "Bearer $apiKey")
+                header("HTTP-Referer", "https://unihub.app")
+                header("X-Title", "UniHub")
+                setBody(request)
+            }
+            
+            if (response.status.isSuccess()) {
+                val responseBody = response.bodyAsText()
+                val openRouterResponse = json.decodeFromString<OpenRouterResponse>(responseBody)
                 
-                if (response.status.isSuccess()) {
-                    val responseBody = response.bodyAsText()
-                    val openRouterResponse = json.decodeFromString<OpenRouterResponse>(responseBody)
-                    
-                    val text = openRouterResponse.choices
-                        .firstOrNull()
-                        ?.message
-                        ?.content
-                    
-                    if (text != null) {
-                        Result.success(
-                            AiProviderResponse(
-                                text = text,
-                                provider = name,
-                                model = openRouterResponse.model,
-                                tokensUsed = openRouterResponse.usage?.totalTokens
-                            )
+                val text = openRouterResponse.choices
+                    .firstOrNull()
+                    ?.message
+                    ?.content
+                
+                if (!text.isNullOrBlank()) {
+                    println("✅ OpenRouter: Success with model $model")
+                    Result.success(
+                        AiProviderResponse(
+                            text = text,
+                            provider = name,
+                            model = openRouterResponse.model ?: model,
+                            tokensUsed = openRouterResponse.usage?.totalTokens
                         )
-                    } else {
-                        Result.failure(
-                            AiProviderError.UnknownError("Empty response from OpenRouter")
-                        )
-                    }
-                } else {
-                    val errorBody = response.bodyAsText()
-                    val retryAfter = RetryPolicy.extractRetryAfter(response)
-                    
-                    when (response.status.value) {
-                        401, 403 -> Result.failure(
-                            AiProviderError.AuthenticationError("OpenRouter authentication failed")
-                        )
-                        429 -> Result.failure(
-                            AiProviderError.RateLimited(retryAfter)
-                        )
-                        in 500..599 -> Result.failure(
-                            AiProviderError.ApiError(response.status.value, errorBody)
-                        )
-                        else -> Result.failure(
-                            AiProviderError.ApiError(response.status.value, errorBody)
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                when (e) {
-                    is java.net.SocketTimeoutException -> Result.failure(
-                        AiProviderError.TimeoutError(e.message ?: "Connection timeout")
                     )
-                    is java.net.UnknownHostException -> Result.failure(
-                        AiProviderError.NetworkError("DNS resolution failed")
+                } else {
+                    println("⚠️ OpenRouter: Model $model returned empty text. Body: $responseBody")
+                    Result.failure(
+                        AiProviderError.UnknownError("Empty response from OpenRouter ($model)")
+                    )
+                }
+            } else {
+                val errorBody = response.bodyAsText()
+                val retryAfter = RetryPolicy.extractRetryAfter(response)
+                println("❌ OpenRouter: HTTP ${response.status.value} for model $model: $errorBody")
+                
+                when (response.status.value) {
+                    401, 403 -> Result.failure(
+                        AiProviderError.AuthenticationError("OpenRouter authentication failed: $errorBody")
+                    )
+                    429 -> Result.failure(
+                        AiProviderError.RateLimited(retryAfter)
+                    )
+                    in 500..599 -> Result.failure(
+                        AiProviderError.ApiError(response.status.value, errorBody)
                     )
                     else -> Result.failure(
-                        AiProviderError.NetworkError(e.message ?: "Network error")
+                        AiProviderError.ApiError(response.status.value, errorBody)
                     )
                 }
+            }
+        } catch (e: Exception) {
+            println("❌ OpenRouter: Network/Timeout exception for model $model: ${e.message}")
+            when (e) {
+                is java.net.SocketTimeoutException -> Result.failure(
+                    AiProviderError.TimeoutError(e.message ?: "Connection timeout")
+                )
+                is java.net.UnknownHostException -> Result.failure(
+                    AiProviderError.NetworkError("DNS resolution failed")
+                )
+                else -> Result.failure(
+                    AiProviderError.NetworkError(e.message ?: "Network error")
+                )
             }
         }
     }
     
     companion object {
         private const val API_URL = "https://openrouter.ai/api/v1"
-        private const val MODEL = "openrouter/free"
+
+        fun getCandidateModels(): List<String> {
+            val configured = com.unihub.server.config.EnvConfig.get("OPENROUTER_MODEL")
+            return listOfNotNull(
+                configured.ifBlank { null },
+                "google/gemma-4-31b-it:free",
+                "google/gemma-4-26b-a4b-it:free",
+                "nvidia/nemotron-3-super-120b-a12b:free",
+                "nvidia/nemotron-3.5-lightning:free"
+            ).distinct()
+        }
     }
 }
 

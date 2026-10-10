@@ -51,85 +51,130 @@ class GroqAiProvider(
             )
         }
         
-        return RetryPolicy.executeWithRetry(name) { attempt ->
-            try {
-                val request = GroqRequest(
-                    model = MODEL,
-                    messages = buildList {
-                        systemPrompt?.let {
-                            add(GroqMessage(role = "system", content = it))
-                        }
-                        add(GroqMessage(role = "user", content = prompt))
+        var lastError: AiProviderError? = null
+        val models = getCandidateModels()
+
+        for (model in models) {
+            println("🌐 Groq: Attempting model $model")
+            val modelResult = RetryPolicy.executeWithRetry("$name ($model)") { attempt ->
+                tryModel(model, prompt, systemPrompt)
+            }
+
+            if (modelResult.isSuccess) {
+                return modelResult
+            }
+
+            val error = modelResult.exceptionOrNull()
+            if (error is AiProviderError.AuthenticationError) {
+                println("❌ Groq: Authentication failed. Aborting.")
+                return Result.failure(error)
+            }
+
+            if (error is AiProviderError) {
+                lastError = error
+            }
+            println("⚠️ Groq: Model $model failed (${error?.message}). Trying next candidate...")
+        }
+        
+        return Result.failure(
+            lastError ?: AiProviderError.UnknownError("All Groq candidate models failed")
+        )
+    }
+
+    private suspend fun tryModel(
+        model: String,
+        prompt: String,
+        systemPrompt: String?
+    ): Result<AiProviderResponse> {
+        return try {
+            val request = GroqRequest(
+                model = model,
+                messages = buildList {
+                    systemPrompt?.let {
+                        add(GroqMessage(role = "system", content = it))
                     }
-                )
-                
-                val response = httpClient.post("$API_URL/chat/completions") {
-                    contentType(ContentType.Application.Json)
-                    header("Authorization", "Bearer $apiKey")
-                    setBody(request)
+                    add(GroqMessage(role = "user", content = prompt))
                 }
+            )
+            
+            val response = httpClient.post("$API_URL/chat/completions") {
+                contentType(ContentType.Application.Json)
+                header("Authorization", "Bearer $apiKey")
+                setBody(request)
+            }
+            
+            if (response.status.isSuccess()) {
+                val responseBody = response.bodyAsText()
+                val groqResponse = json.decodeFromString<GroqResponse>(responseBody)
                 
-                if (response.status.isSuccess()) {
-                    val responseBody = response.bodyAsText()
-                    val groqResponse = json.decodeFromString<GroqResponse>(responseBody)
-                    
-                    val text = groqResponse.choices
-                        .firstOrNull()
-                        ?.message
-                        ?.content
-                    
-                    if (text != null) {
-                        Result.success(
-                            AiProviderResponse(
-                                text = text,
-                                provider = name,
-                                model = groqResponse.model,
-                                tokensUsed = groqResponse.usage?.totalTokens
-                            )
+                val text = groqResponse.choices
+                    .firstOrNull()
+                    ?.message
+                    ?.content
+                
+                if (!text.isNullOrBlank()) {
+                    println("✅ Groq: Success with model $model")
+                    Result.success(
+                        AiProviderResponse(
+                            text = text,
+                            provider = name,
+                            model = groqResponse.model ?: model,
+                            tokensUsed = groqResponse.usage?.totalTokens
                         )
-                    } else {
-                        Result.failure(
-                            AiProviderError.UnknownError("Empty response from Groq")
-                        )
-                    }
-                } else {
-                    val errorBody = response.bodyAsText()
-                    val retryAfter = RetryPolicy.extractRetryAfter(response)
-                    
-                    when (response.status.value) {
-                        401, 403 -> Result.failure(
-                            AiProviderError.AuthenticationError("Groq authentication failed")
-                        )
-                        429 -> Result.failure(
-                            AiProviderError.RateLimited(retryAfter)
-                        )
-                        in 500..599 -> Result.failure(
-                            AiProviderError.ApiError(response.status.value, errorBody)
-                        )
-                        else -> Result.failure(
-                            AiProviderError.ApiError(response.status.value, errorBody)
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                when (e) {
-                    is java.net.SocketTimeoutException -> Result.failure(
-                        AiProviderError.TimeoutError(e.message ?: "Connection timeout")
                     )
-                    is java.net.UnknownHostException -> Result.failure(
-                        AiProviderError.NetworkError("DNS resolution failed")
+                } else {
+                    println("⚠️ Groq: Model $model returned empty text. Body: $responseBody")
+                    Result.failure(
+                        AiProviderError.UnknownError("Empty response from Groq ($model)")
+                    )
+                }
+            } else {
+                val errorBody = response.bodyAsText()
+                val retryAfter = RetryPolicy.extractRetryAfter(response)
+                println("❌ Groq: HTTP ${response.status.value} for model $model: $errorBody")
+                
+                when (response.status.value) {
+                    401, 403 -> Result.failure(
+                        AiProviderError.AuthenticationError("Groq authentication failed: $errorBody")
+                    )
+                    429 -> Result.failure(
+                        AiProviderError.RateLimited(retryAfter)
+                    )
+                    in 500..599 -> Result.failure(
+                        AiProviderError.ApiError(response.status.value, errorBody)
                     )
                     else -> Result.failure(
-                        AiProviderError.NetworkError(e.message ?: "Network error")
+                        AiProviderError.ApiError(response.status.value, errorBody)
                     )
                 }
+            }
+        } catch (e: Exception) {
+            println("❌ Groq: Network/Timeout exception for model $model: ${e.message}")
+            when (e) {
+                is java.net.SocketTimeoutException -> Result.failure(
+                    AiProviderError.TimeoutError(e.message ?: "Connection timeout")
+                )
+                is java.net.UnknownHostException -> Result.failure(
+                    AiProviderError.NetworkError("DNS resolution failed")
+                )
+                else -> Result.failure(
+                    AiProviderError.NetworkError(e.message ?: "Network error")
+                )
             }
         }
     }
     
     companion object {
         private const val API_URL = "https://api.groq.com/openai/v1"
-        private const val MODEL = "llama-3.1-8b-instant"
+
+        fun getCandidateModels(): List<String> {
+            val configured = com.unihub.server.config.EnvConfig.get("GROQ_MODEL")
+            return listOfNotNull(
+                configured.ifBlank { null },
+                "llama-3.3-70b-versatile",
+                "llama-3.1-8b-instant"
+            ).distinct()
+        }
     }
 }
 

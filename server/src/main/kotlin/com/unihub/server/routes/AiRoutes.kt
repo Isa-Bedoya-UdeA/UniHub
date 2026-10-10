@@ -51,6 +51,7 @@ fun Routing.configureAiRoutes(
                         )
                     },
                     onFailure = { error ->
+                        println("🚨 AI route error: ${error.javaClass.simpleName} - ${error.message}")
                         val (statusCode, errorCode) = when (error) {
                             is AiProviderError.ConfigurationError -> 
                                 HttpStatusCode.ServiceUnavailable to AiErrorCodes.AI_CONFIGURATION_ERROR
