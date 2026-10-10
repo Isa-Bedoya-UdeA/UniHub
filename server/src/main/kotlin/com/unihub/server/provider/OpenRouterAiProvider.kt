@@ -131,7 +131,7 @@ class OpenRouterAiProvider(
     
     companion object {
         private const val API_URL = "https://openrouter.ai/api/v1"
-        private const val MODEL = "openrouter/free"
+        private const val MODEL = "meta-llama/llama-3.3-70b-instruct:free"
     }
 }
 
