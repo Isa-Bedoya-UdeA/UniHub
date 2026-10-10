@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.unihub.server.AcademicRoutesTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-09T02:32:08.191Z" hostname="TORRE-IZZY" time="0.878">
+<testsuite name="com.unihub.server.AcademicRoutesTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-10-10T04:06:03.445Z" hostname="TORRE-IZZY" time="1.316">
   <properties/>
-  <testcase name="GET academic summary returns user summary" classname="com.unihub.server.AcademicRoutesTest" time="0.801"/>
-  <testcase name="POST academic calculate rejects weight of 100 or more" classname="com.unihub.server.AcademicRoutesTest" time="0.032"/>
-  <testcase name="POST academic calculate rejects invalid currentGrade" classname="com.unihub.server.AcademicRoutesTest" time="0.008"/>
-  <testcase name="POST academic calculate computes required grade correctly" classname="com.unihub.server.AcademicRoutesTest" time="0.015"/>
-  <testcase name="POST academic calculate rejects negative values" classname="com.unihub.server.AcademicRoutesTest" time="0.009"/>
-  <testcase name="POST academic calculate rejects NaN values" classname="com.unihub.server.AcademicRoutesTest" time="0.01"/>
+  <testcase name="GET academic summary returns user summary" classname="com.unihub.server.AcademicRoutesTest" time="1.076"/>
+  <testcase name="POST academic calculate rejects weight of 100 or more" classname="com.unihub.server.AcademicRoutesTest" time="0.112"/>
+  <testcase name="POST academic calculate rejects invalid currentGrade" classname="com.unihub.server.AcademicRoutesTest" time="0.019"/>
+  <testcase name="POST academic calculate computes required grade correctly" classname="com.unihub.server.AcademicRoutesTest" time="0.06"/>
+  <testcase name="POST academic calculate rejects negative values" classname="com.unihub.server.AcademicRoutesTest" time="0.021"/>
+  <testcase name="POST academic calculate rejects NaN values" classname="com.unihub.server.AcademicRoutesTest" time="0.021"/>
   <system-out><![CDATA[]]>&#x1f916;<![CDATA[ AI Service initialized
 ]]>&#x1f916;<![CDATA[ AI Service initialized
 ]]>&#x1f916;<![CDATA[ AI Service initialized

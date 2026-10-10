@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.unihub.server.HealthRoutesTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-09T02:32:16.141Z" hostname="TORRE-IZZY" time="0.01">
+<testsuite name="com.unihub.server.HealthRoutesTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-10T04:06:14.676Z" hostname="TORRE-IZZY" time="0.031">
   <properties/>
-  <testcase name="GET health returns status ok" classname="com.unihub.server.HealthRoutesTest" time="0.005"/>
-  <testcase name="GET api health returns status ok" classname="com.unihub.server.HealthRoutesTest" time="0.005"/>
+  <testcase name="GET health returns status ok" classname="com.unihub.server.HealthRoutesTest" time="0.015"/>
+  <testcase name="GET api health returns status ok" classname="com.unihub.server.HealthRoutesTest" time="0.016"/>
   <system-out><![CDATA[]]>&#x1f916;<![CDATA[ AI Service initialized
 ]]>&#x1f916;<![CDATA[ AI Service initialized
 ]]></system-out>

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.unihub.server.AiParseRoutesTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-09T02:32:09.072Z" hostname="TORRE-IZZY" time="6.995">
+<testsuite name="com.unihub.server.AiParseRoutesTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-10T04:06:04.763Z" hostname="TORRE-IZZY" time="9.609">
   <properties/>
-  <testcase name="POST ai parse detects CREATE_EVENT action" classname="com.unihub.server.AiParseRoutesTest" time="6.989"/>
-  <testcase name="POST ai parse rejects blank prompt" classname="com.unihub.server.AiParseRoutesTest" time="0.006"/>
+  <testcase name="POST ai parse detects CREATE_EVENT action" classname="com.unihub.server.AiParseRoutesTest" time="9.591"/>
+  <testcase name="POST ai parse rejects blank prompt" classname="com.unihub.server.AiParseRoutesTest" time="0.018"/>
   <system-out><![CDATA[]]>&#x1f916;<![CDATA[ AI Service initialized
 ]]>&#x1f916;<![CDATA[ AI Service: Received message: Analiza y genera una respuesta para la instrucción...
 ]]>&#x1f916;<![CDATA[ AI Service: Calling provider chain...

@@ -269,19 +269,21 @@ Application screenshots will be added as the UI is implemented.
 
 ### Dashboard
 
-![UniHub Dashboard](docs/assets/screenshots/dashboard.png)
+![UniHub Dashboard](docs/assets/screenshots/dashboard.jpg)
 
 ### Calendar
 
-![UniHub Calendar](docs/assets/screenshots/calendar.png)
+![UniHub Calendar Month](docs/assets/screenshots/calendar1.jpg)
+
+![UniHub Calendar Week](docs/assets/screenshots/calendar2.jpg)
 
 ### Academic Performance
 
-![UniHub Academic Performance](docs/assets/screenshots/academic.png)
+![UniHub Academic Performance](docs/assets/screenshots/academic.jpg)
 
 ### AI Assistant
 
-![UniHub AI Assistant](docs/assets/screenshots/ai-assistant.png)
+![UniHub AI Assistant](docs/assets/screenshots/ai-assistant.jpg)
 
 > Screenshots are stored in `docs/assets/screenshots/`.
 

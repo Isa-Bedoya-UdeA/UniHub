@@ -36,6 +36,10 @@ Room entities are persistence representations. Domain models must not be exposed
 
 ## 4. Relational Model
 
+MER Diagram:
+
+![UniHub MER](mer.png)
+
 ### 4.1 Design Conventions
 
 Relational entities use singular PascalCase names.

@@ -106,17 +106,21 @@ class EventDetailsViewModel @Inject constructor(
         }
         
         try {
-            val uri = android.net.Uri.parse(meetingUrl)
+            val formattedUrl = when {
+                meetingUrl.startsWith("http://", ignoreCase = true) || meetingUrl.startsWith("https://", ignoreCase = true) -> meetingUrl
+                else -> "https://$meetingUrl"
+            }
+            val uri = android.net.Uri.parse(formattedUrl)
             android.util.Log.d("EventDetailsVM", "Parsed URI: $uri")
             
-            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
-            if (intent.resolveActivity(context.packageManager) != null) {
-                context.startActivity(intent)
-            } else {
-                android.util.Log.e("EventDetailsVM", "No app found to handle URL")
-                viewModelScope.launch {
-                    _uiEvent.emit(UiEvent.ShowMessage("No se encontró una aplicación para abrir el enlace", MessageType.ERROR))
-                }
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri).apply {
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (e: android.content.ActivityNotFoundException) {
+            android.util.Log.e("EventDetailsVM", "No app found to handle URL", e)
+            viewModelScope.launch {
+                _uiEvent.emit(UiEvent.ShowMessage("No se encontró una aplicación para abrir el enlace", MessageType.ERROR))
             }
         } catch (e: Exception) {
             android.util.Log.e("EventDetailsVM", "Error opening URL", e)

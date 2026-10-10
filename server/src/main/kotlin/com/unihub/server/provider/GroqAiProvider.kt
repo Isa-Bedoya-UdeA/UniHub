@@ -129,7 +129,7 @@ class GroqAiProvider(
     
     companion object {
         private const val API_URL = "https://api.groq.com/openai/v1"
-        private const val MODEL = "llama-3.3-70b-versatile"
+        private const val MODEL = "llama-3.1-8b-instant"
     }
 }
 
