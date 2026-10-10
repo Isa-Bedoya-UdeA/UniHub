@@ -25,11 +25,11 @@ class AiRemoteDataSource @Inject constructor(
     companion object {
         private const val TAG = "AiRemoteDataSource"
         private val CANDIDATE_URLS = listOf(
-            "http://localhost:8080",
             BuildConfig.KTOR_BASE_URL,
-            "http://192.168.128.12:8080",
-            "http://192.168.128.8:8080",
-            "http://10.0.2.2:8080"
+            "https://unihub-server.onrender.com",
+            "http://10.0.2.2:8080",
+            "http://localhost:8080",
+            "http://192.168.128.12:8080"
         ).distinct()
         @Volatile
         private var workingBaseUrl: String? = null

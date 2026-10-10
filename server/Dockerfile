@@ -8,6 +8,9 @@ COPY gradle gradle
 COPY build.gradle.kts settings.gradle.kts gradle.properties ./
 COPY server server
 
+# Create dummy app directory so settings.gradle.kts doesn't fail on include(":app")
+RUN mkdir -p app
+
 # Build shadow/fat jar for Ktor server
 RUN chmod +x ./gradlew && ./gradlew :server:jar --no-daemon
 
