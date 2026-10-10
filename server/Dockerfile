@@ -9,7 +9,7 @@ COPY build.gradle.kts settings.gradle.kts gradle.properties ./
 COPY server server
 
 # Build shadow/fat jar for Ktor server
-RUN ./gradlew :server:jar --no-daemon
+RUN chmod +x ./gradlew && ./gradlew :server:jar --no-daemon
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine
