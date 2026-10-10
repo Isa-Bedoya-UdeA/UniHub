@@ -15,4 +15,9 @@ fun Routing.configureHealthRoutes() {
     get("/api/health") {
         call.respond(HttpStatusCode.OK, healthResponse)
     }
+
+    // Ultra-light ping endpoint returning raw text with zero overhead
+    get("/ping") {
+        call.respondText("OK", ContentType.Text.Plain, HttpStatusCode.OK)
+    }
 }

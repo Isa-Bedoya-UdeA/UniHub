@@ -24,8 +24,12 @@ tasks.jar {
     manifest {
         attributes["Main-Class"] = "com.unihub.server.ApplicationKt"
     }
-    // Incluir todas las dependencias en el JAR
-    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+    // Incluir todas las dependencias en el JAR excluyendo firmas criptográficas de terceros
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) }) {
+        exclude("META-INF/*.SF")
+        exclude("META-INF/*.DSA")
+        exclude("META-INF/*.RSA")
+    }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
