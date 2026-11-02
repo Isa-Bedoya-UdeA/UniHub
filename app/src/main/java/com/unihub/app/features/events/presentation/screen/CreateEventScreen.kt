@@ -43,6 +43,7 @@ import com.unihub.app.core.designsystem.component.academic.UniHubLocationCard
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.UUID
@@ -61,7 +62,6 @@ fun CreateEventScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val datePickerState = rememberDatePickerState()
     
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -110,21 +110,20 @@ fun CreateEventScreen(
 
     if (showDatePicker) {
         val today = LocalDate.now()
-        val initialDateState = rememberDatePickerState(
-            initialSelectedDateMillis = if (state.date.isNotBlank()) {
-                try {
-                    val parts = state.date.split("-")
-                    LocalDate.of(parts[2].toInt(), parts[1].toInt(), parts[0].toInt())
-                        .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                } catch(e: Exception) { today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
-            } else today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-        )
+        val initialMillis = if (state.date.isNotBlank()) {
+            try {
+                val parts = state.date.split("-")
+                LocalDate.of(parts[2].toInt(), parts[1].toInt(), parts[0].toInt())
+                    .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            } catch(e: Exception) { today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }
+        } else today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        val initialDateState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     initialDateState.selectedDateMillis?.let {
-                        val date = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                        val date = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
                         val formatted = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
                         viewModel.onEvent(EventFormEvent.EnteredDate(formatted))
                     }
@@ -298,6 +297,11 @@ fun CreateEventScreen(
                 enabled = false,
                 leadingIcon = Icons.Default.CalendarToday
             )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable { showDatePicker = true }
+            )
         }
         state.dateError?.let {
             Text(text = it, color = UniHubTheme.colorScheme.error, style = UniHubTheme.typography.bodySmall)
@@ -317,6 +321,11 @@ fun CreateEventScreen(
                     enabled = false,
                     leadingIcon = Icons.Default.Schedule
                 )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { showStartTimePicker = true }
+                )
             }
             Box(modifier = Modifier.weight(1f).clickable { showEndTimePicker = true }) {
                 UniHubTextField(
@@ -328,6 +337,11 @@ fun CreateEventScreen(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = false,
                     leadingIcon = Icons.Default.Schedule
+                )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { showEndTimePicker = true }
                 )
             }
         }
@@ -618,7 +632,7 @@ fun CreateEventScreen(
                     confirmButton = {
                         TextButton(onClick = {
                             recurrenceStartDatePickerState.selectedDateMillis?.let {
-                                val date = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                                val date = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
                                 val formatted = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
                                 viewModel.onEvent(EventFormEvent.RecurrenceStartDateChanged(formatted))
                             }
@@ -639,7 +653,7 @@ fun CreateEventScreen(
                     confirmButton = {
                         TextButton(onClick = {
                             recurrenceEndDatePickerState.selectedDateMillis?.let {
-                                val date = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                                val date = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
                                 val formatted = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
                                 viewModel.onEvent(EventFormEvent.RecurrenceEndDateChanged(formatted))
                             }
@@ -665,6 +679,11 @@ fun CreateEventScreen(
                         enabled = false,
                         leadingIcon = Icons.Default.CalendarToday
                     )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { showRecurrenceStartDatePicker = true }
+                    )
                 }
                 Box(modifier = Modifier.weight(1f).clickable { showRecurrenceEndDatePicker = true }) {
                     UniHubTextField(
@@ -675,6 +694,11 @@ fun CreateEventScreen(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = false,
                         leadingIcon = Icons.Default.CalendarToday
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clickable { showRecurrenceEndDatePicker = true }
                     )
                 }
             }

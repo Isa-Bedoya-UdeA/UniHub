@@ -27,7 +27,9 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
@@ -68,8 +70,18 @@ class SubjectDetailsViewModel @Inject constructor(
                     getTasksUseCase(userId),
                     getEventsUseCase(userId, now, end)
                 ) { subject, grades, tasks, events ->
+                    val todayDate = LocalDate.now(ZoneId.systemDefault())
                     val subjectTasks = tasks.filter { it.subjectId == id }
                     val subjectEvents = events.filter { it.subjectId == id }
+                        .filter { event ->
+                            if (event.eventType == EventType.CLASS || event.recurrenceRuleId != null) {
+                                true
+                            } else {
+                                val dateStr = event.startAt.split("T").firstOrNull() ?: ""
+                                val eventDate = runCatching { LocalDate.parse(dateStr) }.getOrNull()
+                                eventDate == null || !eventDate.isBefore(todayDate)
+                            }
+                        }
                     val nextClass = subjectEvents
                         .filter { it.eventType == EventType.CLASS }
                         .minByOrNull { it.startAt }

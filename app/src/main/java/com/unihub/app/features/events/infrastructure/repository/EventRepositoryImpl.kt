@@ -13,11 +13,15 @@ import com.unihub.app.features.events.infrastructure.data.mapper.toDto
 import com.unihub.app.features.events.infrastructure.data.mapper.toEntity
 import com.unihub.app.features.events.infrastructure.data.remote.datasource.EventRemoteDataSource
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Singleton
 class EventRepositoryImpl @Inject constructor(
     private val localDataSource: EventLocalDataSource,
@@ -61,20 +65,21 @@ class EventRepositoryImpl @Inject constructor(
         }
 
     override fun getEventById(id: String): Flow<Event?> =
-        localDataSource.getEventById(id).map { entity ->
-            entity?.let {
-                val reminders = localDataSource.getRemindersForEvent(it.id).first()
-                    .map { reminder -> reminder.toDomain() }
-
-                var rule: RecurrenceRule? = null
-                var days: List<Int> = emptyList()
-
-                it.recurrenceRuleId?.let { ruleId ->
-                    rule = localDataSource.getRecurrenceRuleById(ruleId).first()?.toDomain()
-                    days = localDataSource.getRecurrenceDays(ruleId).first().map { it.dayOfWeek }
+        localDataSource.getEventById(id).flatMapLatest { entity ->
+            if (entity == null) {
+                flowOf(null)
+            } else {
+                combine(
+                    localDataSource.getRemindersForEvent(entity.id),
+                    entity.recurrenceRuleId?.let { localDataSource.getRecurrenceRuleById(it) } ?: flowOf(null),
+                    entity.recurrenceRuleId?.let { localDataSource.getRecurrenceDays(it) } ?: flowOf(emptyList())
+                ) { reminders, rule, days ->
+                    entity.toDomain(
+                        reminders = reminders.map { it.toDomain() },
+                        recurrenceRule = rule?.toDomain(),
+                        recurrenceDays = days.map { it.dayOfWeek }
+                    )
                 }
-
-                it.toDomain(reminders, rule, days)
             }
         }
 

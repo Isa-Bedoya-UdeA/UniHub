@@ -93,7 +93,17 @@ class LocationRepositoryImpl @Inject constructor(
         val trimmedQuery = query.trim()
         if (trimmedQuery.isBlank()) return emptyList()
 
-        // 1. Intentar primero con PlacesClient si está disponible
+        val isAddress = isLikelyAddress(trimmedQuery)
+
+        // Si es una dirección típica (Calle, Cra, #, etc.), buscar directamente con Geocoder primero
+        if (isAddress) {
+            val geocoderResults = searchWithGeocoder(trimmedQuery)
+            if (geocoderResults.isNotEmpty()) {
+                return geocoderResults
+            }
+        }
+
+        // 1. Intentar con PlacesClient si está disponible
         if (placesClient != null) {
             try {
                 val token = AutocompleteSessionToken.newInstance()
@@ -143,46 +153,37 @@ class LocationRepositoryImpl @Inject constructor(
         return searchWithGeocoder(trimmedQuery)
     }
 
+    private fun isLikelyAddress(query: String): Boolean {
+        val lower = query.lowercase()
+        return lower.contains("#") ||
+                lower.contains("calle") ||
+                lower.contains("cll") ||
+                lower.contains("carrera") ||
+                lower.contains("cra") ||
+                lower.contains("cr ") ||
+                lower.contains("diagonal") ||
+                lower.contains("diag") ||
+                lower.contains("transversal") ||
+                lower.contains("transv") ||
+                lower.contains("avenida") ||
+                lower.contains("av ") ||
+                lower.contains("circular")
+    }
+
     private suspend fun searchWithGeocoder(query: String): List<LocationCandidate> = withContext(Dispatchers.IO) {
         try {
             if (!Geocoder.isPresent()) return@withContext emptyList()
-            val geocoder = Geocoder(context, Locale.getDefault())
+            val geocoder = Geocoder(context, Locale("es", "CO"))
 
-            val addresses: List<Address> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                suspendCancellableCoroutine { continuation ->
-                    try {
-                        geocoder.getFromLocationName(query, 5, object : Geocoder.GeocodeListener {
-                            override fun onGeocode(addresses: MutableList<Address>) {
-                                if (continuation.isActive) {
-                                    continuation.resume(addresses)
-                                }
-                            }
-                            override fun onError(errorMessage: String?) {
-                                Log.w("LocationRepo", "Geocoder error: $errorMessage")
-                                if (continuation.isActive) {
-                                    continuation.resume(emptyList())
-                                }
-                            }
-                        })
-                    } catch (t: Throwable) {
-                        if (continuation.isActive) {
-                            continuation.resume(emptyList())
-                        }
-                    }
-                }
-            } else {
-                @Suppress("DEPRECATION")
-                try {
-                    geocoder.getFromLocationName(query, 5) ?: emptyList()
-                } catch (t: Throwable) {
-                    emptyList()
-                }
+            var addresses = fetchAddresses(geocoder, query)
+            if (addresses.isEmpty() && !query.lowercase().contains("colombia")) {
+                addresses = fetchAddresses(geocoder, "$query, Colombia")
             }
 
             addresses.map { address ->
-                val name = address.featureName?.takeIf { it.isNotBlank() }
-                    ?: address.subLocality
+                val name = address.featureName?.takeIf { it.isNotBlank() && it != address.locality }
                     ?: address.thoroughfare
+                    ?: address.subLocality
                     ?: address.locality
                     ?: query
                 val fullAddress = (0..address.maxAddressLineIndex)
@@ -198,12 +199,45 @@ class LocationRepositoryImpl @Inject constructor(
                     address = fullAddress,
                     latitude = address.latitude,
                     longitude = address.longitude,
-                    placeId = null // Coordenadas ya resueltas directamente
+                    placeId = null
                 )
             }
         } catch (t: Throwable) {
-            Log.e("LocationRepo", "Geocoder fallback error: ${t.message}")
+            Log.e("LocationRepo", "searchWithGeocoder failed: ${t.message}")
             emptyList()
+        }
+    }
+
+    private suspend fun fetchAddresses(geocoder: Geocoder, query: String): List<Address> {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            suspendCancellableCoroutine { continuation ->
+                try {
+                    geocoder.getFromLocationName(query, 5, object : Geocoder.GeocodeListener {
+                        override fun onGeocode(addresses: MutableList<Address>) {
+                            if (continuation.isActive) {
+                                continuation.resume(addresses)
+                            }
+                        }
+                        override fun onError(errorMessage: String?) {
+                            Log.w("LocationRepo", "Geocoder error: $errorMessage")
+                            if (continuation.isActive) {
+                                continuation.resume(emptyList())
+                            }
+                        }
+                    })
+                } catch (t: Throwable) {
+                    if (continuation.isActive) {
+                        continuation.resume(emptyList())
+                    }
+                }
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            try {
+                geocoder.getFromLocationName(query, 5) ?: emptyList()
+            } catch (t: Throwable) {
+                emptyList()
+            }
         }
     }
 

@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -65,6 +66,7 @@ class EventFormViewModel @Inject constructor(
     val uiEvent = _uiEvent.asSharedFlow()
 
     private var currentEventId: String? = null
+    private var isEventLoaded: Boolean = false
 
     init {
         currentEventId = savedStateHandle.get<String>("eventId")
@@ -190,62 +192,66 @@ class EventFormViewModel @Inject constructor(
     }
 
     private fun loadEvent(id: String) {
+        if (isEventLoaded) return
         viewModelScope.launch {
             try {
                 _state.update { it.copy(isLoading = true) }
-                getEventByIdUseCase(id).collect { event ->
-                    event?.let { e ->
-                        val internalDate = e.startAt.split("T").firstOrNull() ?: ""
-                        val parts = internalDate.split("-")
-                        val spanishDate = if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else internalDate
-                        
-                        _state.update { state ->
-                            state.copy(
-                                title = e.title,
-                                date = spanishDate,
-                                startTime = e.startAt.split("T").lastOrNull() ?: "",
-                                endTime = e.endAt.split("T").lastOrNull() ?: "",
-                                locationType = e.locationType,
-                                eventType = e.eventType,
-                                subjectId = e.subjectId,
-                                meetingUrl = e.meetingUrl ?: "",
-                                notes = e.notes ?: "",
-                                reminders = e.reminders,
-                                isRecurring = e.recurrenceRuleId != null,
-                                recurrenceDays = e.recurrenceDays.toSet(),
-                                recurrenceStartDate = e.recurrenceRule?.startDate?.let {
-                                    val parts = it.split("-")
-                                    if (parts.size == 3 && parts[0].length == 4) "${parts[2]}-${parts[1]}-${parts[0]}" else it
-                                } ?: "",
-                                recurrenceEndDate = e.recurrenceRule?.endDate?.let {
-                                    val parts = it.split("-")
-                                    if (parts.size == 3 && parts[0].length == 4) "${parts[2]}-${parts[1]}-${parts[0]}" else it
-                                } ?: "",
-                                isLoading = e.locationId != null
-                            )
-                        }
-
-                        e.locationId?.let { locId ->
-                            viewModelScope.launch {
-                                getLocationByIdUseCase.invoke(locId).collect { location ->
-                                    location?.let { loc ->
-                                        _state.update { s ->
-                                            s.copy(
-                                                selectedLocation = LocationCandidate(
-                                                    name = loc.name ?: "",
-                                                    address = loc.address ?: "",
-                                                    latitude = loc.latitude ?: 0.0,
-                                                    longitude = loc.longitude ?: 0.0,
-                                                    placeId = loc.placeId
-                                                ),
-                                                isLoading = false
-                                            )
-                                        }
-                                    } ?: _state.update { it.copy(isLoading = false) }
-                                }
-                            }
-                        } ?: _state.update { it.copy(isLoading = false) }
+                val event = getEventByIdUseCase(id).firstOrNull()
+                if (event != null) {
+                    isEventLoaded = true
+                    val internalDate = event.startAt.split("T").firstOrNull() ?: ""
+                    val parts = internalDate.split("-")
+                    val spanishDate = if (parts.size == 3 && parts[0].length == 4) {
+                        "${parts[2]}-${parts[1]}-${parts[0]}"
+                    } else internalDate
+                    
+                    _state.update { state ->
+                        state.copy(
+                            title = event.title,
+                            date = spanishDate,
+                            startTime = event.startAt.split("T").lastOrNull() ?: "",
+                            endTime = event.endAt.split("T").lastOrNull() ?: "",
+                            locationType = event.locationType,
+                            eventType = event.eventType,
+                            subjectId = event.subjectId,
+                            meetingUrl = event.meetingUrl ?: "",
+                            notes = event.notes ?: "",
+                            reminders = event.reminders,
+                            isRecurring = event.recurrenceRuleId != null,
+                            recurrenceDays = event.recurrenceDays.toSet(),
+                            recurrenceStartDate = event.recurrenceRule?.startDate?.let {
+                                val p = it.split("-")
+                                if (p.size == 3 && p[0].length == 4) "${p[2]}-${p[1]}-${p[0]}" else it
+                            } ?: "",
+                            recurrenceEndDate = event.recurrenceRule?.endDate?.let {
+                                val p = it.split("-")
+                                if (p.size == 3 && p[0].length == 4) "${p[2]}-${p[1]}-${p[0]}" else it
+                            } ?: "",
+                            isLoading = event.locationId != null
+                        )
                     }
+
+                    event.locationId?.let { locId ->
+                        val location = getLocationByIdUseCase.invoke(locId).firstOrNull()
+                        if (location != null) {
+                            _state.update { s ->
+                                s.copy(
+                                    selectedLocation = LocationCandidate(
+                                        name = location.name ?: "",
+                                        address = location.address ?: "",
+                                        latitude = location.latitude ?: 0.0,
+                                        longitude = location.longitude ?: 0.0,
+                                        placeId = location.placeId
+                                    ),
+                                    isLoading = false
+                                )
+                            }
+                        } else {
+                            _state.update { it.copy(isLoading = false) }
+                        }
+                    } ?: _state.update { it.copy(isLoading = false) }
+                } else {
+                    _state.update { it.copy(isLoading = false) }
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false) }
@@ -273,7 +279,10 @@ class EventFormViewModel @Inject constructor(
                 }
                 
                 val dateParts = effectiveDate.split("-")
-                val isoDate = if (dateParts.size == 3) "${dateParts[2]}-${dateParts[1]}-${dateParts[0]}" else effectiveDate
+                val isoDate = if (dateParts.size == 3) {
+                    if (dateParts[0].length == 4) effectiveDate
+                    else "${dateParts[2]}-${dateParts[1]}-${dateParts[0]}"
+                } else effectiveDate
 
                 val startAt = if (_state.value.startTime.isNotBlank()) "${isoDate}T${_state.value.startTime}" else "${isoDate}T00:00"
                 val endAt = if (_state.value.endTime.isNotBlank()) "${isoDate}T${_state.value.endTime}" else "${isoDate}T23:59"
