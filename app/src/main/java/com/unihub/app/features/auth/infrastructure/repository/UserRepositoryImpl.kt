@@ -2,6 +2,7 @@ package com.unihub.app.features.auth.infrastructure.repository
 
 import android.net.Uri
 import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
 import com.unihub.app.features.auth.domain.model.User
 import com.unihub.app.features.auth.domain.repository.UserRepository
 import com.unihub.app.features.auth.infrastructure.data.local.datasource.UserLocalDataSource
@@ -12,7 +13,9 @@ import com.unihub.app.features.auth.infrastructure.data.remote.CloudinaryDataSou
 import com.unihub.app.features.auth.infrastructure.data.remote.datasource.ProfileFetchResult
 import com.unihub.app.features.auth.infrastructure.data.remote.datasource.UserRemoteDataSource
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -57,7 +60,8 @@ class UserRepositoryImpl @Inject constructor(
         Log.d("UserRepositoryImpl", "=== UPDATE USER ===")
         Log.d("UserRepositoryImpl", "User ID: ${user.userId}")
         Log.d("UserRepositoryImpl", "Profile Image URL being updated: ${user.profileImageUrl}")
-        localDataSource.updateUser(user.toEntity())
+        // Use insertUser with OnConflictStrategy.REPLACE to guarantee upsert even if row wasn't present
+        localDataSource.insertUser(user.toEntity())
         try {
             remoteDataSource.saveUser(user.toDto())
             Log.d("UserRepositoryImpl", "Successfully updated in Firestore")
@@ -92,15 +96,30 @@ class UserRepositoryImpl @Inject constructor(
             val result = remoteDataSource.getUser(userId)
             if (result is ProfileFetchResult.Found) {
                 Log.d("UserRepositoryImpl", "Profile found in Firestore")
-                Log.d("UserRepositoryImpl", "Cloudinary URL from Firestore: ${result.user.profileImageUrl}")
                 val domainUser = result.user.toDomain()
-                Log.d("UserRepositoryImpl", "Domain user profileImageUrl: ${domainUser.profileImageUrl}")
-                val entity = domainUser.toEntity()
-                Log.d("UserRepositoryImpl", "Entity profileImageUrl: ${entity.profileImageUrl}")
-                localDataSource.insertUser(entity)
+                localDataSource.insertUser(domainUser.toEntity())
                 Log.d("UserRepositoryImpl", "Successfully synced profile to Room")
-            } else {
-                Log.d("UserRepositoryImpl", "Profile not found in Firestore or error occurred")
+            } else if (result is ProfileFetchResult.NotFound) {
+                Log.d("UserRepositoryImpl", "Profile not found in Firestore, checking local or Firebase Auth")
+                val localEntity = localDataSource.getUserById(userId).first()
+                if (localEntity != null) {
+                    remoteDataSource.saveUser(localEntity.toDomain().toDto())
+                } else {
+                    val firebaseUser = FirebaseAuth.getInstance().currentUser
+                    if (firebaseUser != null && firebaseUser.uid == userId) {
+                        val now = Instant.now().toString()
+                        val fallback = User(
+                            userId = userId,
+                            name = firebaseUser.displayName?.ifBlank { null } ?: "Usuario",
+                            email = firebaseUser.email ?: "",
+                            profileImageUrl = firebaseUser.photoUrl?.toString(),
+                            createdAt = now,
+                            updatedAt = now
+                        )
+                        localDataSource.insertUser(fallback.toEntity())
+                        remoteDataSource.saveUser(fallback.toDto())
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e("UserRepositoryImpl", "Error syncing profile from Firestore: ${e.message}")

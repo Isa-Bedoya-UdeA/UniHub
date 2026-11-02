@@ -3,6 +3,7 @@ package com.unihub.app.features.settings.presentation.viewmodel
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
@@ -72,13 +73,35 @@ class EditProfileViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             user = user,
-                            name = user.name,
-                            profileImageUrl = user.profileImageUrl,
+                            name = if (it.name.isBlank()) user.name else it.name,
+                            profileImageUrl = if (it.profileImageUrl == null) user.profileImageUrl else it.profileImageUrl,
                             isLoading = false
                         )
                     }
                 } else {
-                    _state.update { it.copy(isLoading = false) }
+                    val firebaseUser = FirebaseAuth.getInstance().currentUser
+                    if (firebaseUser != null && firebaseUser.uid == userId) {
+                        val now = Instant.now().toString()
+                        val fallbackUser = User(
+                            userId = userId,
+                            name = firebaseUser.displayName?.ifBlank { null } ?: "Usuario",
+                            email = firebaseUser.email ?: "",
+                            profileImageUrl = firebaseUser.photoUrl?.toString(),
+                            createdAt = now,
+                            updatedAt = now
+                        )
+                        _state.update {
+                            it.copy(
+                                user = fallbackUser,
+                                name = if (it.name.isBlank()) fallbackUser.name else it.name,
+                                profileImageUrl = if (it.profileImageUrl == null) fallbackUser.profileImageUrl else it.profileImageUrl,
+                                isLoading = false
+                            )
+                        }
+                        userRepository.saveUser(fallbackUser)
+                    } else {
+                        _state.update { it.copy(isLoading = false) }
+                    }
                 }
             }
         }
@@ -116,12 +139,12 @@ class EditProfileViewModel @Inject constructor(
     fun saveProfile() {
         viewModelScope.launch {
             val currentState = _state.value
-            val user = currentState.user
+            val userId = getCurrentUidUseCase()
 
-            if (user == null) {
+            if (userId == null) {
                 _uiEvent.emit(
                     UiEvent.ShowMessage(
-                        message = "No se pudo cargar el perfil",
+                        message = "Usuario no autenticado",
                         type = MessageType.ERROR
                     )
                 )
@@ -136,15 +159,20 @@ class EditProfileViewModel @Inject constructor(
             _state.update { it.copy(isSaving = true) }
 
             try {
-                val updatedUser = user.copy(
+                val firebaseUser = FirebaseAuth.getInstance().currentUser
+                val existingUser = currentState.user
+                val updatedUser = User(
+                    userId = userId,
                     name = currentState.name.trim(),
-                    profileImageUrl = currentState.profileImageUrl,
+                    email = existingUser?.email?.ifBlank { null } ?: firebaseUser?.email ?: "",
+                    profileImageUrl = currentState.profileImageUrl ?: existingUser?.profileImageUrl ?: firebaseUser?.photoUrl?.toString(),
+                    createdAt = existingUser?.createdAt?.ifBlank { null } ?: Instant.now().toString(),
                     updatedAt = Instant.now().toString()
                 )
 
                 userRepository.updateUser(updatedUser)
 
-                _state.update { it.copy(isSaving = false) }
+                _state.update { it.copy(user = updatedUser, isSaving = false) }
                 _uiEvent.emit(
                     UiEvent.ShowMessage(
                         message = "Perfil actualizado exitosamente",

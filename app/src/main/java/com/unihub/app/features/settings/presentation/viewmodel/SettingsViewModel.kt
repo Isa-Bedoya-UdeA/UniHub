@@ -2,6 +2,7 @@ package com.unihub.app.features.settings.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.unihub.app.core.common.state.MessageType
 import com.unihub.app.core.common.state.UiEvent
 import com.unihub.app.features.auth.application.usecase.GetCurrentUidUseCase
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
 import javax.inject.Inject
 
 import com.unihub.app.features.auth.application.usecase.ObserveAuthStateUseCase
@@ -109,12 +111,35 @@ class SettingsViewModel @Inject constructor(
             val uid = getCurrentUidUseCase() ?: return@launch
             android.util.Log.d("SettingsViewModel", "=== LOAD CURRENT USER ===")
             android.util.Log.d("SettingsViewModel", "UID: $uid")
+            
+            if (uid != "current_user") {
+                userRepository.syncProfile(uid)
+            }
+
             userRepository.getUser(uid).collect { user ->
                 android.util.Log.d("SettingsViewModel", "User received from repository:")
                 android.util.Log.d("SettingsViewModel", "  User ID: ${user?.userId}")
                 android.util.Log.d("SettingsViewModel", "  Name: ${user?.name}")
                 android.util.Log.d("SettingsViewModel", "  Profile Image URL: ${user?.profileImageUrl}")
-                _state.update { it.copy(user = user) }
+                
+                if (user != null) {
+                    _state.update { it.copy(user = user) }
+                } else {
+                    val firebaseUser = FirebaseAuth.getInstance().currentUser
+                    if (firebaseUser != null && firebaseUser.uid == uid) {
+                        val now = Instant.now().toString()
+                        val fallbackUser = User(
+                            userId = uid,
+                            name = firebaseUser.displayName?.ifBlank { null } ?: "Usuario",
+                            email = firebaseUser.email ?: "",
+                            profileImageUrl = firebaseUser.photoUrl?.toString(),
+                            createdAt = now,
+                            updatedAt = now
+                        )
+                        _state.update { it.copy(user = fallbackUser) }
+                        userRepository.saveUser(fallbackUser)
+                    }
+                }
             }
         }
     }

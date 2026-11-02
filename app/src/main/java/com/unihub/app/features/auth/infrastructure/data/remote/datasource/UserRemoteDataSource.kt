@@ -18,14 +18,16 @@ class UserRemoteDataSource @Inject constructor(
     private val firestore: FirebaseFirestore
 ) {
     suspend fun saveUser(userDto: UserDto) {
-        val data = mapOf(
+        val data = mutableMapOf<String, Any>(
             "userId" to userDto.userId,
-            "name" to userDto.name,
+            "name" to userDto.name.ifBlank { "Usuario" },
             "email" to userDto.email,
-            "profileImageUrl" to userDto.profileImageUrl,
             "createdAt" to userDto.createdAt,
             "updatedAt" to userDto.updatedAt
         )
+        if (!userDto.profileImageUrl.isNullOrBlank()) {
+            data["profileImageUrl"] = userDto.profileImageUrl!!
+        }
         firestore.collection("users")
             .document(userDto.userId)
             .collection("profile")

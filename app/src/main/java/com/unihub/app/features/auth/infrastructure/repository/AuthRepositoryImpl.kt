@@ -8,6 +8,7 @@ import com.unihub.app.features.auth.domain.model.AuthState
 import com.unihub.app.features.auth.domain.model.User
 import com.unihub.app.features.auth.domain.repository.AuthRepository
 import com.unihub.app.features.auth.domain.repository.UserRepository
+import com.unihub.app.features.auth.infrastructure.data.mapper.toDto
 import com.unihub.app.features.auth.infrastructure.data.remote.FirebaseAuthDataSource
 import com.unihub.app.features.auth.infrastructure.data.remote.datasource.ProfileFetchResult
 import com.unihub.app.features.auth.infrastructure.data.remote.datasource.UserRemoteDataSource
@@ -17,9 +18,11 @@ import com.unihub.app.features.settings.domain.repository.SettingsRepository
 import com.unihub.app.features.academic.domain.repository.SubjectRepository
 import com.unihub.app.features.tasks.domain.repository.TaskRepository
 import com.unihub.app.features.tasks.domain.repository.TagRepository
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -65,83 +68,56 @@ class AuthRepositoryImpl @Inject constructor(
             Log.d("AuthRepositoryImpl", "Firebase UID: $uid")
             Log.d("AuthRepositoryImpl", "Firebase Email: ${firebaseUser.email}")
             Log.d("AuthRepositoryImpl", "Firebase PhotoURL: ${firebaseUser.photoUrl}")
+            Log.d("AuthRepositoryImpl", "Firebase DisplayName: ${firebaseUser.displayName}")
 
-            val remoteResult = userRemoteDataSource.getUser(uid)
-            Log.d("AuthRepositoryImpl", "Remote profile fetch result type: ${remoteResult::class.simpleName}")
+            withContext(NonCancellable) {
+                // 1. Immediately save initial Google user to Room so the app has local user data without delay
+                val initialUser = User(
+                    userId = uid,
+                    name = firebaseUser.displayName?.ifBlank { null } ?: "Usuario",
+                    email = firebaseUser.email ?: "",
+                    profileImageUrl = firebaseUser.photoUrl?.toString(),
+                    createdAt = now,
+                    updatedAt = now
+                )
+                userRepository.saveUserLocalOnly(initialUser)
+                Log.d("AuthRepositoryImpl", "Saved initial Google user to Room: ${initialUser.name}")
 
-            when (remoteResult) {
-                is ProfileFetchResult.Found -> {
-                    val remoteProfile = remoteResult.user
-                    Log.d("AuthRepositoryImpl", "=== PROFILE FOUND IN FIRESTORE ===")
-                    Log.d("AuthRepositoryImpl", "Remote profileImageUrl: ${remoteProfile.profileImageUrl}")
-                    Log.d("AuthRepositoryImpl", "Remote name: ${remoteProfile.name}")
-                    
-                    val user = User(
-                        userId = remoteProfile.userId,
-                        name = remoteProfile.name,
-                        email = remoteProfile.email.ifEmpty { firebaseUser.email ?: "" },
-                        profileImageUrl = remoteProfile.profileImageUrl,
-                        createdAt = remoteProfile.createdAt,
-                        updatedAt = now
-                    )
-                    Log.d("AuthRepositoryImpl", "Saving user with profileImageUrl: ${user.profileImageUrl}")
-                    userRepository.saveUser(user)
-                    syncAllUserData(uid)
-                }
+                // 2. Fetch remote profile from Firestore
+                val remoteResult = userRemoteDataSource.getUser(uid)
+                Log.d("AuthRepositoryImpl", "Remote profile fetch result type: ${remoteResult::class.simpleName}")
 
-                is ProfileFetchResult.NotFound -> {
-                    Log.d("AuthRepositoryImpl", "=== PROFILE NOT FOUND IN FIRESTORE ===")
-                    val localUser = userRepository.getUser(uid).first()
-                    Log.d("AuthRepositoryImpl", "Local user exists: ${localUser != null}")
-                    Log.d("AuthRepositoryImpl", "Local user profileImageUrl: ${localUser?.profileImageUrl}")
-                    
-                    val user = if (localUser != null) {
-                        localUser.copy(
-                            email = firebaseUser.email ?: localUser.email,
-                            profileImageUrl = localUser.profileImageUrl
-                                ?: firebaseUser.photoUrl?.toString(),
+                when (remoteResult) {
+                    is ProfileFetchResult.Found -> {
+                        val remoteProfile = remoteResult.user
+                        Log.d("AuthRepositoryImpl", "=== PROFILE FOUND IN FIRESTORE ===")
+                        val user = User(
+                            userId = remoteProfile.userId,
+                            name = remoteProfile.name.ifBlank { initialUser.name },
+                            email = remoteProfile.email.ifBlank { initialUser.email },
+                            profileImageUrl = remoteProfile.profileImageUrl ?: initialUser.profileImageUrl,
+                            createdAt = remoteProfile.createdAt.ifBlank { now },
                             updatedAt = now
                         )
-                    } else {
-                        User(
-                            userId = uid,
-                            name = firebaseUser.displayName ?: "Usuario",
-                            email = firebaseUser.email ?: "",
-                            profileImageUrl = firebaseUser.photoUrl?.toString(),
-                            createdAt = now,
-                            updatedAt = now
-                        )
+                        Log.d("AuthRepositoryImpl", "Saving merged user with profileImageUrl: ${user.profileImageUrl}")
+                        userRepository.saveUser(user)
+                        syncAllUserData(uid)
                     }
-                    Log.d("AuthRepositoryImpl", "Saving user with profileImageUrl: ${user.profileImageUrl}")
-                    userRepository.saveUser(user)
-                    syncAllUserData(uid)
-                }
 
-                is ProfileFetchResult.FetchError -> {
-                    Log.e("AuthRepositoryImpl", "=== PROFILE FETCH ERROR ===")
-                    Log.e("AuthRepositoryImpl", "Error: ${remoteResult.exception.message}")
-                    Log.w("AuthRepositoryImpl", "Network error fetching profile, using local data only")
-                    val localUser = userRepository.getUser(uid).first()
-                    Log.d("AuthRepositoryImpl", "Local user exists: ${localUser != null}")
-                    Log.d("AuthRepositoryImpl", "Local user profileImageUrl: ${localUser?.profileImageUrl}")
-                    
-                    val user = if (localUser != null) {
-                        localUser.copy(
-                            email = firebaseUser.email ?: localUser.email,
-                            updatedAt = now
-                        )
-                    } else {
-                        User(
-                            userId = uid,
-                            name = firebaseUser.displayName ?: "Usuario",
-                            email = firebaseUser.email ?: "",
-                            profileImageUrl = firebaseUser.photoUrl?.toString(),
-                            createdAt = now,
-                            updatedAt = now
-                        )
+                    is ProfileFetchResult.NotFound -> {
+                        Log.d("AuthRepositoryImpl", "=== PROFILE NOT FOUND IN FIRESTORE - CREATING NEW ===")
+                        userRepository.saveUser(initialUser)
+                        syncAllUserData(uid)
                     }
-                    Log.d("AuthRepositoryImpl", "Saving user LOCAL ONLY with profileImageUrl: ${user.profileImageUrl}")
-                    userRepository.saveUserLocalOnly(user)
+
+                    is ProfileFetchResult.FetchError -> {
+                        Log.e("AuthRepositoryImpl", "=== PROFILE FETCH ERROR: ${remoteResult.exception.message} ===")
+                        try {
+                            userRemoteDataSource.saveUser(initialUser.toDto())
+                        } catch (e: Exception) {
+                            Log.w("AuthRepositoryImpl", "Could not save user to Firestore: ${e.message}")
+                        }
+                    }
                 }
             }
 
@@ -205,38 +181,68 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun syncExistingUser(userId: String) {
-        Log.d("AuthRepositoryImpl", "=== SYNC EXISTING USER ===")
-        Log.d("AuthRepositoryImpl", "User ID: $userId")
-        
-        val remoteResult = userRemoteDataSource.getUser(userId)
-        Log.d("AuthRepositoryImpl", "Remote profile fetch result type: ${remoteResult::class.simpleName}")
+        withContext(NonCancellable) {
+            Log.d("AuthRepositoryImpl", "=== SYNC EXISTING USER ===")
+            Log.d("AuthRepositoryImpl", "User ID: $userId")
+            
+            val remoteResult = userRemoteDataSource.getUser(userId)
+            val firebaseUser = firebaseAuth.currentUser
+            Log.d("AuthRepositoryImpl", "Remote profile fetch result type: ${remoteResult::class.simpleName}")
 
-        when (remoteResult) {
-            is ProfileFetchResult.Found -> {
-                val remoteProfile = remoteResult.user
-                Log.d("AuthRepositoryImpl", "=== PROFILE FOUND IN FIRESTORE ===")
-                Log.d("AuthRepositoryImpl", "Remote profileImageUrl: ${remoteProfile.profileImageUrl}")
-                
-                val user = User(
-                    userId = remoteProfile.userId,
-                    name = remoteProfile.name,
-                    email = remoteProfile.email,
-                    profileImageUrl = remoteProfile.profileImageUrl,
-                    createdAt = remoteProfile.createdAt,
-                    updatedAt = remoteProfile.updatedAt
-                )
-                Log.d("AuthRepositoryImpl", "Saving user with profileImageUrl: ${user.profileImageUrl}")
-                userRepository.saveUserLocalOnly(user)
-                syncAllUserData(userId)
-            }
+            when (remoteResult) {
+                is ProfileFetchResult.Found -> {
+                    val remoteProfile = remoteResult.user
+                    Log.d("AuthRepositoryImpl", "=== PROFILE FOUND IN FIRESTORE ===")
+                    Log.d("AuthRepositoryImpl", "Remote profileImageUrl: ${remoteProfile.profileImageUrl}")
+                    
+                    val user = User(
+                        userId = remoteProfile.userId,
+                        name = remoteProfile.name.ifBlank { firebaseUser?.displayName ?: "Usuario" },
+                        email = remoteProfile.email.ifBlank { firebaseUser?.email ?: "" },
+                        profileImageUrl = remoteProfile.profileImageUrl ?: firebaseUser?.photoUrl?.toString(),
+                        createdAt = remoteProfile.createdAt,
+                        updatedAt = remoteProfile.updatedAt
+                    )
+                    Log.d("AuthRepositoryImpl", "Saving user with profileImageUrl: ${user.profileImageUrl}")
+                    userRepository.saveUserLocalOnly(user)
+                    syncAllUserData(userId)
+                }
 
-            is ProfileFetchResult.NotFound -> {
-                Log.d("AuthRepositoryImpl", "=== PROFILE NOT FOUND IN FIRESTORE ===")
-            }
+                is ProfileFetchResult.NotFound -> {
+                    Log.d("AuthRepositoryImpl", "=== PROFILE NOT FOUND IN FIRESTORE ===")
+                    if (firebaseUser != null && firebaseUser.uid == userId) {
+                        val now = Instant.now().toString()
+                        val user = User(
+                            userId = userId,
+                            name = firebaseUser.displayName?.ifBlank { null } ?: "Usuario",
+                            email = firebaseUser.email ?: "",
+                            profileImageUrl = firebaseUser.photoUrl?.toString(),
+                            createdAt = now,
+                            updatedAt = now
+                        )
+                        Log.d("AuthRepositoryImpl", "Creating missing profile from Firebase Auth: ${user.name}")
+                        userRepository.saveUser(user)
+                        syncAllUserData(userId)
+                    }
+                }
 
-            is ProfileFetchResult.FetchError -> {
-                Log.e("AuthRepositoryImpl", "=== PROFILE FETCH ERROR ===")
-                Log.e("AuthRepositoryImpl", "Error: ${remoteResult.exception.message}")
+                is ProfileFetchResult.FetchError -> {
+                    Log.e("AuthRepositoryImpl", "=== PROFILE FETCH ERROR ===")
+                    Log.e("AuthRepositoryImpl", "Error: ${remoteResult.exception.message}")
+                    val localUser = userRepository.getUser(userId).first()
+                    if (localUser == null && firebaseUser != null && firebaseUser.uid == userId) {
+                        val now = Instant.now().toString()
+                        val user = User(
+                            userId = userId,
+                            name = firebaseUser.displayName?.ifBlank { null } ?: "Usuario",
+                            email = firebaseUser.email ?: "",
+                            profileImageUrl = firebaseUser.photoUrl?.toString(),
+                            createdAt = now,
+                            updatedAt = now
+                        )
+                        userRepository.saveUserLocalOnly(user)
+                    }
+                }
             }
         }
     }
