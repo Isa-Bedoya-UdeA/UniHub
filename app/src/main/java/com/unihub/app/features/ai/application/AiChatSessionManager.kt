@@ -23,18 +23,31 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AiChatSessionManager @Inject constructor(
+class AiChatSessionManager(
     private val sendAiMessageUseCase: SendAiMessageUseCase,
     private val resolveAndExecuteAiActionUseCase: ResolveAndExecuteAiActionUseCase,
-    private val chatHistoryDataSource: AiChatHistoryDataSource
+    private val chatHistoryDataSource: AiChatHistoryDataSource? = null,
+    coroutineScope: CoroutineScope? = null
 ) {
-    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    internal var scope: CoroutineScope = coroutineScope ?: CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @Inject
+    constructor(
+        sendAiMessageUseCase: SendAiMessageUseCase,
+        resolveAndExecuteAiActionUseCase: ResolveAndExecuteAiActionUseCase,
+        chatHistoryDataSource: AiChatHistoryDataSource
+    ) : this(sendAiMessageUseCase, resolveAndExecuteAiActionUseCase, chatHistoryDataSource as AiChatHistoryDataSource?, null)
+
+    constructor(
+        sendAiMessageUseCase: SendAiMessageUseCase,
+        resolveAndExecuteAiActionUseCase: ResolveAndExecuteAiActionUseCase
+    ) : this(sendAiMessageUseCase, resolveAndExecuteAiActionUseCase, null, null)
 
     private val _state = MutableStateFlow(AiChatUiState())
     val state: StateFlow<AiChatUiState> = _state.asStateFlow()
 
     init {
-        val persistentMessages = chatHistoryDataSource.loadMessages()
+        val persistentMessages = chatHistoryDataSource?.loadMessages() ?: emptyList()
         if (persistentMessages.isNotEmpty()) {
             _state.update { it.copy(messages = persistentMessages) }
         }
@@ -49,7 +62,7 @@ class AiChatSessionManager @Inject constructor(
     }
 
     fun newChat() {
-        chatHistoryDataSource.clearMessages()
+        chatHistoryDataSource?.clearMessages()
         _state.update {
             AiChatUiState(userName = it.userName)
         }
@@ -62,12 +75,6 @@ class AiChatSessionManager @Inject constructor(
     fun sendMessage() {
         val currentInput = _state.value.inputText.trim()
         if (currentInput.isBlank() || _state.value.isLoading) return
-
-        val pendingAction = _state.value.pendingAction
-        if (pendingAction != null) {
-            handleClarificationFollowUp(currentInput, pendingAction)
-            return
-        }
 
         val userMessage = AiMessage(
             id = UUID.randomUUID().toString(),
@@ -85,9 +92,9 @@ class AiChatSessionManager @Inject constructor(
                 errorMessage = null
             )
         }
-        chatHistoryDataSource.saveMessages(updatedMessages)
+        chatHistoryDataSource?.saveMessages(updatedMessages)
 
-        applicationScope.launch {
+        scope.launch {
             val conversationHistory = buildConversationHistory(updatedMessages)
             val result = sendAiMessageUseCase(currentInput, conversationHistory)
 
@@ -130,93 +137,7 @@ class AiChatSessionManager @Inject constructor(
                             pendingAction = newPendingAction
                         )
                     }
-                    chatHistoryDataSource.saveMessages(messagesWithResponse)
-                },
-                onFailure = { error ->
-                    val errorMessage = AiMessage(
-                        id = UUID.randomUUID().toString(),
-                        role = AiMessageRole.ERROR,
-                        content = error.message ?: "Error al procesar la solicitud"
-                    )
-                    val messagesWithError = _state.value.messages + errorMessage
-                    _state.update {
-                        it.copy(
-                            messages = messagesWithError,
-                            isLoading = false,
-                            status = AiChatStatus.ERROR,
-                            errorMessage = error.message ?: "Error al procesar la solicitud"
-                        )
-                    }
-                    chatHistoryDataSource.saveMessages(messagesWithError)
-                }
-            )
-        }
-    }
-
-    private fun handleClarificationFollowUp(answer: String, pendingAction: AiPendingAction) {
-        val userMessage = AiMessage(
-            id = UUID.randomUUID().toString(),
-            role = AiMessageRole.USER,
-            content = answer
-        )
-
-        val updatedMessages = _state.value.messages + userMessage
-        _state.update {
-            it.copy(
-                messages = updatedMessages,
-                inputText = "",
-                isLoading = true,
-                status = AiChatStatus.SENDING,
-                errorMessage = null
-            )
-        }
-        chatHistoryDataSource.saveMessages(updatedMessages)
-
-        applicationScope.launch {
-            val conversationHistory = buildConversationHistory(updatedMessages)
-            val contextualMessage = "Respuesta del usuario a la aclaración: \"$answer\".\nSolicitud original pendiente de ejecutar: ${pendingAction.structuredResponse.message}"
-            val result = sendAiMessageUseCase(contextualMessage, conversationHistory)
-
-            result.fold(
-                onSuccess = { response ->
-                    val isLimited = response.source == AiResponseSource.LIMITED_MODE
-                    val role = if (isLimited) AiMessageRole.SYSTEM else AiMessageRole.ASSISTANT
-                    val structured = response.structuredResponse
-
-                    val newPendingAction = if (structured != null && structured.requiresConfirmation && structured.items.isNotEmpty()) {
-                        AiPendingAction(
-                            id = UUID.randomUUID().toString(),
-                            structuredResponse = structured
-                        )
-                    } else null
-
-                    val assistantMessage = AiMessage(
-                        id = UUID.randomUUID().toString(),
-                        role = role,
-                        content = response.text,
-                        source = response.source,
-                        structuredResponse = structured,
-                        pendingAction = newPendingAction
-                    )
-
-                    val messagesWithResponse = _state.value.messages + assistantMessage
-                    val newStatus = when {
-                        newPendingAction != null -> AiChatStatus.CONFIRMATION_REQUIRED
-                        response.source == AiResponseSource.AI -> AiChatStatus.AI_RESPONSE
-                        response.source == AiResponseSource.LOCAL_FALLBACK -> AiChatStatus.DETERMINISTIC_FALLBACK
-                        else -> AiChatStatus.LIMITED_MODE
-                    }
-
-                    _state.update {
-                        it.copy(
-                            messages = messagesWithResponse,
-                            isLoading = false,
-                            status = newStatus,
-                            isLimitedMode = isLimited,
-                            pendingAction = newPendingAction
-                        )
-                    }
-                    chatHistoryDataSource.saveMessages(messagesWithResponse)
+                    chatHistoryDataSource?.saveMessages(messagesWithResponse)
                 },
                 onFailure = { error ->
                     val errorMessage = AiMessage(
@@ -234,7 +155,7 @@ class AiChatSessionManager @Inject constructor(
                             pendingAction = null
                         )
                     }
-                    chatHistoryDataSource.saveMessages(messagesWithError)
+                    chatHistoryDataSource?.saveMessages(messagesWithError)
                 }
             )
         }
@@ -262,7 +183,7 @@ class AiChatSessionManager @Inject constructor(
             )
         }
 
-        applicationScope.launch {
+        scope.launch {
             val result = resolveAndExecuteAiActionUseCase.execute(actionToExecute)
 
             result.fold(
@@ -281,7 +202,7 @@ class AiChatSessionManager @Inject constructor(
                             pendingAction = null
                         )
                     }
-                    chatHistoryDataSource.saveMessages(updatedMessages)
+                    chatHistoryDataSource?.saveMessages(updatedMessages)
                 },
                 onFailure = { error ->
                     val errorMsg = AiMessage(
@@ -299,7 +220,7 @@ class AiChatSessionManager @Inject constructor(
                             errorMessage = error.message
                         )
                     }
-                    chatHistoryDataSource.saveMessages(updatedMessages)
+                    chatHistoryDataSource?.saveMessages(updatedMessages)
                 }
             )
         }
@@ -319,6 +240,6 @@ class AiChatSessionManager @Inject constructor(
                 status = AiChatStatus.IDLE
             )
         }
-        chatHistoryDataSource.saveMessages(updatedMessages)
+        chatHistoryDataSource?.saveMessages(updatedMessages)
     }
 }
