@@ -1,6 +1,10 @@
 package com.unihub.app.features.location.infrastructure.repository
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.location.Address
+import android.location.Geocoder
+import android.os.Build
 import android.util.Log
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -21,19 +25,26 @@ import com.unihub.app.features.location.infrastructure.data.mapper.toDomain
 import com.unihub.app.features.location.infrastructure.data.mapper.toDto
 import com.unihub.app.features.location.infrastructure.data.mapper.toEntity
 import com.unihub.app.features.location.infrastructure.data.remote.datasource.LocationRemoteDataSource
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
 
 @Singleton
 class LocationRepositoryImpl @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val localDataSource: LocationLocalDataSource,
     private val remoteDataSource: LocationRemoteDataSource,
     private val fusedLocationClient: FusedLocationProviderClient,
-    private val placesClient: PlacesClient
+    private val placesClient: PlacesClient?
 ) : LocationRepository {
 
     private var currentSessionToken: AutocompleteSessionToken? = null
@@ -79,36 +90,120 @@ class LocationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun searchPlaces(query: String, locationBias: Coordinates?): List<LocationCandidate> {
-        currentSessionToken = AutocompleteSessionToken.newInstance()
+        val trimmedQuery = query.trim()
+        if (trimmedQuery.isBlank()) return emptyList()
 
-        val requestBuilder = FindAutocompletePredictionsRequest.builder()
-            .setQuery(query)
-            .setSessionToken(currentSessionToken)
-            .setRegionCode("CO")
+        // 1. Intentar primero con PlacesClient si está disponible
+        if (placesClient != null) {
+            try {
+                val token = AutocompleteSessionToken.newInstance()
+                currentSessionToken = token
 
-        locationBias?.let { bias ->
-            val center = com.google.android.gms.maps.model.LatLng(bias.latitude, bias.longitude)
-            val circularBounds = CircularBounds.newInstance(center, 50000.0)
-            requestBuilder.setLocationBias(circularBounds)
+                val requestBuilder = FindAutocompletePredictionsRequest.builder()
+                    .setQuery(trimmedQuery)
+                    .setSessionToken(token)
+                    .setRegionCode("CO")
+
+                if (locationBias != null && locationBias.latitude != 0.0 && locationBias.longitude != 0.0) {
+                    try {
+                        val center = com.google.android.gms.maps.model.LatLng(locationBias.latitude, locationBias.longitude)
+                        val circularBounds = CircularBounds.newInstance(center, 25000.0)
+                        requestBuilder.setLocationBias(circularBounds)
+                    } catch (t: Throwable) {
+                        Log.w("LocationRepo", "Could not set location bias: ${t.message}")
+                    }
+                }
+
+                val response = placesClient.findAutocompletePredictions(requestBuilder.build()).await()
+                val predictions = response.autocompletePredictions.map { prediction ->
+                    val name = prediction.getPrimaryText(null)?.toString()?.takeIf { it.isNotBlank() }
+                        ?: prediction.getFullText(null)?.toString()
+                        ?: trimmedQuery
+                    val address = prediction.getSecondaryText(null)?.toString() ?: ""
+                    LocationCandidate(
+                        name = name,
+                        address = address,
+                        latitude = 0.0,
+                        longitude = 0.0,
+                        placeId = prediction.placeId
+                    )
+                }
+
+                if (predictions.isNotEmpty()) {
+                    return predictions
+                }
+            } catch (e: ApiException) {
+                Log.w("LocationRepo", "Places API error: ${e.statusCode} - ${e.message}. Falling back to Geocoder.")
+            } catch (t: Throwable) {
+                Log.w("LocationRepo", "Places SDK error: ${t.message}. Falling back to Geocoder.")
+            }
         }
 
-        return try {
-            val response = placesClient.findAutocompletePredictions(requestBuilder.build()).await()
-            response.autocompletePredictions.map { prediction ->
+        // 2. Fallback robusto nativo con Geocoder de Android (funciona siempre, sin cuotas ni claves de Places)
+        return searchWithGeocoder(trimmedQuery)
+    }
+
+    private suspend fun searchWithGeocoder(query: String): List<LocationCandidate> = withContext(Dispatchers.IO) {
+        try {
+            if (!Geocoder.isPresent()) return@withContext emptyList()
+            val geocoder = Geocoder(context, Locale.getDefault())
+
+            val addresses: List<Address> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                suspendCancellableCoroutine { continuation ->
+                    try {
+                        geocoder.getFromLocationName(query, 5, object : Geocoder.GeocodeListener {
+                            override fun onGeocode(addresses: MutableList<Address>) {
+                                if (continuation.isActive) {
+                                    continuation.resume(addresses)
+                                }
+                            }
+                            override fun onError(errorMessage: String?) {
+                                Log.w("LocationRepo", "Geocoder error: $errorMessage")
+                                if (continuation.isActive) {
+                                    continuation.resume(emptyList())
+                                }
+                            }
+                        })
+                    } catch (t: Throwable) {
+                        if (continuation.isActive) {
+                            continuation.resume(emptyList())
+                        }
+                    }
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                try {
+                    geocoder.getFromLocationName(query, 5) ?: emptyList()
+                } catch (t: Throwable) {
+                    emptyList()
+                }
+            }
+
+            addresses.map { address ->
+                val name = address.featureName?.takeIf { it.isNotBlank() }
+                    ?: address.subLocality
+                    ?: address.thoroughfare
+                    ?: address.locality
+                    ?: query
+                val fullAddress = (0..address.maxAddressLineIndex)
+                    .mapNotNull { address.getAddressLine(it) }
+                    .joinToString(", ")
+                    .ifBlank {
+                        listOfNotNull(address.subLocality, address.locality, address.adminArea, address.countryName)
+                            .joinToString(", ")
+                    }
+
                 LocationCandidate(
-                    name = prediction.getPrimaryText(null).toString(),
-                    address = prediction.getSecondaryText(null).toString(),
-                    latitude = 0.0,
-                    longitude = 0.0,
-                    placeId = prediction.placeId
+                    name = name,
+                    address = fullAddress,
+                    latitude = address.latitude,
+                    longitude = address.longitude,
+                    placeId = null // Coordenadas ya resueltas directamente
                 )
             }
-        } catch (e: ApiException) {
-            Log.e("LocationRepo", "Places API error: ${e.statusCode} - ${e.message}")
-            throw RuntimeException("Error en Places API: ${e.message}", e)
-        } catch (e: Exception) {
-            Log.e("LocationRepo", "Error searching places", e)
-            throw e
+        } catch (t: Throwable) {
+            Log.e("LocationRepo", "Geocoder fallback error: ${t.message}")
+            emptyList()
         }
     }
 
@@ -129,6 +224,7 @@ class LocationRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getPlaceDetails(placeId: String): LocationCandidate? {
+        if (placesClient == null) return null
         return try {
             val requestBuilder = FetchPlaceRequest.builder(placeId, placeFields)
 
@@ -151,8 +247,8 @@ class LocationRepositoryImpl @Inject constructor(
         } catch (e: ApiException) {
             Log.e("LocationRepo", "Error getting place details: ${e.statusCode} - ${e.message}")
             null
-        } catch (e: Exception) {
-            Log.e("LocationRepo", "Error getting place details", e)
+        } catch (t: Throwable) {
+            Log.e("LocationRepo", "Error getting place details: ${t.message}")
             null
         }
     }

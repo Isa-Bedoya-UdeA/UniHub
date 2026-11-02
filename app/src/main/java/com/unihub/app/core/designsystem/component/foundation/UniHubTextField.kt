@@ -42,6 +42,17 @@ fun UniHubTextField(
 ) {
     val textColor = if (forceDarkText) Color.Black else UniHubTheme.colorScheme.textPrimary
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+
+    if (readOnly && enabled && onImeAction != null) {
+        LaunchedEffect(interactionSource) {
+            interactionSource.interactions.collect { interaction ->
+                if (interaction is androidx.compose.foundation.interaction.PressInteraction.Release) {
+                    onImeAction()
+                }
+            }
+        }
+    }
     
     OutlinedTextField(
         value = value,
@@ -65,16 +76,7 @@ fun UniHubTextField(
         isError = isError,
         enabled = enabled,
         readOnly = readOnly,
-        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-            .also { interactionSource ->
-                LaunchedEffect(interactionSource) {
-                    interactionSource.interactions.collect { interaction ->
-                        if (interaction is androidx.compose.foundation.interaction.PressInteraction.Release) {
-                            if (readOnly && enabled) onImeAction?.invoke()
-                        }
-                    }
-                }
-            },
+        interactionSource = interactionSource,
         shape = UniHubTheme.shape.input,
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = textColor,

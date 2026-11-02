@@ -9,6 +9,8 @@ import com.unihub.app.features.location.domain.repository.Coordinates
 import com.unihub.app.features.location.domain.repository.LocationCandidate
 import com.unihub.app.features.location.presentation.state.LocationSelectionState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,19 +29,29 @@ class LocationSelectionViewModel @Inject constructor(
     private val _state = MutableStateFlow(LocationSelectionState())
     val state: StateFlow<LocationSelectionState> = _state.asStateFlow()
 
+    private var searchJob: Job? = null
+
     fun onSearchQueryChange(query: String) {
         _state.update { it.copy(searchQuery = query) }
-        if (query.length >= 3) {
-            searchLocations(query, _state.value.currentDeviceLocation)
+        searchJob?.cancel()
+        val trimmed = query.trim()
+        if (trimmed.length >= 3) {
+            searchJob = viewModelScope.launch {
+                delay(300) // Debounce para evitar sobrecargar llamadas mientras se escribe
+                searchLocations(trimmed, _state.value.currentDeviceLocation)
+            }
         } else {
-            _state.update { it.copy(searchResults = emptyList()) }
+            _state.update { it.copy(searchResults = emptyList(), isSearching = false, errorMessage = null) }
         }
     }
 
     fun onSearchSubmit() {
-        val query = _state.value.searchQuery
+        val query = _state.value.searchQuery.trim()
         if (query.length >= 3) {
-            searchLocations(query, _state.value.currentDeviceLocation)
+            searchJob?.cancel()
+            searchJob = viewModelScope.launch {
+                searchLocations(query, _state.value.currentDeviceLocation)
+            }
         }
     }
 
@@ -47,23 +59,25 @@ class LocationSelectionViewModel @Inject constructor(
         _state.update { it.copy(currentDeviceLocation = coordinates) }
     }
 
-    private fun searchLocations(query: String, locationBias: Coordinates? = null) {
-        viewModelScope.launch {
-            _state.update { it.copy(isSearching = true, errorMessage = null) }
-            android.util.Log.d("LocationVM", "Searching for: $query")
-            try {
-                val results = searchLocationsUseCase(query, locationBias)
-                android.util.Log.d("LocationVM", "Found ${results.size} results")
-                _state.update { 
-                    it.copy(
-                        searchResults = results, 
-                        isSearching = false, 
-                        errorMessage = if (results.isEmpty()) "No se encontraron resultados para '$query'" else null
-                    ) 
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("LocationVM", "Search failed", e)
-                _state.update { it.copy(isSearching = false, errorMessage = "Error en la búsqueda: ${e.message}") }
+    private suspend fun searchLocations(query: String, locationBias: Coordinates? = null) {
+        _state.update { it.copy(isSearching = true, errorMessage = null) }
+        try {
+            val results = searchLocationsUseCase(query, locationBias)
+            _state.update { 
+                it.copy(
+                    searchResults = results, 
+                    isSearching = false, 
+                    errorMessage = if (results.isEmpty()) "No se encontraron resultados para '$query'" else null
+                ) 
+            }
+        } catch (t: Throwable) {
+            android.util.Log.e("LocationVM", "Search failed: ${t.message}", t)
+            _state.update { 
+                it.copy(
+                    searchResults = emptyList(),
+                    isSearching = false, 
+                    errorMessage = "No se pudieron obtener resultados para '$query'"
+                ) 
             }
         }
     }
@@ -72,8 +86,7 @@ class LocationSelectionViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                // If it's a search result, we might need full details (lat/lng)
-                val detailedLocation = if (candidate.placeId != null) {
+                val detailedLocation = if (candidate.placeId != null && (candidate.latitude == 0.0 && candidate.longitude == 0.0)) {
                     getPlaceDetailsUseCase(candidate.placeId) ?: candidate
                 } else {
                     candidate
@@ -86,14 +99,13 @@ class LocationSelectionViewModel @Inject constructor(
                         searchResults = emptyList()
                     ) 
                 }
-            } catch (e: Exception) {
+            } catch (t: Throwable) {
                 _state.update { it.copy(isLoading = false, errorMessage = "Error al obtener detalles") }
             }
         }
     }
 
     fun onMapClick(coordinates: Coordinates) {
-        // Here we could do reverse geocoding to get a name/address
         _state.update { 
             it.copy(
                 selectedLocation = LocationCandidate(

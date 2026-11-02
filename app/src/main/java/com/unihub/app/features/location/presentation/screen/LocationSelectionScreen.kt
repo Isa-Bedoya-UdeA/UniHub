@@ -3,7 +3,6 @@ package com.unihub.app.features.location.presentation.screen
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,11 +22,10 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.rememberMarkerState
 import com.unihub.app.core.designsystem.component.foundation.UniHubButton
-import com.unihub.app.core.designsystem.component.foundation.UniHubIconButton
 import com.unihub.app.core.designsystem.component.foundation.UniHubTextField
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.location.domain.repository.Coordinates
@@ -65,10 +63,12 @@ fun LocationSelectionScreen(
 
     LaunchedEffect(state.selectedLocation) {
         state.selectedLocation?.let {
-            cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                LatLng(it.latitude, it.longitude), 
-                15f
-            )
+            if (it.latitude != 0.0 || it.longitude != 0.0) {
+                cameraPositionState.position = CameraPosition.fromLatLngZoom(
+                    LatLng(it.latitude, it.longitude), 
+                    15f
+                )
+            }
         }
     }
 
@@ -81,12 +81,18 @@ fun LocationSelectionScreen(
             },
             uiSettings = MapUiSettings(zoomControlsEnabled = false)
         ) {
-            state.selectedLocation?.let {
-                Marker(
-                    state = MarkerState(position = LatLng(it.latitude, it.longitude)),
-                    title = it.name,
-                    snippet = it.address
-                )
+            state.selectedLocation?.let { loc ->
+                if (loc.latitude != 0.0 || loc.longitude != 0.0) {
+                    val markerState = rememberMarkerState(
+                        key = "${loc.latitude}_${loc.longitude}",
+                        position = LatLng(loc.latitude, loc.longitude)
+                    )
+                    Marker(
+                        state = markerState,
+                        title = loc.name,
+                        snippet = loc.address
+                    )
+                }
             }
         }
 
@@ -105,7 +111,7 @@ fun LocationSelectionScreen(
                 UniHubTextField(
                     value = state.searchQuery,
                     onValueChange = { viewModel.onSearchQueryChange(it) },
-                    placeholder = "Buscar lugar...",
+                    placeholder = "Buscar lugar o dirección...",
                     leadingIcon = Icons.Default.Search,
                     modifier = Modifier.weight(1f),
                     forceDarkText = true,
@@ -116,7 +122,7 @@ fun LocationSelectionScreen(
                 UniHubButton(
                     text = if (state.isSearching) "..." else "Buscar",
                     onClick = { viewModel.onSearchSubmit() },
-                    enabled = !state.isSearching && state.searchQuery.length >= 3,
+                    enabled = !state.isSearching && state.searchQuery.trim().length >= 3,
                     modifier = Modifier.height(56.dp)
                 )
             }
@@ -137,17 +143,21 @@ fun LocationSelectionScreen(
                         .padding(top = 4.dp),
                     colors = CardDefaults.cardColors(containerColor = UniHubTheme.colorScheme.surface)
                 ) {
-                    LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
+                    LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {
                         items(state.searchResults) { candidate ->
                             ListItem(
                                 headlineContent = { Text(candidate.name) },
-                                supportingContent = { Text(candidate.address) },
+                                supportingContent = { 
+                                    if (candidate.address.isNotBlank()) {
+                                        Text(candidate.address)
+                                    }
+                                },
                                 modifier = Modifier.clickable { viewModel.onLocationSelected(candidate) }
                             )
                         }
                     }
                 }
-            } else if (state.searchQuery.length >= 3 && !state.isSearching && state.searchResults.isEmpty() && state.errorMessage == null) {
+            } else if (state.searchQuery.trim().length >= 3 && !state.isSearching && state.searchResults.isEmpty() && state.errorMessage == null) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -205,8 +215,6 @@ fun LocationSelectionScreen(
                 ExtendedFloatingActionButton(
                     onClick = {
                         state.selectedLocation?.let {
-                            // Using a simple JSON string to pass back complex data
-                            // In a real app we might use a shared DB entry or a Parcelable
                             val data = Json.encodeToString(it)
                             onLocationConfirmed(data)
                         }

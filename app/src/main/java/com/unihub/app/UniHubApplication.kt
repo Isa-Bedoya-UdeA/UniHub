@@ -56,7 +56,7 @@ class UniHubApplication : Application(), Configuration.Provider {
                     Places.initialize(applicationContext, apiKey)
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             // Silently handle Places initialization errors
         }
     }

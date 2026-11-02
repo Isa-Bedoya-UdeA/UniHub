@@ -24,12 +24,15 @@ object LocationModule {
 
     @Provides
     @Singleton
-    fun providePlacesClient(@ApplicationContext context: Context): PlacesClient {
-        check(Places.isInitialized()) {
-            "Places SDK must be initialized before creating PlacesClient. " +
-                "Ensure UniHubApplication.initializePlaces() runs before Hilt injection."
+    fun providePlacesClient(@ApplicationContext context: Context): PlacesClient? {
+        return try {
+            if (Places.isInitialized()) {
+                Places.createClient(context)
+            } else {
+                null
+            }
+        } catch (e: Throwable) {
+            null
         }
-        
-        return Places.createClient(context)
     }
 }
