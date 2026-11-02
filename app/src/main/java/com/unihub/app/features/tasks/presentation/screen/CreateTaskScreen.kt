@@ -32,7 +32,8 @@ import com.unihub.app.features.tasks.presentation.viewmodel.TaskFormEvent
 import com.unihub.app.features.tasks.presentation.viewmodel.TaskFormViewModel
 import kotlinx.coroutines.flow.collectLatest
 import java.time.Instant
-import java.time.ZoneId
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -46,7 +47,6 @@ fun CreateTaskScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val datePickerState = rememberDatePickerState()
     var showDatePicker by remember { mutableStateOf(false) }
     var showMinutesPicker by remember { mutableStateOf(false) }
     var showHoursPicker by remember { mutableStateOf(false) }
@@ -78,12 +78,26 @@ fun CreateTaskScreen(
     }
 
     if (showDatePicker) {
+        val today = LocalDate.now()
+        val initialMillis = if (state.dueDate.isNotBlank()) {
+            try {
+                val parts = state.dueDate.split("-")
+                LocalDate.of(parts[2].toInt(), parts[1].toInt(), parts[0].toInt())
+                    .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            } catch (e: Exception) {
+                today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            }
+        } else {
+            today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        }
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let {
-                        val date = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                        val date = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
                         val formatted = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
                         viewModel.onEvent(TaskFormEvent.EnteredDueDate(formatted))
                     }

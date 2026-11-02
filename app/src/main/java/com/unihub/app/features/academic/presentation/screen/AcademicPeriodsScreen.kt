@@ -28,7 +28,7 @@ import com.unihub.app.features.academic.domain.model.AcademicPeriod
 import com.unihub.app.features.academic.presentation.viewmodel.AcademicViewModel
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
@@ -217,38 +217,63 @@ fun PeriodDialog(
     var endDateText by remember { mutableStateOf(period?.endDate ?: "") }
     var nameError by remember { mutableStateOf<String?>(null) }
 
-    val datePickerState = rememberDatePickerState()
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
 
     if (showStartDatePicker) {
+        val today = LocalDate.now()
+        val initialMillis = if (startDateText.isNotBlank()) {
+            try {
+                val parts = startDateText.split("-")
+                LocalDate.of(parts[2].toInt(), parts[1].toInt(), parts[0].toInt())
+                    .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            } catch (e: Exception) {
+                today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            }
+        } else {
+            today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        }
+        val startDatePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
         DatePickerDialog(
             onDismissRequest = { showStartDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let {
-                        val date = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                    startDatePickerState.selectedDateMillis?.let {
+                        val date = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
                         startDateText = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
                     }
                     showStartDatePicker = false
                 }) { Text("Aceptar") }
             }
-        ) { DatePicker(state = datePickerState) }
+        ) { DatePicker(state = startDatePickerState) }
     }
 
     if (showEndDatePicker) {
+        val today = LocalDate.now()
+        val initialMillis = if (endDateText.isNotBlank()) {
+            try {
+                val parts = endDateText.split("-")
+                LocalDate.of(parts[2].toInt(), parts[1].toInt(), parts[0].toInt())
+                    .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            } catch (e: Exception) {
+                today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            }
+        } else {
+            today.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        }
+        val endDatePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
         DatePickerDialog(
             onDismissRequest = { showEndDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let {
-                        val date = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+                    endDatePickerState.selectedDateMillis?.let {
+                        val date = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
                         endDateText = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))
                     }
                     showEndDatePicker = false
                 }) { Text("Aceptar") }
             }
-        ) { DatePicker(state = datePickerState) }
+        ) { DatePicker(state = endDatePickerState) }
     }
 
     UniHubDialog(onDismissRequest = onDismiss) {
