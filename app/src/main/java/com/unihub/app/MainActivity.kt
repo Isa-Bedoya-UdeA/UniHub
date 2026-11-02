@@ -10,14 +10,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
 import com.unihub.app.core.common.permission.RequestNotificationPermission
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.core.navigation.AppNavigation
 import com.unihub.app.core.navigation.Screen
+import com.unihub.app.core.util.PreferencesManager
 import com.unihub.app.features.settings.domain.model.ThemeMode
-import com.unihub.app.features.settings.presentation.viewmodel.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -31,17 +30,15 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val navController = rememberNavController()
-            val settingsViewModel: SettingsViewModel = hiltViewModel()
-            val settingsState by settingsViewModel.state.collectAsState()
             val context = androidx.compose.ui.platform.LocalContext.current
             
-            val cachedTheme = androidx.compose.runtime.remember {
-                com.unihub.app.core.util.PreferencesManager.getThemeMode(context)?.let {
+            val initialThemeMode = androidx.compose.runtime.remember {
+                PreferencesManager.getThemeMode(context)?.let {
                     runCatching { ThemeMode.valueOf(it) }.getOrNull()
-                }
+                } ?: ThemeMode.SYSTEM
             }
-            
-            val effectiveTheme = settingsState.userPreferences?.themeMode ?: cachedTheme ?: ThemeMode.SYSTEM
+            val themeMode by PreferencesManager.themeModeFlow.collectAsState()
+            val effectiveTheme = themeMode ?: initialThemeMode
             
             val isDarkTheme = when (effectiveTheme) {
                 ThemeMode.DARK -> true

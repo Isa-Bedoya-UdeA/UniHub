@@ -26,7 +26,11 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override fun getUserPreferences(userId: String): Flow<UserPreferences?> {
         return localDataSource.getUserPreferences(userId).map { entity ->
-            entity?.toDomain()
+            val domain = entity?.toDomain()
+            if (domain != null) {
+                PreferencesManager.setThemeMode(context, domain.themeMode.name)
+            }
+            domain
         }
     }
 

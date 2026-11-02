@@ -54,7 +54,9 @@ class SettingsViewModel @Inject constructor(
     val uiEvent = _uiEvent.asSharedFlow()
 
     init {
-        loadUserPreferences(currentUserId)
+        if (currentUserId != "current_user") {
+            loadUserPreferences(currentUserId)
+        }
         loadCurrentUser()
         observeAuthState()
     }
@@ -64,7 +66,7 @@ class SettingsViewModel @Inject constructor(
             observeAuthStateUseCase().collect { authState ->
                 if (authState is AuthState.Authenticated) {
                     val uid = authState.uid
-                    if (uid != currentUserId) {
+                    if (uid != currentUserId || _state.value.userPreferences == null) {
                         currentUserId = uid
                         loadUserPreferences(uid)
                         loadCurrentUser()
@@ -75,10 +77,15 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun loadUserPreferences(uid: String) {
+        if (uid.isBlank() || uid == "current_user") return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            if (uid != "current_user") {
-                settingsRepository.syncPreferences(uid)
+            launch {
+                try {
+                    settingsRepository.syncPreferences(uid)
+                } catch (e: Exception) {
+                    android.util.Log.e("SettingsViewModel", "syncPreferences failed: ${e.message}")
+                }
             }
             getUserPreferencesUseCase(uid)
                 .catch { e ->
