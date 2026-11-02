@@ -21,6 +21,9 @@ interface EventDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEvent(event: EventEntity)
 
+    @Update
+    suspend fun updateEvent(event: EventEntity)
+
     @Query("DELETE FROM Event WHERE event_id = :id")
     suspend fun deleteEvent(id: String)
 

@@ -1,19 +1,23 @@
 package com.unihub.app.core.designsystem.component.ai
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,6 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.ai.domain.model.AiActionType
@@ -56,29 +63,54 @@ private fun UserMessageBubble(
     message: AiMessage,
     modifier: Modifier = Modifier
 ) {
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.CenterEnd
     ) {
-        Box(
-            modifier = Modifier
-                .widthIn(max = 320.dp)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = 16.dp,
-                        bottomEnd = 4.dp
-                    )
-                )
-                .background(UniHubTheme.colorScheme.primary)
-                .padding(UniHubTheme.spacing.md)
+        Row(
+            modifier = Modifier.widthIn(max = 330.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.End
         ) {
-            Text(
-                text = message.content,
-                style = UniHubTheme.typography.body,
-                color = Color.White
-            )
+            IconButton(
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(message.content))
+                    Toast.makeText(context, "Mensaje copiado", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ContentCopy,
+                    contentDescription = "Copiar mensaje",
+                    tint = UniHubTheme.colorScheme.textDisabled,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+            Box(
+                modifier = Modifier
+                    .clip(
+                        RoundedCornerShape(
+                            topStart = 16.dp,
+                            topEnd = 16.dp,
+                            bottomStart = 16.dp,
+                            bottomEnd = 4.dp
+                        )
+                    )
+                    .background(UniHubTheme.colorScheme.primary)
+                    .padding(UniHubTheme.spacing.md)
+            ) {
+                SelectionContainer {
+                    Text(
+                        text = message.content,
+                        style = UniHubTheme.typography.body,
+                        color = Color.White
+                    )
+                }
+            }
         }
     }
 }
@@ -91,6 +123,9 @@ private fun AssistantMessageBubble(
     onCancelAction: (() -> Unit)? = null,
     isActionActive: Boolean = true
 ) {
+    val clipboardManager = LocalClipboardManager.current
+    val context = LocalContext.current
+
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.CenterStart
@@ -131,11 +166,13 @@ private fun AssistantMessageBubble(
                         .padding(UniHubTheme.spacing.md)
                 ) {
                     Column {
-                        Text(
-                            text = com.unihub.app.core.util.MarkdownUtils.parseMarkdown(message.content),
-                            style = UniHubTheme.typography.body,
-                            color = UniHubTheme.colorScheme.textPrimary
-                        )
+                        SelectionContainer {
+                            Text(
+                                text = com.unihub.app.core.util.MarkdownUtils.parseMarkdown(message.content),
+                                style = UniHubTheme.typography.body,
+                                color = UniHubTheme.colorScheme.textPrimary
+                            )
+                        }
 
                         // If message has structured items to confirm
                         val pending = message.pendingAction
@@ -152,14 +189,33 @@ private fun AssistantMessageBubble(
                     }
                 }
 
-                if (message.source == AiResponseSource.LOCAL_FALLBACK) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "⚡ Respuesta local UniHub",
-                        style = UniHubTheme.typography.label,
-                        color = UniHubTheme.colorScheme.textDisabled,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+                    IconButton(
+                        onClick = {
+                            clipboardManager.setText(AnnotatedString(message.content))
+                            Toast.makeText(context, "Respuesta copiada", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copiar respuesta",
+                            tint = UniHubTheme.colorScheme.textDisabled,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+
+                    if (message.source == AiResponseSource.LOCAL_FALLBACK) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "⚡ Respuesta local UniHub",
+                            style = UniHubTheme.typography.label,
+                            color = UniHubTheme.colorScheme.textDisabled
+                        )
+                    }
                 }
             }
         }
@@ -312,11 +368,13 @@ private fun SystemMessageBubble(
                     )
                     .padding(UniHubTheme.spacing.md)
             ) {
-                Text(
-                    text = com.unihub.app.core.util.MarkdownUtils.parseMarkdown(message.content),
-                    style = UniHubTheme.typography.body,
-                    color = UniHubTheme.colorScheme.textPrimary
-                )
+                SelectionContainer {
+                    Text(
+                        text = com.unihub.app.core.util.MarkdownUtils.parseMarkdown(message.content),
+                        style = UniHubTheme.typography.body,
+                        color = UniHubTheme.colorScheme.textPrimary
+                    )
+                }
             }
         }
     }
@@ -370,11 +428,13 @@ private fun ErrorMessageBubble(
                     )
                     .padding(UniHubTheme.spacing.md)
             ) {
-                Text(
-                    text = message.content,
-                    style = UniHubTheme.typography.body,
-                    color = UniHubTheme.colorScheme.error
-                )
+                SelectionContainer {
+                    Text(
+                        text = message.content,
+                        style = UniHubTheme.typography.body,
+                        color = UniHubTheme.colorScheme.error
+                    )
+                }
             }
         }
     }

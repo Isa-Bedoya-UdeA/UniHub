@@ -3,6 +3,7 @@ package com.unihub.app.core.designsystem.component.ai
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -10,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.unit.dp
 import com.unihub.app.core.designsystem.component.foundation.UniHubTextField
 import com.unihub.app.core.designsystem.theme.UniHubTheme
@@ -23,6 +25,8 @@ fun UniHubAIAssistantInput(
     enabled: Boolean = true,
     placeholder: String = "Pregúntale al asistente UniHub..."
 ) {
+    val clipboardManager = LocalClipboardManager.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -40,6 +44,28 @@ fun UniHubAIAssistantInput(
             imeAction = androidx.compose.ui.text.input.ImeAction.Send,
             onImeAction = onSend
         )
+
+        if (value.isBlank()) {
+            IconButton(
+                onClick = {
+                    val clip = clipboardManager.getText()?.text
+                    if (!clip.isNullOrBlank()) {
+                        onValueChange(clip)
+                    }
+                },
+                enabled = enabled,
+                modifier = Modifier.size(48.dp),
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = UniHubTheme.colorScheme.cards,
+                    contentColor = UniHubTheme.colorScheme.primary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ContentPaste,
+                    contentDescription = "Pegar portapapeles"
+                )
+            }
+        }
 
         IconButton(
             onClick = onSend,

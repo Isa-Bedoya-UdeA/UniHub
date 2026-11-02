@@ -28,6 +28,9 @@ class EventLocalDataSource @Inject constructor(
     suspend fun insertEvent(event: EventEntity) =
         eventDao.insertEvent(event)
 
+    suspend fun updateEvent(event: EventEntity) =
+        eventDao.updateEvent(event)
+
     suspend fun deleteEvent(id: String) =
         eventDao.deleteEvent(id)
 

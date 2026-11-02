@@ -32,8 +32,8 @@ class UpdateEventUseCase @Inject constructor(
     private val scheduleEventReminderUseCase: ScheduleEventReminderUseCase
 ) {
     suspend operator fun invoke(event: Event) {
-        repository.saveReminders(event.id, event.reminders)
         repository.updateEvent(event)
+        repository.saveReminders(event.id, event.reminders)
         scheduleEventReminderUseCase(event)
     }
 }

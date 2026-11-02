@@ -310,6 +310,7 @@ fun ActivityCard(
     meetingUrl: String? = null,
     onMeetingUrlClick: ((String) -> Unit)? = null
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     UniHubCard(padding = 0.dp, onClick = onClick) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
             Box(modifier = Modifier.width(6.dp).fillMaxHeight().background(color))
@@ -344,7 +345,19 @@ fun ActivityCard(
                             modifier = Modifier
                                 .clip(UniHubTheme.shape.sm)
                                 .background(UniHubTheme.colorScheme.primary.copy(0.1f))
-                                .clickable { onMeetingUrlClick?.invoke(meetingUrl) }
+                                .clickable {
+                                    if (onMeetingUrlClick != null) {
+                                        onMeetingUrlClick(meetingUrl)
+                                    } else {
+                                        try {
+                                            val uri = android.net.Uri.parse(meetingUrl)
+                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("ActivityCard", "Error opening meeting URL", e)
+                                        }
+                                    }
+                                }
                                 .padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -369,6 +382,7 @@ fun TaskCard(
     onToggle: () -> Unit,
     onClick: () -> Unit = {}
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     UniHubCard(padding = 0.dp, onClick = onClick) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
             Box(

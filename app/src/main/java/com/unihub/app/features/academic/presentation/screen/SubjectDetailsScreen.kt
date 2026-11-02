@@ -53,6 +53,16 @@ fun SubjectDetailsScreen(
     viewModel: SubjectDetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val openMeetingUrl: (String) -> Unit = { url ->
+        try {
+            val uri = android.net.Uri.parse(url)
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            android.util.Log.e("SubjectDetailsScreen", "Error opening meeting URL", e)
+        }
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     var showFabMenu by remember { mutableStateOf(false) }
     var showRepeatDialog by remember { mutableStateOf(false) }
@@ -308,7 +318,8 @@ fun SubjectDetailsScreen(
                     location = if (nextClass.locationType == com.unihub.app.features.events.domain.model.LocationType.PHYSICAL) nextClass.notes else null,
                     meetingUrl = if (nextClass.locationType == com.unihub.app.features.events.domain.model.LocationType.REMOTE) nextClass.meetingUrl else null,
                     color = subjectColor,
-                    onClick = { onNavigateToEvent(nextClass.id) }
+                    onClick = { onNavigateToEvent(nextClass.id) },
+                    onMeetingUrlClick = openMeetingUrl
                 )
 
                 Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
@@ -327,7 +338,8 @@ fun SubjectDetailsScreen(
                         location = if (event.locationType == com.unihub.app.features.events.domain.model.LocationType.PHYSICAL) event.notes else null,
                         meetingUrl = if (event.locationType == com.unihub.app.features.events.domain.model.LocationType.REMOTE) event.meetingUrl else null,
                         color = subjectColor,
-                        onClick = { onNavigateToEvent(event.id) }
+                        onClick = { onNavigateToEvent(event.id) },
+                        onMeetingUrlClick = openMeetingUrl
                     )
                     Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
                 }

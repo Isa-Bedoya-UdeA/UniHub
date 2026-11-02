@@ -96,8 +96,7 @@ class EventRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateEvent(event: Event) {
-        
-        localDataSource.insertEvent(event.toEntity())
+        localDataSource.updateEvent(event.toEntity())
         
         try {
             val dto = event.toDto()
