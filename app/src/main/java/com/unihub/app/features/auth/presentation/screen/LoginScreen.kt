@@ -1,5 +1,9 @@
 package com.unihub.app.features.auth.presentation.screen
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
@@ -96,7 +101,8 @@ fun LoginScreen(
                 onClick = {
                     scope.launch {
                         try {
-                            val credentialManager = CredentialManager.create(context)
+                            val activity = context.findActivity() ?: context
+                            val credentialManager = CredentialManager.create(activity)
                             val webClientId = context.getString(R.string.default_web_client_id)
                             val googleIdOption = GetGoogleIdOption.Builder()
                                 .setServerClientId(webClientId)
@@ -107,7 +113,7 @@ fun LoginScreen(
                                 .addCredentialOption(googleIdOption)
                                 .build()
 
-                            val result = credentialManager.getCredential(context, request)
+                            val result = credentialManager.getCredential(activity, request)
                             val credential = result.credential
 
                             if (credential is androidx.credentials.CustomCredential &&
@@ -115,11 +121,18 @@ fun LoginScreen(
                             ) {
                                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                                 viewModel.signInWithGoogle(googleIdTokenCredential.idToken)
+                            } else {
+                                Log.w("LoginScreen", "Credencial no reconocida: ${credential::class.java.name}")
+                                viewModel.onSignInError("Tipo de credencial no soportado")
                             }
+                        } catch (e: GetCredentialCancellationException) {
+                            Log.d("LoginScreen", "Inicio de sesión cancelado por el usuario")
                         } catch (e: GetCredentialException) {
-                            // User cancelled or no credential available - do nothing
+                            Log.e("LoginScreen", "GetCredentialException: ${e.type} - ${e.message}", e)
+                            viewModel.onSignInError("Error al conectar con Google (${e.type}): ${e.message ?: "Verifica la configuración de Firebase y Google Play Services"}")
                         } catch (e: Exception) {
-                            // Error handled by ViewModel
+                            Log.e("LoginScreen", "Error inesperado en inicio de sesión", e)
+                            viewModel.onSignInError("Error inesperado: ${e.message ?: e.javaClass.simpleName}")
                         }
                     }
                 },
@@ -137,4 +150,10 @@ fun LoginScreen(
             )
         }
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
