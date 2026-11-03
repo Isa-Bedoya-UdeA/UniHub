@@ -2,7 +2,17 @@ package com.unihub.app.features.events.domain.model
 
 enum class LocationType { PHYSICAL, REMOTE, NONE }
 
-enum class EventType { CLASS, EXAM, MEETING, PERSONAL, OTHER }
+enum class EventType {
+    CLASS, EXAM, MEETING, PERSONAL, OTHER;
+
+    fun displayName(): String = when (this) {
+        CLASS -> "Clase"
+        EXAM -> "Examen"
+        MEETING -> "Reunión"
+        PERSONAL -> "Personal"
+        OTHER -> "Otro"
+    }
+}
 
 data class Event(
     val id: String,

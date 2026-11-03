@@ -106,15 +106,16 @@ fun EventDetailsScreen(
                     },
                     color = UniHubTheme.colorScheme.secondary
                 )
+                val (eventLabel, eventColor) = when(event.eventType) {
+                    com.unihub.app.features.events.domain.model.EventType.CLASS -> "Clase" to UniHubTheme.colorScheme.secondary
+                    com.unihub.app.features.events.domain.model.EventType.EXAM -> "Examen" to UniHubTheme.colorScheme.error
+                    com.unihub.app.features.events.domain.model.EventType.MEETING -> "Reunión" to UniHubTheme.colorScheme.primary
+                    com.unihub.app.features.events.domain.model.EventType.PERSONAL -> "Personal" to UniHubTheme.colorScheme.accent
+                    com.unihub.app.features.events.domain.model.EventType.OTHER -> "Otro" to UniHubTheme.colorScheme.warning
+                }
                 TypeBadge(
-                    text = when(event.eventType) {
-                        com.unihub.app.features.events.domain.model.EventType.CLASS -> "Clase"
-                        com.unihub.app.features.events.domain.model.EventType.EXAM -> "Examen"
-                        com.unihub.app.features.events.domain.model.EventType.MEETING -> "Reunión"
-                        com.unihub.app.features.events.domain.model.EventType.PERSONAL -> "Personal"
-                        com.unihub.app.features.events.domain.model.EventType.OTHER -> "Otro"
-                    },
-                    color = UniHubTheme.colorScheme.accent
+                    text = eventLabel,
+                    color = eventColor
                 )
             }
             

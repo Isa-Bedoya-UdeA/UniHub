@@ -369,7 +369,7 @@ fun DailyEvents(date: LocalDate, events: List<Event>, onEventClick: (String) -> 
             dayEvents.forEach { event ->
                 ActivityCard(
                     title = event.title,
-                    isClass = event.subjectId != null,
+                    eventType = event.eventType,
                     time = if (event.startAt.contains("T")) "${event.startAt.split("T").last()} - ${event.endAt.split("T").last()}" else "Todo el día",
                     location = if (event.locationType == LocationType.PHYSICAL) event.notes else null,
                     meetingUrl = if (event.locationType == LocationType.REMOTE) event.meetingUrl else null,

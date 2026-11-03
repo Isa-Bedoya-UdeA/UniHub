@@ -35,6 +35,7 @@ import com.unihub.app.core.designsystem.component.foundation.UniHubButtonVariant
 import com.unihub.app.core.designsystem.component.foundation.UniHubCard
 import com.unihub.app.core.designsystem.theme.UniHubTheme
 import com.unihub.app.features.dashboard.presentation.viewmodel.DashboardViewModel
+import com.unihub.app.features.events.domain.model.EventType
 import com.unihub.app.features.events.domain.model.LocationType
 import java.time.LocalDate
 import java.time.ZoneId
@@ -224,7 +225,7 @@ private fun DashboardContent(
                 todayEvents.take(3).forEach { event ->
                     ActivityCard(
                         title = event.title,
-                        isClass = event.subjectId != null,
+                        eventType = event.eventType,
                         location = if (event.locationType == LocationType.PHYSICAL) event.notes else null,
                         meetingUrl = if (event.locationType == LocationType.REMOTE) event.meetingUrl else null,
                         time = if (event.startAt.contains("T")) "${event.startAt.split("T").last()} - ${event.endAt.split("T").last()}" else "Todo el día",
@@ -249,7 +250,7 @@ private fun DashboardContent(
                 otherEvents.take(3 - todayEvents.size).forEach { event ->
                     ActivityCard(
                         title = event.title,
-                        isClass = event.subjectId != null,
+                        eventType = event.eventType,
                         location = if (event.locationType == LocationType.PHYSICAL) event.notes else null,
                         meetingUrl = if (event.locationType == LocationType.REMOTE) event.meetingUrl else null,
                         time = if (event.startAt.contains("T")) "${event.startAt.split("T").last()} - ${event.endAt.split("T").last()}" else "Todo el día",
@@ -302,30 +303,39 @@ fun SectionHeader(title: String, onSeeAll: () -> Unit) {
 @Composable
 fun ActivityCard(
     title: String,
-    isClass: Boolean,
     time: String,
     color: Color,
     onClick: () -> Unit,
+    eventType: EventType? = null,
+    isClass: Boolean = false,
     location: String? = null,
     meetingUrl: String? = null,
     onMeetingUrlClick: ((String) -> Unit)? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val resolvedType = eventType ?: if (isClass) EventType.CLASS else null
     UniHubCard(padding = 0.dp, onClick = onClick) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
             Box(modifier = Modifier.width(6.dp).fillMaxHeight().background(color))
             Column(modifier = Modifier.padding(UniHubTheme.spacing.md).weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = title, style = UniHubTheme.typography.h4)
-                    if (isClass) {
+                    if (resolvedType != null) {
+                        val (label, badgeColor) = when (resolvedType) {
+                            EventType.CLASS -> "Clase" to UniHubTheme.colorScheme.secondary
+                            EventType.EXAM -> "Examen" to UniHubTheme.colorScheme.error
+                            EventType.MEETING -> "Reunión" to UniHubTheme.colorScheme.primary
+                            EventType.PERSONAL -> "Personal" to UniHubTheme.colorScheme.accent
+                            EventType.OTHER -> "Otro" to UniHubTheme.colorScheme.warning
+                        }
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
                                 .clip(CircleShape)
-                                .background(UniHubTheme.colorScheme.secondary.copy(alpha = 0.1f))
+                                .background(badgeColor.copy(alpha = 0.1f))
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
-                            Text("Clase", style = UniHubTheme.typography.label, color = UniHubTheme.colorScheme.secondary)
+                            Text(label, style = UniHubTheme.typography.label, color = badgeColor)
                         }
                     }
                 }

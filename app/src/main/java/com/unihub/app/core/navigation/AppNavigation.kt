@@ -238,6 +238,9 @@ fun AppNavigation(
                     },
                     onNavigateToCreateEvent = {
                         navController.navigate(Screen.CreateEvent.createRoute(subjectId = subjectId))
+                    },
+                    onNavigateToEditSubject = { id ->
+                        navController.navigate(Screen.EditSubject.createRoute(id))
                     }
                 )
             }

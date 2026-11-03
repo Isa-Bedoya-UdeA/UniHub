@@ -50,6 +50,7 @@ fun SubjectDetailsScreen(
     onNavigateToTaskDetail: (String) -> Unit,
     onNavigateToSimulator: () -> Unit,
     onNavigateToCreateEvent: () -> Unit,
+    onNavigateToEditSubject: ((String) -> Unit)? = null,
     viewModel: SubjectDetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -203,6 +204,9 @@ fun SubjectDetailsScreen(
 
             Row(horizontalArrangement = Arrangement.spacedBy(UniHubTheme.spacing.xs)) {
                 SubjectBadge(text = subject.code ?: "SIN CÓDIGO", color = subjectColor)
+                subject.credits?.let { credits ->
+                    SubjectBadge(text = "$credits créditos", color = UniHubTheme.colorScheme.secondary)
+                }
                 if (subject.isCompleted) {
                     SubjectBadge(text = "Terminada", color = UniHubTheme.colorScheme.success)
                 } else {
@@ -212,8 +216,53 @@ fun SubjectDetailsScreen(
             
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.sm))
             
-            Text(text = subject.name, style = UniHubTheme.typography.h1)
-            Text(text = subject.professor ?: "Sin profesor", style = UniHubTheme.typography.body, color = UniHubTheme.colorScheme.textSecondary)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = subject.name, style = UniHubTheme.typography.h1)
+                    Text(text = subject.professor ?: "Sin profesor", style = UniHubTheme.typography.body, color = UniHubTheme.colorScheme.textSecondary)
+                }
+                if (onNavigateToEditSubject != null) {
+                    IconButton(onClick = { onNavigateToEditSubject(subject.id) }) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Editar Materia",
+                            tint = UniHubTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            if (!subject.notes.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(UniHubTheme.spacing.md))
+                UniHubCard(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = null,
+                                tint = subjectColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(UniHubTheme.spacing.xs))
+                            Text(
+                                text = "Descripción",
+                                style = UniHubTheme.typography.label,
+                                color = UniHubTheme.colorScheme.textSecondary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(UniHubTheme.spacing.xs))
+                        Text(
+                            text = subject.notes,
+                            style = UniHubTheme.typography.body,
+                            color = UniHubTheme.colorScheme.textPrimary
+                        )
+                    }
+                }
+            }
             
             Spacer(modifier = Modifier.height(UniHubTheme.spacing.xl))
             
@@ -313,7 +362,7 @@ fun SubjectDetailsScreen(
                 val nextClass = state.nextClass!!
                 ActivityCard(
                     title = nextClass.title,
-                    isClass = true,
+                    eventType = nextClass.eventType,
                     time = if (nextClass.startAt.contains("T")) "${nextClass.startAt.split("T").last()} - ${nextClass.endAt.split("T").last()}" else "Todo el día",
                     location = if (nextClass.locationType == com.unihub.app.features.events.domain.model.LocationType.PHYSICAL) nextClass.notes else null,
                     meetingUrl = if (nextClass.locationType == com.unihub.app.features.events.domain.model.LocationType.REMOTE) nextClass.meetingUrl else null,
@@ -333,7 +382,7 @@ fun SubjectDetailsScreen(
                 upcomingEvents.forEach { event ->
                     ActivityCard(
                         title = event.title,
-                        isClass = event.eventType == com.unihub.app.features.events.domain.model.EventType.CLASS,
+                        eventType = event.eventType,
                         time = if (event.startAt.contains("T")) "${event.startAt.split("T").first()} ${event.startAt.split("T").last()}" else event.startAt,
                         location = if (event.locationType == com.unihub.app.features.events.domain.model.LocationType.PHYSICAL) event.notes else null,
                         meetingUrl = if (event.locationType == com.unihub.app.features.events.domain.model.LocationType.REMOTE) event.meetingUrl else null,

@@ -185,8 +185,8 @@ fun CreateSubjectScreen(
         UniHubTextArea(
             value = state.notes,
             onValueChange = { viewModel.onEvent(SubjectFormEvent.EnteredNotes(it)) },
-            label = "Notas (Opcional)",
-            placeholder = "Información adicional...",
+            label = "Descripción (Opcional)",
+            placeholder = "Descripción o información adicional...",
             modifier = Modifier.fillMaxWidth()
         )
 
