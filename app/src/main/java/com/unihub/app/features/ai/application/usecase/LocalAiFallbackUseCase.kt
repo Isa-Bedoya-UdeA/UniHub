@@ -32,6 +32,10 @@ class LocalAiFallbackUseCase @Inject constructor(
             return null
         }
 
+        if (isConversationalOrQuestion(normalized)) {
+            return null
+        }
+
         if (isDailyPlanRequest(normalized)) {
             return buildDailyPlan(userId)
         }
@@ -57,17 +61,23 @@ class LocalAiFallbackUseCase @Inject constructor(
 
     suspend fun handleFallbackForFailedAi(input: String, userId: String): String? {
         val normalized = normalizeInput(input)
-        if (normalized.contains("evento") || normalized.contains("clase")) {
+        if (isConversationalOrQuestion(normalized)) {
+            return null
+        }
+        if (isDailyPlanRequest(normalized)) {
+            return buildDailyPlan(userId)
+        }
+        if (isEventsAndTasksRequest(normalized)) {
+            return buildEventsAndTasksResponse(userId)
+        }
+        if (isEventsRequest(normalized)) {
             return buildEventsResponse(userId)
         }
-        if (normalized.contains("tarea") || normalized.contains("pendiente")) {
+        if (isTasksRequest(normalized)) {
             return buildTasksResponse(userId)
         }
-        if (normalized.contains("materia") || normalized.contains("asignatura")) {
+        if (isSubjectsRequest(normalized)) {
             return buildSubjectsResponse(userId)
-        }
-        if (normalized.contains("plan") || normalized.contains("agenda") || normalized.contains("horario")) {
-            return buildDailyPlan(userId)
         }
         return null
     }
@@ -78,6 +88,30 @@ class LocalAiFallbackUseCase @Inject constructor(
             .replace(Regex("[^a-z0-9\\s]"), " ")
             .replace(Regex("\\s+"), " ")
             .trim()
+    }
+
+    private fun isConversationalOrQuestion(input: String): Boolean {
+        val conversationalKeywords = listOf(
+            "app", "apps", "aplicacion", "aplicaciones", "herramienta", "herramientas",
+            "juego", "juegos", "estudiar", "estudio", "repasar", "repaso", "aprender",
+            "aprendizaje", "explicar", "explica", "explicame", "recomienda", "recomiendame",
+            "recomendacion", "recomendaciones", "sugiere", "sugerencia", "sugerencias",
+            "ayuda", "ayudame", "consejo", "consejos", "tip", "tips", "resumen", "resumir",
+            "resumeme", "como puedo", "como se", "por que", "porque", "para que", "sirve",
+            "sirva", "servir", "pagina", "paginas", "web", "libro", "libros", "video",
+            "videos", "tutorial", "tutoriales", "guia", "guias", "ejemplo", "ejemplos",
+            "hay alguna", "hay algun", "existe alguna", "existe algun", "conoces",
+            "dime sobre", "cuentame", "que opinas", "que piensas", "diferencia entre",
+            "concepto", "significa", "teoria", "practicar", "metodo", "tecnica"
+        )
+
+        return conversationalKeywords.any { keyword ->
+            if (keyword.contains(" ")) {
+                input.contains(keyword)
+            } else {
+                "\\b${Regex.escape(keyword)}\\b".toRegex().containsMatchIn(input)
+            }
+        }
     }
 
     private fun isMutationIntent(input: String): Boolean {
@@ -121,33 +155,91 @@ class LocalAiFallbackUseCase @Inject constructor(
     }
 
     private fun isEventsRequest(input: String): Boolean {
-        return input.contains("evento") || input.contains("eventos") ||
-                input.contains("que tengo hoy") || input.contains("eventos hoy") ||
-                input.contains("eventos manana") || input.contains("que eventos tengo") ||
-                input.contains("mi agenda de hoy") || input.contains("mis eventos")
+        if (input.contains("tarea") || input.contains("tareas") || input.contains("pendiente") || input.contains("pendientes")) {
+            return false
+        }
+
+        val exactMatches = setOf("evento", "eventos", "mis eventos", "clase", "clases", "mis clases", "agenda", "mi agenda")
+        if (exactMatches.contains(input)) return true
+
+        val eventPatterns = listOf(
+            "\\b(que|cuales)\\s+(son\\s+)?(mis\\s+)?(eventos|clases)\\b".toRegex(),
+            "\\b(que|cuales)\\s+(eventos|clases)\\s+tengo\\b".toRegex(),
+            "\\b(mis\\s+)?(eventos|clases)\\s+(de\\s+hoy|para\\s+hoy|de\\s+ma[nñ]ana|para\\s+ma[nñ]ana)\\b".toRegex(),
+            "\\b(ver|mostrar|listar|dime|revisar)\\s+(mis\\s+)?(eventos|clases)\\b".toRegex(),
+            "\\bque\\s+tengo\\s+hoy\\b".toRegex(),
+            "\\beventos\\s+(de\\s+)?(hoy|ma[nñ]ana)\\b".toRegex(),
+            "\\bclases\\s+(de\\s+)?(hoy|ma[nñ]ana)\\b".toRegex(),
+            "\\bmi\\s+agenda\\s+(de\\s+)?hoy\\b".toRegex(),
+            "\\bmis\\s+eventos\\b".toRegex(),
+            "\\bmis\\s+clases\\b".toRegex()
+        )
+
+        return eventPatterns.any { it.containsMatchIn(input) }
     }
 
     private fun isTasksRequest(input: String): Boolean {
-        return (input.contains("tarea") || input.contains("tareas") || input.contains("pendiente") || input.contains("pendientes")) &&
-                !input.contains("evento") && !input.contains("eventos")
+        if (input.contains("evento") || input.contains("eventos")) return false
+
+        val exactMatches = setOf("tarea", "tareas", "mis tareas", "pendiente", "pendientes", "mis pendientes", "tareas pendientes")
+        if (exactMatches.contains(input)) return true
+
+        val taskPatterns = listOf(
+            "\\b(que|cuales)\\s+(son\\s+)?(mis\\s+)?(tareas|pendientes)\\b".toRegex(),
+            "\\b(que|cuales)\\s+(tareas|pendientes)\\s+tengo\\b".toRegex(),
+            "\\b(mis\\s+)?(tareas|pendientes)\\s+(de\\s+hoy|para\\s+hoy|de\\s+ma[nñ]ana|para\\s+ma[nñ]ana)\\b".toRegex(),
+            "\\b(ver|mostrar|listar|dime|revisar)\\s+(mis\\s+)?(tareas|pendientes)\\b".toRegex(),
+            "\\btengo\\s+(alguna\\s+)?(tareas|pendientes|tarea|pendiente)\\b".toRegex(),
+            "\\btareas\\s+pendientes\\b".toRegex(),
+            "\\bmis\\s+tareas\\b".toRegex(),
+            "\\bmis\\s+pendientes\\b".toRegex()
+        )
+
+        return taskPatterns.any { it.containsMatchIn(input) }
     }
 
     private fun isDailyPlanRequest(input: String): Boolean {
-        return input.contains("plan del dia") || input.contains("organiza mi dia") ||
-                input.contains("que tengo que hacer hoy") || input.contains("como esta mi dia") ||
-                input.contains("mi agenda") || input.contains("organiza mis actividades") ||
-                input.contains("plan de hoy")
+        val dailyPlanPatterns = listOf(
+            "\\bplan\\s+(del\\s+)?dia\\b".toRegex(),
+            "\\borganiza(r|me)?\\s+(mi\\s+)?dia\\b".toRegex(),
+            "\\bque\\s+tengo\\s+que\\s+hacer\\s+hoy\\b".toRegex(),
+            "\\bcomo\\s+esta\\s+mi\\s+dia\\b".toRegex(),
+            "\\b(mi\\s+)?agenda\\s+(de\\s+)?hoy\\b".toRegex(),
+            "\\borganiza(r|me)?\\s+mis\\s+actividades\\b".toRegex(),
+            "\\bplan\\s+de\\s+hoy\\b".toRegex(),
+            "\\bitinerario\\s+(de\\s+)?hoy\\b".toRegex()
+        )
+        return dailyPlanPatterns.any { it.containsMatchIn(input) }
     }
 
     private fun isEventsAndTasksRequest(input: String): Boolean {
-        return (input.contains("tarea") || input.contains("tareas")) && (input.contains("evento") || input.contains("eventos")) ||
-                input.contains("que tengo pendiente y que eventos tengo") || input.contains("mi agenda academica")
+        val exactMatches = setOf("agenda academica", "mi agenda academica")
+        if (exactMatches.contains(input)) return true
+
+        val combinedPatterns = listOf(
+            "\\b(tareas\\s+y\\s+eventos|eventos\\s+y\\s+tareas)\\b".toRegex(),
+            "\\b(clases\\s+y\\s+tareas|tareas\\s+y\\s+clases)\\b".toRegex(),
+            "\\bque\\s+tengo\\s+pendiente\\s+y\\s+que\\s+eventos\\s+tengo\\b".toRegex(),
+            "\\bmi\\s+agenda\\s+academica\\b".toRegex()
+        )
+        return combinedPatterns.any { it.containsMatchIn(input) }
     }
 
     private fun isSubjectsRequest(input: String): Boolean {
-        return input.contains("mis materias") || input.contains("materias actuales") ||
-                input.contains("que materias tengo") || input.contains("materias") ||
-                input.contains("mis asignaturas") || input.contains("que asignaturas tengo")
+        val exactMatches = setOf("materias", "mis materias", "asignaturas", "mis asignaturas", "cursos", "mis cursos")
+        if (exactMatches.contains(input)) return true
+
+        val subjectPatterns = listOf(
+            "\\b(que|cuales)\\s+(son\\s+)?(mis\\s+)?(materias|asignaturas|cursos)\\b".toRegex(),
+            "\\b(que|cuales)\\s+(materias|asignaturas|cursos)\\s+tengo\\b".toRegex(),
+            "\\b(materias|asignaturas|cursos)\\s+actuales\\b".toRegex(),
+            "\\b(ver|mostrar|listar|dime|revisar)\\s+(mis\\s+)?(materias|asignaturas|cursos)\\b".toRegex(),
+            "\\bmis\\s+materias\\b".toRegex(),
+            "\\bmis\\s+asignaturas\\b".toRegex(),
+            "\\bmis\\s+cursos\\b".toRegex()
+        )
+
+        return subjectPatterns.any { it.containsMatchIn(input) }
     }
 
     private suspend fun buildEventsResponse(userId: String): String {

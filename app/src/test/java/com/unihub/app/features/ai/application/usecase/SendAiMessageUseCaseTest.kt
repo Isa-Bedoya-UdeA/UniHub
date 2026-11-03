@@ -351,6 +351,39 @@ class SendAiMessageUseCaseTest {
         assertTrue(result.isSuccess)
         assertEquals(AiResponseSource.LOCAL_FALLBACK, result.getOrNull()?.source)
     }
+
+    @Test
+    fun `conversational query mentioning task and study tools delegates to AI repository`() = runBlocking {
+        val today = LocalDate.now(ZoneId.systemDefault()).toString()
+        tasksList = listOf(
+            Task(
+                id = "1", userId = "u1", academicPeriodId = null, subjectId = null,
+                title = "Tarea 1 (Sistema Óseo)", description = null, dueAt = "$today 08:00",
+                priority = TaskPriority.MEDIUM, status = TaskStatus.PENDING,
+                reminderType = null, reminderValue = null, isDeadlineReminderEnabled = false,
+                createdAt = "", updatedAt = ""
+            )
+        )
+        fakeRepository.response = "Te recomiendo herramientas como Anatomy Learning, Quizlet o Skeleton 3D Anatomy."
+        val query = "Hay alguna app o herramienta que sirva para estudiar con juegos el sistema Óseo (los huesos) para yo repasar para la tarea 1 de esta materia que tengo?"
+        val result = useCase(query)
+        assertTrue(result.isSuccess)
+        assertEquals(AiResponseSource.AI, result.getOrNull()?.source)
+        assertEquals("Te recomiendo herramientas como Anatomy Learning, Quizlet o Skeleton 3D Anatomy.", result.getOrNull()?.text)
+        assertFalse(result.getOrNull()?.text?.contains("Tareas pendientes") ?: false)
+    }
+
+    @Test
+    fun `conversational query when AI fails returns limited mode friendly message instead of tasks list`() = runBlocking {
+        fakeRepository.shouldFail = true
+        val query = "Hay alguna app o herramienta que sirva para estudiar con juegos el sistema Óseo (los huesos) para yo repasar para la tarea 1 de esta materia que tengo?"
+        val result = useCase(query)
+        assertTrue(result.isSuccess)
+        assertEquals(AiResponseSource.LIMITED_MODE, result.getOrNull()?.source)
+        val text = result.getOrNull()?.text ?: ""
+        assertFalse(text.contains("Tareas pendientes"))
+        assertTrue(text.contains("asistente externo no está disponible"))
+    }
 }
 
 class FakeAiRepository : AiRepository {
